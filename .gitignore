@@ -1,8 +1,7 @@
-node_modules/
+node_modules
 cache/
 artifacts/
 typechain-types/
-node_modules
 .env
 
 # Hardhat files
@@ -19,3 +18,8 @@ node_modules
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+
+.DS_Store
+dist
+dist-ssr
+*.local
