@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
-import { Signer, AddressLike, BigNumberish, ZeroAddress } from "ethers";
-import { Safe } from "../../typechain-types";
+import { type Signer, type AddressLike, type BigNumberish, ZeroAddress } from "ethers";
+import type { Safe } from "../../typechain-types";
 
 /**
  * Executes a transaction on the Safe contract.
@@ -11,14 +11,14 @@ import { Safe } from "../../typechain-types";
  * @param data - The data to send with the transaction.
  * @param operation - The operation type (0 for call, 1 for delegate call).
  */
-const execTransaction = async function (
+const execTransaction = async (
   wallets: Signer[],
   safe: Safe,
   to: AddressLike,
   value: BigNumberish,
   data: string,
   operation: number,
-): Promise<void> {
+): Promise<void> => {
   // Get the current nonce of the Safe contract
   const nonce = await safe.nonce();
 

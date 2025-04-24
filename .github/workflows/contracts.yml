@@ -21,6 +21,7 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build --workspace=contracts
+      - run: npm run lint ./contracts
       - run: npm run lint --workspace=contracts
       - run: npm run format --workspace=contracts -- --check
       - run: npm run test --workspace=contracts

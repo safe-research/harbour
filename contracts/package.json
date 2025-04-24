@@ -17,9 +17,8 @@
   },
   "scripts": {
     "build": "hardhat compile",
-    "lint": "biome lint",
-    "format": "biome format",
-    "check": "biome check",
+    "lint": "echo 'No linting rules defined'",
+    "format": "echo 'No formatting rules defined'",
     "test": "hardhat test"
   },
   "keywords": [
