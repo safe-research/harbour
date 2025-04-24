@@ -1,0 +1,26 @@
+name: Contracts CI
+
+on:
+  push:
+    paths:
+      - "contracts/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "contracts/**"
+      - ".github/workflows/**"
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace=contracts
+      - run: npm run lint --workspace=contracts
+      - run: npm run format --workspace=contracts -- --check
+      - run: npm run test --workspace=contracts

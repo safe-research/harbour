@@ -16,7 +16,11 @@
     "hardhat-gas-reporter": "^2.2.3"
   },
   "scripts": {
-    "test": "mocha"
+    "build": "hardhat compile",
+    "lint": "biome lint",
+    "format": "biome format",
+    "check": "biome check",
+    "test": "hardhat test"
   },
   "keywords": [
     "Safe",

@@ -1,0 +1,26 @@
+name: Webapp CI
+
+on:
+  push:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/**"
+
+jobs:
+  webapp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build --workspace=webapp
+      - run: npm run lint --workspace=webapp
+      - run: npm run format --workspace=webapp -- --check
+      - run: npm run test --workspace=webapp
