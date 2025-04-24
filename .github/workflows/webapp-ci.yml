@@ -21,6 +21,6 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build --workspace=webapp
-      - run: npm run lint -- ./webapp
-      - run: npm run format -- ./webapp --check
+      - run: npm run lint --workspace=webapp
+      - run: npm run format --workspace=webapp --check
       - run: npm run test --workspace=webapp
