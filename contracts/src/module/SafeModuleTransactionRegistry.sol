@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GNU GPLv3
-pragma solidity ^0.8.21;
+pragma solidity ^0.8.29;
 
 import {Safe} from "@safe-global/safe-contracts/contracts/Safe.sol";
 import {Enum} from "@safe-global/safe-contracts/contracts/common/Enum.sol";
@@ -66,6 +66,9 @@ contract SafeModuleTransactionRegistry {
         keccak256(
             "SafeModuleTransactionRegistry(address to,uint256 value,bytes data,uint8 operation,uint256 nonce)"
         );
+
+    /// @notice EIP-712 domain separator for this module.
+    bytes32 private immutable DOMAIN_SEPARATOR;
 
     /// @notice Tracks the current execution nonce for each Safe.
     /// @dev Increments after each successful execution of a queued transaction.
@@ -153,6 +156,21 @@ contract SafeModuleTransactionRegistry {
     /// @notice Reverts when attempting to register or execute a transaction with no signatures.
     error EmptySignatures();
 
+    /// @notice Initializes the EIP-712 domain separator.
+    constructor() {
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256(bytes(NAME)),
+                keccak256(bytes(VERSION)),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
     /**
      * @notice Registers a new transaction to be executed later.
      * @param safe The Safe wallet address.
@@ -168,20 +186,19 @@ contract SafeModuleTransactionRegistry {
             revert EmptySignatures();
         }
 
-        bytes32 hash = hashMessage(safeModuleTransaction.transaction);
-
-        bytes32 moduleTxHash = keccak256(
-            abi.encodePacked("\x19\x01", getDomainSeparator(), hash)
-        );
-
-        bytes memory signatures = encodeSignatures(
-            safeModuleTransaction.signatures
-        );
+        (
+            bytes32 structHash,
+            bytes32 moduleTxHash,
+            bytes memory signatures
+        ) = _packModuleTx(
+                safeModuleTransaction.transaction,
+                safeModuleTransaction.signatures
+            );
 
         // This is required to prevent malicious actor from proposing spam transactions and blocking the queue
         safe.checkNSignatures(
             moduleTxHash,
-            abi.encodePacked(hash),
+            abi.encodePacked(structHash),
             signatures,
             safeModuleTransaction.signatures.length
         );
@@ -281,11 +298,11 @@ contract SafeModuleTransactionRegistry {
         uint256 index
     ) external {
         uint256 _nonce = moduleTxNonces[address(safe)];
-
-        moduleTxNonces[address(safe)] = nonce + 1;
-
         if (_nonce != nonce) {
             revert InvalidNonce(address(safe), _nonce, nonce);
+        }
+        unchecked {
+            moduleTxNonces[address(safe)] = nonce + 1;
         }
 
         if (index >= transactions[address(safe)][nonce].length) {
@@ -306,21 +323,20 @@ contract SafeModuleTransactionRegistry {
                 nonce
             );
 
-        bytes32 hash = hashMessage(safeModuleTransaction);
-
-        bytes32 moduleTxHash = keccak256(
-            abi.encodePacked("\x19\x01", getDomainSeparator(), hash)
-        );
-
-        bytes memory signaturesBytes = encodeSignatures(
-            safeModuleTransactionWithSignatures.signatures
-        );
+        (
+            bytes32 structHash,
+            bytes32 moduleTxHash,
+            bytes memory signaturesBytes
+        ) = _packModuleTx(
+                safeModuleTransaction,
+                safeModuleTransactionWithSignatures.signatures
+            );
 
         // Verify signatures through the Safe contract before executing the tx.
         // This is required to verify if provided signatures are still valid.
         safe.checkSignatures(
             moduleTxHash,
-            abi.encodePacked(hash),
+            abi.encodePacked(structHash),
             signaturesBytes
         );
 
@@ -406,22 +422,33 @@ contract SafeModuleTransactionRegistry {
     }
 
     /**
+     * @dev Prepares the struct hash, domain hash, and encodes signatures for EIP-712.
+     */
+    function _packModuleTx(
+        SafeModuleTransaction memory tx_,
+        SafeModuleTransactionSignature[] memory sigs
+    )
+        internal
+        view
+        returns (
+            bytes32 structHash,
+            bytes32 moduleTxHash,
+            bytes memory signaturesBytes
+        )
+    {
+        structHash = hashMessage(tx_);
+        moduleTxHash = keccak256(
+            abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
+        );
+        signaturesBytes = encodeSignatures(sigs);
+    }
+
+    /**
      * @notice Gets the EIP-712 domain separator
      * @return The domain separator hash
      */
     function getDomainSeparator() private view returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
-                    keccak256(bytes(NAME)),
-                    keccak256(bytes(VERSION)),
-                    block.chainid,
-                    address(this)
-                )
-            );
+        return DOMAIN_SEPARATOR;
     }
 
     /**
