@@ -16,6 +16,12 @@ import {Enum} from "@safe-global/safe-contracts/contracts/common/Enum.sol";
  *      TODO: (Optional) Advanced features: Transaction deadline
  */
 contract SafeModuleTransactionRegistry {
+    /// @notice Represents an ECDSA signature for a Safe module transaction.
+    /// @dev Contains the v, r, s values and optional dynamic data for contract signatures.
+    /// @param v Recovery byte of the signature.
+    /// @param r First 32 bytes of the signature.
+    /// @param s Second 32 bytes of the signature.
+    /// @param dynamicPart Optional dynamic data appended for contract signatures.
     struct SafeModuleTransactionSignature {
         uint8 v;
         bytes32 r;
@@ -23,11 +29,21 @@ contract SafeModuleTransactionRegistry {
         bytes dynamicPart;
     }
 
+    /// @notice Bundles a Safe module transaction with its associated signatures.
+    /// @param transaction The SafeModuleTransaction details.
+    /// @param signatures The list of signatures for the transaction.
     struct SafeModuleTransactionWithSignatures {
         SafeModuleTransaction transaction;
         SafeModuleTransactionSignature[] signatures;
     }
 
+    /// @notice Defines a transaction to be executed via the Safe module.
+    /// @dev Contains the destination address, value in Wei, calldata, operation type, and nonce.
+    /// @param to Recipient address of the transaction.
+    /// @param value Ether value to send in Wei.
+    /// @param data Calldata of the transaction.
+    /// @param operation Operation type (0 = call, 1 = delegatecall).
+    /// @param nonce Nonce for ordering module transactions.
     struct SafeModuleTransaction {
         address to;
         uint256 value;
@@ -36,55 +52,113 @@ contract SafeModuleTransactionRegistry {
         uint256 nonce;
     }
 
+    /// @notice Fixed length in bytes for an individual signature (r + s + v components).
     uint8 public constant SIGNATURE_LENGTH_BYTES = 65;
+
+    /// @notice EIP-712 domain name for this module.
     string public constant NAME = "SafeModuleTransactionRegistry";
+
+    /// @notice EIP-712 domain version for this module.
     string public constant VERSION = "1";
 
+    /// @notice Type hash of SafeModuleTransaction for EIP-712 encoding.
     bytes32 public immutable MODULE_TX_TYPEHASH =
         keccak256(
             "SafeModuleTransactionRegistry(address to,uint256 value,bytes data,uint8 operation,uint256 nonce)"
         );
 
+    /// @notice Tracks the current execution nonce for each Safe.
+    /// @dev Increments after each successful execution of a queued transaction.
     mapping(address safe => uint256 nonce) public moduleTxNonces;
+
+    /// @notice Queued module transactions per Safe and nonce.
+    /// @dev Allows multiple pending transactions under the same nonce.
     mapping(address safe => mapping(uint256 nonce => SafeModuleTransactionWithSignatures[]))
         public transactions;
 
+    /// @notice Emitted when a transaction is registered for execution.
+    /// @param msgSender The address that registered the transaction.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index Index of the transaction under the specified nonce.
     event TransactionRegistered(
         address indexed msgSender,
         address indexed safe,
         uint256 indexed nonce,
         uint256 index
     );
+
+    /// @notice Emitted when an additional signature is added to a queued transaction.
+    /// @param msgSender The address that added the signature.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index Index of the transaction under the specified nonce.
     event SignatureAdded(
         address indexed msgSender,
         address indexed safe,
         uint256 indexed nonce,
         uint256 index
     );
+
+    /// @notice Emitted when a queued transaction is successfully executed via the module.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index Index of the transaction under the specified nonce.
     event TransactionExecuted(
         address indexed safe,
         uint256 indexed nonce,
         uint256 index
     );
 
+    /// @notice Reverts when the provided nonce is lower than the current nonce.
+    /// @param currentNonce The current execution nonce.
+    /// @param providedNonce The provided nonce.
     error NonceTooLow(uint256 currentNonce, uint256 providedNonce);
+
+    /// @notice Reverts when using an invalid transaction index for a Safe and nonce.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index The provided index.
+    /// @param maxIndex Maximum valid index (exclusive upper bound).
     error InvalidTransactionIndex(
         address safe,
         uint256 nonce,
         uint256 index,
         uint256 maxIndex
     );
+
+    /// @notice Reverts when the specified transaction is not found.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index The transaction index.
     error TransactionNotFound(address safe, uint256 nonce, uint256 index);
+
+    /// @notice Reverts when a module transaction execution fails.
+    /// @param safe The Safe wallet address.
+    /// @param nonce The transaction nonce.
+    /// @param index The transaction index.
     error ModuleTransactionFailed(address safe, uint256 nonce, uint256 index);
+
+    /// @notice Reverts when an invalid nonce is used for execution.
+    /// @param safe The Safe wallet address.
+    /// @param expected The expected current nonce.
+    /// @param given The provided nonce.
     error InvalidNonce(address safe, uint256 expected, uint256 given);
+
+    /// @notice Reverts when the caller is not the expected Safe or module.
+    /// @param safe The Safe wallet address.
+    /// @param msgSender The address of the caller.
     error InvalidMsgSender(address safe, address msgSender);
+
+    /// @notice Reverts when attempting to register or execute a transaction with no signatures.
     error EmptySignatures();
 
     /**
-     * @notice Registers a new transaction to be executed later
-     * @param safe The Safe wallet address
-     * @param safeModuleTransaction The transaction details with signatures
-     * @return index The index of the registered transaction
+     * @notice Registers a new transaction to be executed later.
+     * @param safe The Safe wallet address.
+     * @param safeModuleTransaction The transaction details with signatures.
+     * @return index The index of the registered transaction.
+     * @dev Prevents malicious actors from spamming transactions by verifying required signatures via the Safe contract.
      */
     function registerSafeModuleTransaction(
         Safe safe,
@@ -142,11 +216,12 @@ contract SafeModuleTransactionRegistry {
     }
 
     /**
-     * @notice Registers a new signature for a Safe module transaction
-     * @param safe The Safe wallet address
-     * @param nonce The transaction nonce
-     * @param index The transaction index for the given nonce
-     * @param safeModuleTransactionSignature The signature to add
+     * @notice Registers a new signature for a Safe module transaction.
+     * @param safe The Safe wallet address.
+     * @param nonce The transaction nonce.
+     * @param index The transaction index for the given nonce.
+     * @param safeModuleTransactionSignature The signature to add.
+     * @dev Signatures can be added incrementally to an existing queued transaction.
      */
     function registerSafeModuleTransactionSignature(
         Safe safe,
@@ -175,11 +250,12 @@ contract SafeModuleTransactionRegistry {
     }
 
     /**
-     * @notice Gets a module transaction by safe address, nonce and index
-     * @param safe The Safe wallet address
-     * @param nonce The transaction nonce
-     * @param index The transaction index for the given nonce
-     * @return The transaction details
+     * @notice Retrieves a queued module transaction along with its signatures.
+     * @param safe The Safe wallet address.
+     * @param nonce The transaction nonce.
+     * @param index The transaction index for the given nonce.
+     * @return SafeModuleTransactionWithSignatures The transaction with its signatures.
+     * @dev Reverts if the index is out of bounds.
      */
     function getModuleTransaction(
         address safe,
@@ -193,9 +269,11 @@ contract SafeModuleTransactionRegistry {
     }
 
     /**
-     * @notice Executes a transaction from the registry
-     * @param safe The Safe wallet address
-     * @param index The transaction index for the current nonce
+     * @notice Executes a queued transaction from the registry.
+     * @param safe The Safe wallet address.
+     * @param nonce The transaction nonce being executed.
+     * @param index The transaction index for the given nonce.
+     * @dev Increments the Safe's moduleTxNonces, verifies signatures, and then executes the transaction via the Safe contract.
      */
     function execTransactionFromModule(
         Safe safe,
@@ -270,12 +348,9 @@ contract SafeModuleTransactionRegistry {
     function encodeSignatures(
         SafeModuleTransactionSignature[] memory signatures
     ) internal pure returns (bytes memory) {
-        // Pre-calculate total static signature length
-        uint256 staticLength = signatures.length * SIGNATURE_LENGTH_BYTES;
-
-        // Create memory for signature bytes
-        bytes memory signatureBytes = new bytes(0);
-        bytes memory dynamicBytes = new bytes(0);
+        // Initialize empty byte arrays for static and dynamic signature parts
+        bytes memory signatureBytes;
+        bytes memory dynamicBytes;
 
         for (uint256 i = 0; i < signatures.length; i++) {
             if (signatures[i].dynamicPart.length > 0) {
@@ -290,7 +365,7 @@ contract SafeModuleTransactionRegistry {
                 {32-bytes signature length}{bytes signature data}
                 */
                 bytes32 dynamicPartPosition = bytes32(
-                    staticLength + dynamicBytes.length
+                    signatureBytes.length + dynamicBytes.length
                 );
 
                 bytes32 dynamicPartLength = bytes32(
