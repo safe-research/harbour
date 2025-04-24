@@ -1,0 +1,33 @@
+{
+  "name": "safe-module-tx-queue",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@safe-global/safe-contracts": "^1.4.1-2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.23.0",
+    "hardhat-dependency-compiler": "^1.2.1",
+    "hardhat-deploy": "^1.0.2",
+    "hardhat-gas-reporter": "^2.2.3"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [
+    "Safe",
+    "module"
+  ],
+  "author": "",
+  "license": "LGPL-3.0-only",
+  "description": "",
+  "overrides": {
+    "@safe-global/safe-contracts": {
+      "ethers": "^6.13.5"
+    }
+  }
+}
