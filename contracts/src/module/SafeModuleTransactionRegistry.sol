@@ -148,11 +148,6 @@ contract SafeModuleTransactionRegistry {
     /// @param given The provided nonce.
     error InvalidNonce(address safe, uint256 expected, uint256 given);
 
-    /// @notice Reverts when the caller is not the expected Safe or module.
-    /// @param safe The Safe wallet address.
-    /// @param msgSender The address of the caller.
-    error InvalidMsgSender(address safe, address msgSender);
-
     /// @notice Reverts when attempting to register or execute a transaction with no signatures.
     error EmptySignatures();
 
@@ -177,6 +172,7 @@ contract SafeModuleTransactionRegistry {
      * @param safeModuleTransaction The transaction details with signatures.
      * @return index The index of the registered transaction.
      * @dev Prevents malicious actors from spamming transactions by verifying required signatures via the Safe contract.
+     * @dev The `signatures` array within `safeModuleTransaction` MUST be sorted by signer address (case-insensitive).
      */
     function registerSafeModuleTransaction(
         Safe safe,
@@ -216,12 +212,12 @@ contract SafeModuleTransactionRegistry {
         ].length;
 
         SafeModuleTransactionWithSignatures[]
-            storage _safeModuleTransaction = transactions[address(safe)][
+            storage queuedTransactionsForNonce = transactions[address(safe)][
                 safeModuleTransaction.transaction.nonce
             ];
 
         // Push the new transaction to the array
-        _safeModuleTransaction.push(safeModuleTransaction);
+        queuedTransactionsForNonce.push(safeModuleTransaction);
 
         emit TransactionRegistered(
             msg.sender,
@@ -239,6 +235,8 @@ contract SafeModuleTransactionRegistry {
      * @param index The transaction index for the given nonce.
      * @param safeModuleTransactionSignature The signature to add.
      * @dev Signatures can be added incrementally to an existing queued transaction.
+     * @custom:warning This function allows anyone to add signature data. It does not validate the signature itself.
+     *          Validity is checked collectively only during `execTransactionFromModule`.
      */
     function registerSafeModuleTransactionSignature(
         Safe safe,
@@ -291,6 +289,7 @@ contract SafeModuleTransactionRegistry {
      * @param nonce The transaction nonce being executed.
      * @param index The transaction index for the given nonce.
      * @dev Increments the Safe's moduleTxNonces, verifies signatures, and then executes the transaction via the Safe contract.
+     * @dev Assumes the signatures within the queued transaction were originally provided sorted by signer address.
      */
     function execTransactionFromModule(
         Safe safe,
