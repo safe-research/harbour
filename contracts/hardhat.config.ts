@@ -14,6 +14,10 @@ const config: HardhatUserConfig = {
 			allowUnlimitedContractSize: true,
 		},
 	},
+	typechain: {
+		outDir: "./typechain-types",
+		target: "ethers-v6",
+	},
 	dependencyCompiler: {
 		paths: [
 			"@safe-global/safe-contracts/contracts/proxies/SafeProxyFactory.sol",

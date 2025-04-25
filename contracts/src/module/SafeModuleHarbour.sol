@@ -5,7 +5,7 @@ import {Safe} from "@safe-global/safe-contracts/contracts/Safe.sol";
 import {Enum} from "@safe-global/safe-contracts/contracts/common/Enum.sol";
 
 /**
- * @title SafeModuleTransactionRegistry
+ * @title SafeModuleHarbour
  * @notice A module for Safe wallets to queue and execute transactions with EIP-712 signatures
  * @dev Signatures must be sorted by signer address. If signatures are not properly sorted,
  *      the transaction will need to be queued again with correct order.
@@ -15,7 +15,7 @@ import {Enum} from "@safe-global/safe-contracts/contracts/common/Enum.sol";
  *      TODO: (Optional) Consider allowing non-sequential nonces along with sequential nonces (like ERC-4337).
  *      TODO: (Optional) Advanced features: Transaction deadline
  */
-contract SafeModuleTransactionRegistry {
+contract SafeModuleHarbour {
     /// @notice Represents an ECDSA signature for a Safe module transaction.
     /// @dev Contains the v, r, s values and optional dynamic data for contract signatures.
     /// @param v Recovery byte of the signature.
@@ -56,7 +56,7 @@ contract SafeModuleTransactionRegistry {
     uint8 public constant SIGNATURE_LENGTH_BYTES = 65;
 
     /// @notice EIP-712 domain name for this module.
-    string public constant NAME = "SafeModuleTransactionRegistry";
+    string public constant NAME = "SafeModuleHarbour";
 
     /// @notice EIP-712 domain version for this module.
     string public constant VERSION = "1";
@@ -64,7 +64,7 @@ contract SafeModuleTransactionRegistry {
     /// @notice Type hash of SafeModuleTransaction for EIP-712 encoding.
     bytes32 public immutable MODULE_TX_TYPEHASH =
         keccak256(
-            "SafeModuleTransactionRegistry(address to,uint256 value,bytes data,uint8 operation,uint256 nonce)"
+            "SafeModuleHarbourTransaction(address to,uint256 value,bytes data,uint8 operation,uint256 nonce)"
         );
 
     /// @notice EIP-712 domain separator for this module.

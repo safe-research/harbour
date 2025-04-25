@@ -8,7 +8,7 @@ import {
 } from "ethers";
 // Import necessary libraries and types
 import { ethers } from "hardhat";
-import type { SafeModuleTransactionRegistry } from "../typechain-types/contracts/SafeModuleTransactionRegistry";
+import type { SafeModuleHarbour } from "../typechain-types/src/module/SafeModuleHarbour";
 import { execTransaction } from "./utils/utils";
 
 describe("SafeModuleTransactionRegistry", () => {
@@ -17,7 +17,7 @@ describe("SafeModuleTransactionRegistry", () => {
 	let chainId: bigint;
 	let domain: TypedDataDomain;
 	const types = {
-		SafeModuleTransactionRegistry: [
+		SafeModuleHarbourTransaction: [
 			{ name: "to", type: "address" },
 			{ name: "value", type: "uint256" },
 			{ name: "data", type: "bytes" },
@@ -71,7 +71,7 @@ describe("SafeModuleTransactionRegistry", () => {
 		const safe = await ethers.getContractAt("Safe", safeAddress);
 
 		const safeModuleTransactionRegistry = await (
-			await ethers.getContractFactory("SafeModuleTransactionRegistry", deployer)
+			await ethers.getContractFactory("SafeModuleHarbour", deployer)
 		).deploy();
 
 		// Enable the module in the safe, Step 1, generate transaction data
@@ -96,7 +96,7 @@ describe("SafeModuleTransactionRegistry", () => {
 		});
 
 		domain = {
-			name: "SafeModuleTransactionRegistry",
+			name: "SafeModuleHarbour",
 			version: "1",
 			chainId: chainId,
 			verifyingContract: await safeModuleTransactionRegistry.getAddress(),
@@ -123,7 +123,7 @@ describe("SafeModuleTransactionRegistry", () => {
 			await alice.signTypedData(domain, types, safeModuleTx),
 		);
 
-		const safeModuleTransaction: SafeModuleTransactionRegistry.SafeModuleTransactionWithSignaturesStruct =
+		const safeModuleTransaction: SafeModuleHarbour.SafeModuleTransactionWithSignaturesStruct =
 			{
 				transaction: safeModuleTx,
 				signatures: [
