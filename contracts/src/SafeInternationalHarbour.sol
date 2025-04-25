@@ -7,21 +7,13 @@ pragma solidity ^0.8.29;
  * @dev
  * Stores lists of transaction data keyed by the signer address derived from the first signature provided,
  * the Safe address, chain ID, and nonce. Multiple transactions can be stored for the same key tuple.
- * Assumes the off-chain client provides correctly formatted signatures corresponding to the EIP-712 hash derived from the transaction details.
- * Signatures bytes must contain at least one valid signature (65 bytes) at the beginning.
- * If multiple signatures are provided concatenated, only the first one is used for deriving the signer key.
- * The contract calculates the EIP-712 hash to sign internally using standard Safe logic based on all transaction parameters.
- * Signer recovery uses the internally calculated EIP-712 hash.
- * This contract stores transaction data and signatures but performs NO validation against Safe contracts (e.g., owner checks).
+ * This contract stores transaction data and signatures but performs NO validation against Safe contracts.
  * Retrieval requires knowing the signer derived from the first signature, Safe address, chain ID, and nonce.
- * Optimized for efficient querying similar to:
- * SELECT * FROM transactions_list
- * WHERE signer_address = ?
- * AND safe_address = ?
- * AND chain_id = ?
- * AND nonce = ?
  */
 contract SafeInternationalHarbour {
+    error SignaturesTooShort();
+    error InvalidSignature();
+
     // keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
     bytes32 private constant DOMAIN_SEPARATOR_TYPEHASH =
         0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
@@ -30,29 +22,17 @@ contract SafeInternationalHarbour {
     bytes32 private constant SAFE_TX_TYPEHASH =
         0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
 
-    /**
-     * @notice Stores the details of a Safe transaction, excluding the key components (signer, safe, chainId, nonce).
-     * @param to The recipient address of the transaction.
-     * @param value The Ether value to be sent with the transaction.
-     * @param data The data payload of the transaction.
-     * @param operation The type of operation (e.g., CALL, DELEGATECALL).
-     * @param safeTxGas Gas limit for the transaction execution.
-     * @param baseGas Gas paid for data storage and overhead.
-     * @param gasPrice Gas price used for the transaction.
-     * @param gasToken Token address for gas payment (address(0) for native currency).
-     * @param refundReceiver Address to receive gas refunds.
-     * @param signatures The raw bytes of the signature(s) provided during enqueueing.
-     */
+    // Storage optimized - fields reordered for efficient packing
     struct SafeTransactionData {
         address to;
         uint256 value;
-        bytes data;
-        uint8 operation;
         uint256 safeTxGas;
         uint256 baseGas;
         uint256 gasPrice;
         address gasToken;
+        uint8 operation;
         address refundReceiver;
+        bytes data;
         bytes signatures;
     }
 
@@ -74,36 +54,13 @@ contract SafeInternationalHarbour {
         bytes32 safeTxHash
     );
 
-    /**
-     * @notice Stores lists of enqueued transactions data. Access to the list is O(1) using signer address, safe address, chain ID, and nonce.
-     * @dev mapping: signerAddress => safeAddress => chainId => nonce => SafeTransactionData[]
-     */
+    // signerAddress => safeAddress => chainId => nonce => SafeTransactionData[]
     mapping(address => mapping(address => mapping(uint256 => mapping(uint256 => SafeTransactionData[]))))
         public transactions;
 
     /**
-     * @notice Enqueues a Safe transaction into the registry after deriving a signer from the first signature and calculating the EIP-712 hash internally.
-     * @dev Appends the transaction details to the list associated with the key (derived signer, safeAddress, chainId, nonce).
-     * Requires signatures length >= 65 bytes.
-     * Calculates the EIP-712 hash to sign internally based on all provided transaction parameters and standard Safe logic.
-     * Derives signer from the first 65 bytes using ecrecover on the internally calculated EIP-712 hash to sign. Reverts if recovery fails.
-     * The provided `safeTxHash` is stored but NO LONGER VERIFIED against the other parameters.
-     * Does not validate the derived signer against Safe owners.
-     * Callable by any address.
-     * @param safeAddress The address of the Safe account.
-     * @param chainId The target chain ID.
-     * @param nonce The transaction nonce specific to the Safe on the target chain.
-     * @param to Recipient address.
-     * @param value Ether value.
-     * @param data Transaction data payload.
-     * @param operation Operation type (0 for CALL, 1 for DELEGATECALL).
-     * @param safeTxGas Gas limit for the Safe transaction execution.
-     * @param baseGas Gas for overhead.
-     * @param gasPrice Gas price.
-     * @param gasToken Token for gas payment (address(0) for native currency).
-     * @param refundReceiver Gas refund recipient.
-     * @param signatures Raw signature bytes (must be >= 65 bytes). The first 65 bytes are used for signer recovery.
-     * @return listIndex The index of the newly added transaction in the list for this key tuple.
+     * @notice Enqueues a Safe transaction after deriving signer from the first signature
+     * @return listIndex The index of the newly added transaction in the list
      */
     function enqueueTransaction(
         address safeAddress,
@@ -120,48 +77,38 @@ contract SafeInternationalHarbour {
         address refundReceiver,
         bytes calldata signatures
     ) external returns (uint256 listIndex) {
-        require(
-            signatures.length >= 65,
-            "IH: Signatures must be at least 65 bytes"
+        if (signatures.length < 65) revert SignaturesTooShort();
+
+        // Calculate EIP-712 hash in one operation to save gas
+        bytes32 safeTxHash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                keccak256(
+                    abi.encode(DOMAIN_SEPARATOR_TYPEHASH, chainId, safeAddress)
+                ),
+                keccak256(
+                    abi.encode(
+                        SAFE_TX_TYPEHASH,
+                        to,
+                        value,
+                        keccak256(data),
+                        operation,
+                        safeTxGas,
+                        baseGas,
+                        gasPrice,
+                        gasToken,
+                        refundReceiver,
+                        nonce
+                    )
+                )
+            )
         );
 
-        bytes32 safeTxHash = _calculateSafeTxHash(
-            safeAddress,
-            chainId,
-            to,
-            value,
-            data,
-            operation,
-            safeTxGas,
-            baseGas,
-            gasPrice,
-            gasToken,
-            refundReceiver,
-            nonce
-        );
+        // Extract signer from first signature
+        address signerAddress = _recoverSigner(safeTxHash, signatures);
 
-        // --- Signature Recovery ---
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-        // Assumes signatures are tightly packed
-        assembly {
-            r := mload(add(signatures.offset, 0x20))
-            s := mload(add(signatures.offset, 0x40))
-            v := byte(0, mload(add(signatures.offset, 0x60)))
-        }
-
-        // Adjust v if needed (standard EIP-155 handling)
-        if (v < 27) {
-            v += 27;
-        }
-
-        // Recover the signer address using the internally calculated EIP-712 hash to sign
-        address signerAddress = ecrecover(safeTxHash, v, r, s);
-        require(signerAddress != address(0), "IH: Invalid signature");
-        // ---------
-
-        // --- Store Transaction Data ---
+        // Store transaction data
         SafeTransactionData[] storage transactionList = transactions[
             signerAddress
         ][safeAddress][chainId][nonce];
@@ -170,19 +117,20 @@ contract SafeInternationalHarbour {
             SafeTransactionData({
                 to: to,
                 value: value,
-                data: data,
-                operation: operation,
                 safeTxGas: safeTxGas,
                 baseGas: baseGas,
                 gasPrice: gasPrice,
                 gasToken: gasToken,
+                operation: operation,
                 refundReceiver: refundReceiver,
+                data: data,
                 signatures: signatures
             })
         );
 
-        listIndex = transactionList.length - 1;
-        // ---------
+        unchecked {
+            listIndex = transactionList.length - 1;
+        }
 
         emit SafeTransactionEnqueued(
             signerAddress,
@@ -192,110 +140,57 @@ contract SafeInternationalHarbour {
             listIndex,
             safeTxHash
         );
-
-        return listIndex;
     }
 
     /**
-     * @notice Retrieves the list of enqueued Safe transactions data for a specific derived signer and other unique identifiers.
-     * @dev Provides O(1) lookup time to get the array based on the mapping structure.
-     * Requires the address derived from the *first* signature provided during enqueueing (using the internally calculated EIP-712 hash).
-     * @param signerAddress The address derived from the first signature.
-     * @param safeAddress The address of the Safe account.
-     * @param chainId The chain ID of the transaction.
-     * @param nonce The nonce of the transaction.
-     * @return The array of stored SafeTransactionData structs. Returns an empty array if no transactions found for the key.
+     * @notice Retrieves stored Safe transactions for a specific key tuple
+     * @return Array of stored SafeTransactionData (empty if nothing found)
      */
     function retrieveTransaction(
         address signerAddress,
         address safeAddress,
         uint256 chainId,
         uint256 nonce
-    ) public view returns (SafeTransactionData[] memory) {
-        // O(1) read operation directly accessing the nested mapping, returning the array.
+    ) external view returns (SafeTransactionData[] memory) {
         return transactions[signerAddress][safeAddress][chainId][nonce];
     }
 
-    // ================= Internal Helper Functions ==================
-
     /**
-     * @dev Calculates the EIP-712 domain separator for a given Safe address and chain ID.
-     * @param _safeAddress The address of the Safe contract (verifying contract).
-     * @param _chainId The chain ID.
-     * @return The EIP-712 domain separator.
+     * @dev Extracts signer address from the first signature
      */
-    function _calculateDomainSeparator(
-        address _safeAddress,
-        uint256 _chainId
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(DOMAIN_SEPARATOR_TYPEHASH, _chainId, _safeAddress)
-            );
-    }
+    function _recoverSigner(
+        bytes32 hash,
+        bytes calldata signatures
+    ) internal view returns (address) {
+        address signer;
 
-    /**
-     * @dev Calculates the final EIP-712 hash to be signed by owners, based on all transaction parameters.
-     * @param _safeAddress The address of the Safe contract (verifying contract).
-     * @param _chainId The chain ID for domain separator calculation.
-     * @param to Destination address.
-     * @param value Ether value.
-     * @param data Data payload.
-     * @param operation Operation type.
-     * @param safeTxGas Gas limit for the transaction.
-     * @param baseGas Base gas cost.
-     * @param gasPrice Gas price.
-     * @param gasToken Gas token address.
-     * @param refundReceiver Refund receiver address.
-     * @param _nonce Transaction nonce.
-     * @return The final EIP-712 compliant hash to sign (abi.encodePacked(0x19, 0x01, domainSeparator, hash(SafeTx struct))).
-     */
-    function _calculateSafeTxHash(
-        address _safeAddress,
-        uint256 _chainId,
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address refundReceiver,
-        uint256 _nonce
-    ) internal pure returns (bytes32) {
-        // Calculate the hash of the SafeTx struct data first
-        bytes32 safeTxStructHash = keccak256(
-            abi.encode(
-                SAFE_TX_TYPEHASH,
-                to,
-                value,
-                keccak256(data),
-                operation,
-                safeTxGas,
-                baseGas,
-                gasPrice,
-                gasToken,
-                refundReceiver,
-                _nonce
-            )
-        );
+        // More efficient signature extraction and recovery in a single assembly block
+        assembly {
+            // Extract r, s, v components from signature
+            let r := calldataload(add(signatures.offset, 0x20))
+            let s := calldataload(add(signatures.offset, 0x40))
+            let v := byte(0, calldataload(add(signatures.offset, 0x60)))
 
-        // Then calculate the domain separator
-        bytes32 domainSeparator = _calculateDomainSeparator(
-            _safeAddress,
-            _chainId
-        );
+            // Adjust v if needed (EIP-155 handling)
+            if lt(v, 27) {
+                v := add(v, 27)
+            }
 
-        // Finally, combine them into the hash to sign
-        return
-            keccak256(
-                abi.encodePacked(
-                    bytes1(0x19),
-                    bytes1(0x01),
-                    domainSeparator,
-                    safeTxStructHash
-                )
-            );
+            // ecrecover precompile is at address 0x01
+            let memPtr := mload(0x40)
+            mstore(memPtr, hash)
+            mstore(add(memPtr, 32), v)
+            mstore(add(memPtr, 64), r)
+            mstore(add(memPtr, 96), s)
+
+            // Call ecrecover - 32 bytes input, 32 bytes output
+            let success := staticcall(gas(), 1, memPtr, 128, memPtr, 32)
+
+            // Get the address from the result
+            signer := mload(memPtr)
+        }
+
+        if (signer == address(0)) revert InvalidSignature();
+        return signer;
     }
 }
