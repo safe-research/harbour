@@ -8,7 +8,27 @@ const config: HardhatUserConfig = {
 	paths: {
 		sources: "./src/",
 	},
-	solidity: "0.8.29",
+  solidity: {
+    compilers: [
+      {
+        version: '0.8.29',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10_000_000
+          },
+          viaIR: true
+        }
+      },
+      {
+        version: '0.7.6',
+        settings: {
+          optimizer: { enabled: false },
+          viaIR: false
+        }
+      }
+    ],
+  },
 	networks: {
 		hardhat: {
 			allowUnlimitedContractSize: true,
