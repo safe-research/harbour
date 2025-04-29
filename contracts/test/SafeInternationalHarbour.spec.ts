@@ -1219,6 +1219,70 @@ describe("SafeInternationalHarbour", () => {
 		expect(count).to.equal(3);
 	});
 
+	it("should emit NewTransaction event with correct parameters on first enqueue", async () => {
+		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = ethers.Wallet.createRandom();
+		const to = deployer.address;
+		const value = 0n;
+		const data = "0x";
+		const operation = 0;
+		const safeTxGas = 0n;
+		const baseGas = 0n;
+		const gasPrice = 0n;
+		const nonce = 0n;
+		const safeTx: SafeTransaction = {
+			to,
+			value,
+			data,
+			operation,
+			safeTxGas,
+			baseGas,
+			gasPrice,
+			gasToken: ethers.ZeroAddress,
+			refundReceiver: ethers.ZeroAddress,
+			nonce,
+		};
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		const signature = await signerWallet.signTypedData(
+			{ chainId, verifyingContract: safeAddress },
+			EIP712_SAFE_TX_TYPE,
+			safeTx,
+		);
+		await expect(
+			harbour.enqueueTransaction(
+				safeAddress,
+				chainId,
+				safeTx.nonce,
+				safeTx.to,
+				safeTx.value,
+				safeTx.data,
+				safeTx.operation,
+				safeTx.safeTxGas,
+				safeTx.baseGas,
+				safeTx.gasPrice,
+				safeTx.gasToken,
+				safeTx.refundReceiver,
+				signature,
+			),
+		)
+			.to.emit(harbour, "NewTransaction")
+			.withArgs(
+				safeTxHash,
+				safeAddress,
+				chainId,
+				safeTx.nonce,
+				safeTx.to,
+				safeTx.value,
+				safeTx.operation,
+				safeTx.safeTxGas,
+				safeTx.baseGas,
+				safeTx.gasPrice,
+				safeTx.gasToken,
+				safeTx.refundReceiver,
+				safeTx.data
+			);
+	});
+
 	/**
 	 * This test verifies that the SafeInternationalHarbour contract can store two ECDSA signatures
 	 * that are mathematically distinct yet recover to the same signer address, demonstrating
@@ -1263,11 +1327,12 @@ describe("SafeInternationalHarbour", () => {
 		const r1 = ethers.dataSlice(sig1Bytes, 0, 32);
 		const s1 = ethers.dataSlice(sig1Bytes, 32, 64);
 		const v1 = Number.parseInt(ethers.dataSlice(sig1Bytes, 64, 65).substring(2), 16);
+
 		const secp256k1N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
 		const s1BN = BigInt(s1);
 		const s2BN = secp256k1N - s1BN;
 		const s2 = ethers.toBeHex(s2BN, 32);
-		const v2 = v1 === 27 ? 28 : 27;
+		const v2 = v1 === 27 ? 28 : 27; // Flip v
 		const signature2 = ethers.concat([r1, s2, ethers.toBeHex(v2, 1)]);
 
 		await harbour.enqueueTransaction(
@@ -1345,7 +1410,8 @@ describe("SafeInternationalHarbour", () => {
 		const sigBytes = ethers.getBytes(flatSig);
 		const r = ethers.dataSlice(sigBytes, 0, 32);
 		const s = ethers.dataSlice(sigBytes, 32, 64);
-		const v = Number.parseInt(ethers.dataSlice(sigBytes, 64, 65).substring(2), 16); // Should be 27 or 28
+		const v = Number.parseInt(ethers.dataSlice(sigBytes, 64, 65).substring(2), 16);
+		// Should be 27 or 28
 
 		expect(v).to.be.oneOf([27, 28]);
 
