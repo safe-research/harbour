@@ -1169,7 +1169,6 @@ describe("SafeInternationalHarbour", () => {
 		const signerAddress = signerWallet.address;
 		const nonce = 16n;
 
-		const txPromises = [];
 		for (let i = 0; i < 3; i++) {
 			const safeTx: SafeTransaction = {
 				to: ethers.Wallet.createRandom().address,
@@ -1189,7 +1188,7 @@ describe("SafeInternationalHarbour", () => {
 				EIP712_SAFE_TX_TYPE,
 				safeTx,
 			);
-			const tx = harbour.enqueueTransaction(
+			await expect(harbour.enqueueTransaction(
 				safeAddress,
 				chainId,
 				safeTx.nonce,
@@ -1203,18 +1202,11 @@ describe("SafeInternationalHarbour", () => {
 				safeTx.gasToken,
 				safeTx.refundReceiver,
 				signature,
-			);
-			txPromises.push({ tx, safeTxHash, expectedIndex: BigInt(i) });
+			))
+			.to.emit(harbour, "SignatureStored")
+			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
 		}
 
-		// Await transactions and check events
-		for (const item of txPromises) {
-			await expect(item.tx)
-				.to.emit(harbour, "SignatureStored")
-				.withArgs(signerAddress, safeAddress, item.safeTxHash, chainId, nonce, item.expectedIndex);
-		}
-
-		// Verify count at the end
 		const count = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(count).to.equal(3);
 	});
