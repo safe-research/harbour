@@ -1219,8 +1219,24 @@ describe("SafeInternationalHarbour", () => {
 		expect(count).to.equal(3);
 	});
 
+	/**
+	 * This test verifies that the SafeInternationalHarbour contract can store two ECDSA signatures
+	 * that are mathematically distinct yet recover to the same signer address, demonstrating
+	 * ECDSA signature malleability. In ECDSA over secp256k1, a signature is composed of (r, s, v).
+	 * Given a valid signature (r, s1, v1), the value s2 = N - s1 (where N is the curve order) and
+	 * the flipped recovery parameter v2 (27 ↔ 28) also forms a valid signature recovering to the
+	 * same public key. While EIP-2 enforces a low-s canonical form (s <= N/2), this contract
+	 * deliberately does not enforce that rule, allowing malleable signatures. The test does the
+	 * following steps:
+	 * 1. Generate a standard EIP-712 signature (r, s1, v1) with signTypedData.
+	 * 2. Compute the malleable counterpart: s2 = N - s1 and flip v1 to v2.
+	 * 3. Submit both signatures via enqueueTransaction to the contract.
+	 * 4. Retrieve stored signatures with retrieveSignatures and assert that:
+	 *    - totalCount is 2
+	 *    - both entries have the same r but different s values
+	 *    - both entries share the same safeTxHash
+	 */
 	it("should store multiple malleable signatures that recover to the same address", async () => {
-		// This is the same core logic as "should append signature for the same signer..." - just renaming for clarity
 		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = ethers.Wallet.createRandom();
 		const signerAddress = signerWallet.address;
