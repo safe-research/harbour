@@ -2,9 +2,16 @@ import type { TransactionReceipt } from "ethers";
 import { ethers } from "hardhat";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";
 
-const logGas = async (label: string, tx: TransactionReceipt) => {
-	// eslint-disable-next-line no-console
-	console.log(`      ⛽ ${label.padEnd(12)}`, tx.gasUsed);
+const logGas = (label: string, tx: TransactionReceipt): void => {
+  if (!tx || !tx.gasUsed) {
+    console.warn(`⚠️  ${label.padEnd(12)} - Missing gasUsed info.`);
+    return;
+  }
+
+  const formattedLabel = label.padEnd(12);
+  const gasUsed = tx.gasUsed.toString(); // In case it's a BigNumber or similar
+
+  console.log(`⛽ ${formattedLabel}: ${gasUsed}`);
 };
 
 describe("SafeInternationalHarbour [@bench]", () => {
