@@ -91,7 +91,7 @@ contract SafeInternationalHarbour {
     mapping(bytes32 => SafeTransaction) private _txDetails;
 
     /// Mapping `signer → safe → chainId → nonce → SignatureData[]`
-    mapping(address => mapping(address => mapping(uint256 => mapping(uint256 => SignatureData[]))))
+    mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[]))))
         private _sigData;
 
     // ------------------------------------------------------------------
