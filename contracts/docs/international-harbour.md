@@ -22,7 +22,7 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 
 ### Data Structures
 
-- **SafeTransaction**: Mirror of Safe’s `SafeTx` struct:
+- **SafeTransaction**: Mirror of Safe's `SafeTx` struct:
 
   ```solidity
   struct SafeTransaction {
@@ -134,6 +134,15 @@ function retrieveSignaturesCount(
 - **Client-side deduplication**: filter out malleable signature variants if needed.
 - **Verify parameters**: ensure on-chain-stored parameters match your expected transaction data.
 - **Gas budgeting**: the first `enqueueTransaction` stores full parameters (~X gas); subsequent calls only append signatures (~Y gas).
+
+## Gas Cost Scaling
+
+The gas cost for `enqueueTransaction` grows approximately linearly with the size of the transaction data because each EVM storage slot is 32 bytes. Based on our benchmarks:
+
+- 68 bytes (~3 slots) → ~255k gas.
+- 1024 bytes (~32 slots) → ~923k gas.
+
+On average, each extra 32-byte slot adds around ~22k gas.
 
 ---
 

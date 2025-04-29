@@ -18,7 +18,8 @@
     "build": "hardhat compile",
     "lint": "echo 'No linting rules defined'",
     "format": "echo 'No formatting rules defined'",
-    "test": "hardhat test --config ./hardhat.config.ts",
+    "test": "hardhat test",
+    "test:bench": "hardhat test --grep '@bench'",
     "hardhat:clean": "hardhat clean"
   },
   "keywords": [
