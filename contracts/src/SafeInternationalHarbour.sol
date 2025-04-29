@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GNU GPLv3
 pragma solidity ^0.8.29;
 
+
+
 /**
  * @title SafeInternationalHarbour
  * @notice Permissionless, append‑only registry that lets **any EOA signer** publish Safe
@@ -341,15 +343,16 @@ contract SafeInternationalHarbour {
         returns (address signer, bytes32 r, bytes32 s)
     {
         uint8 v;
-        assembly {
-            r := calldataload(add(sig.offset, 0x20))
-            s := calldataload(add(sig.offset, 0x40))
-            v := byte(0, calldataload(add(sig.offset, 0x60)))
+        assembly ("memory-safe") {
+            r := calldataload(sig.offset)
+            s := calldataload(add(sig.offset, 0x20))
+            v := byte(0, calldataload(add(sig.offset, 0x40)))
         }
         if (v > 30) {
             digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
             v -= 4;
         }
+
         signer = ecrecover(digest, v, r, s);
         if (signer == address(0)) revert InvalidSignature();
     }
