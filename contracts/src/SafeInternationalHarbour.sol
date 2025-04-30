@@ -21,10 +21,6 @@ pragma solidity ^0.8.29;
  * `(r,s,v)` values recover to the same address, *both* will be stored. Client code **must**
  * de‑duplicate if that is undesirable.
  *
- * ### ⚠️ Parameter‑collision disclaimer
- * Transactions are identified **solely** by their `safeTxHash`. Should two *different* parameter
- * sets ever collide (astronomically unlikely) the first stored version prevails; later submissions
- * are silently ignored.
  *
  * ### ⚠️ Contract‑based signers unsupported
  * Only ECDSA signatures from externally‑owned accounts (EOAs) are supported. Contract wallets that
@@ -60,12 +56,14 @@ contract SafeInternationalHarbour {
     // ------------------------------------------------------------------
 
     /**
-     * @dev Exact mirror of the SafeTx struct used by Safe contracts.
+     * @dev Storage optimised mirror of the SafeTx struct used by Safe contracts.
      */
     struct SafeTransaction {
+        // stored, operation and to will be packed into the same storage slot
+        bool stored;
+        uint8 operation;
         address to;
         uint256 value;
-        uint8 operation;
         uint256 safeTxGas;
         uint256 baseGas;
         uint256 gasPrice;
@@ -217,17 +215,35 @@ contract SafeInternationalHarbour {
 
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
-        if (slot.to == address(0)) {
+        if (!slot.stored) {
             // first encounter → persist full parameter set
+            slot.stored = true;
             slot.to = to;
-            slot.value = value;
             slot.operation = operation;
-            slot.safeTxGas = safeTxGas;
-            slot.baseGas = baseGas;
-            slot.gasPrice = gasPrice;
-            slot.gasToken = gasToken;
-            slot.refundReceiver = refundReceiver;
-            slot.data = data;
+
+            // Writing to storage is expensive, so we only write if the value is non-zero
+            if (value > 0) {
+                slot.value = value;
+            }
+            if (safeTxGas > 0) {
+                slot.safeTxGas = safeTxGas;
+            }
+            if (baseGas > 0) {
+                slot.baseGas = baseGas;
+            }
+            if (gasPrice > 0) {
+                slot.gasPrice = gasPrice;
+            }
+            if (gasToken != address(0)) {
+                slot.gasToken = gasToken;
+            }
+            if (refundReceiver != address(0)) {
+                slot.refundReceiver = refundReceiver;
+            }
+            if (data.length > 0) {
+                slot.data = data;
+            }
+
             emit NewTransaction(
                 safeTxHash,
                 safeAddress,

@@ -22,19 +22,23 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 
 ### Data Structures
 
+Note: The order of struct variables might differ in the implementation to optimize gas usage.
+
 - **SafeTransaction**: Mirror of Safe's `SafeTx` struct:
 
   ```solidity
   struct SafeTransaction {
-    address to;
-    uint256 value;
-    uint8 operation;
-    uint256 safeTxGas;
-    uint256 baseGas;
-    uint256 gasPrice;
-    address gasToken;
-    address refundReceiver;
-    bytes data;
+      // stored, operation and to will be packed into the same storage slot
+      bool stored;
+      uint8 operation;
+      address to;
+      uint256 value;
+      uint256 safeTxGas;
+      uint256 baseGas;
+      uint256 gasPrice;
+      address gasToken;
+      address refundReceiver;
+      bytes data;
   }
   ```
 
@@ -50,7 +54,7 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 ### Storage Layout
 
 - `mapping(bytes32 => SafeTransaction) private _txDetails;`
-- `mapping(address => mapping(address => mapping(uint256 => mapping(uint256 => SignatureData[])))) private _sigData;`
+- `mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[])))) private _sigData;`
 
 ### EIP-712 Hashing
 
@@ -139,8 +143,8 @@ function retrieveSignaturesCount(
 
 The gas cost for `enqueueTransaction` grows approximately linearly with the size of the transaction data because each EVM storage slot is 32 bytes. Based on our benchmarks:
 
-- 68 bytes (~3 slots) → ~255k gas.
-- 1024 bytes (~32 slots) → ~923k gas.
+- 68 bytes (~3 slots) → ~40k gas.
+- 1024 bytes (~32 slots) → ~907k gas.
 
 On average, each extra 32-byte slot adds around ~22k gas.
 
