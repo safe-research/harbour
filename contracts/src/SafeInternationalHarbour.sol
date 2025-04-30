@@ -426,11 +426,12 @@ contract SafeInternationalHarbour {
         signer = ecrecover(digest, v, r, s);
         if (signer == address(0)) revert InvalidSignature();
         
+                    
         assembly ("memory-safe") {
             // Equivalent to:
-            // vs = bytes32(uint256(v) << 255 | uint256(s));
+            // vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
             // Which should avoid conversion between uint256 and bytes32
-            vs := or(shl(255, v), s)
+            vs := or(shl(255, sub(v, 27)), s)
         }
     }
 }

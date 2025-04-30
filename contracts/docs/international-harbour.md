@@ -14,7 +14,7 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 
 ## Key Disclaimers
 
-- **Signature malleability**: The contract does _not_ enforce EIP-2 low-`s`. If two `(r,s,v)` tuples yield the same signer, both are stored; client code must dedupe if needed.
+- **Signature malleability**: The contract enforces EIP-2098 low-`s` values.
 - **Parameter collision**: Transactions are identified _solely_ by `safeTxHash`. In the astronomically unlikely event of a hash collision, the first stored parameters prevail; later submissions are ignored.
 - **EOA-only signers**: Only ECDSA signatures from EOAs are supported. Contract-based signers (e.g. ERC-1271) cannot be verified on-chain in a chain-agnostic way.
 
@@ -42,11 +42,11 @@ Note: The order of struct variables might differ in the implementation to optimi
   }
   ```
 
-- **SignatureData**: Storage-optimized ECDSA signature:
+- **SignatureDataWithTxHashIndex**: Storage-optimized ECDSA signature with an index (by hash) to the transaction it belongs to :
   ```solidity
-  struct SignatureData {
+  struct SignatureDataWithTxHashIndex {
     bytes32 r;
-    bytes32 s;
+    bytes32 vs; // EIP-2098 compact representation of s and v
     bytes32 txHash; // EIP-712 digest
   }
   ```
@@ -54,7 +54,7 @@ Note: The order of struct variables might differ in the implementation to optimi
 ### Storage Layout
 
 - `mapping(bytes32 => SafeTransaction) private _txDetails;`
-- `mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[])))) private _sigData;`
+- `mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureDataWithTxHashIndex[])))) private _sigData;`
 
 ### EIP-712 Hashing
 
@@ -63,11 +63,6 @@ The contract builds:
 1. A domain separator: `keccak256(abi.encode(_DOMAIN_TYPEHASH, chainId, safeAddress))`.
 2. A struct hash: `keccak256(abi.encode(_SAFE_TX_TYPEHASH, to, value, keccak256(data), operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce))`.
 3. The final digest: `keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash))`.
-
-### Signature Recovery
-
-- `_recoverSignerAndRS` splits a 65-byte signature into `(r,s,v)` and recovers the signer.
-- Supports both EIP-712 and `eth_sign` flows by adjusting for `v > 30`.
 
 ## API Reference
 
@@ -135,7 +130,6 @@ function retrieveSignaturesCount(
 
 ## Best Practices
 
-- **Client-side deduplication**: filter out malleable signature variants if needed.
 - **Verify parameters**: ensure on-chain-stored parameters match your expected transaction data.
 - **Gas budgeting**: the first `enqueueTransaction` stores full parameters (~X gas); subsequent calls only append signatures (~Y gas).
 

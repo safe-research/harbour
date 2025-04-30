@@ -2,6 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction, getSafeTransactionHash } from "./utils/safeTx";
+import { toCompactSignature } from "./utils/signatures";
 
 describe("SafeInternationalHarbour", () => {
 	async function deployFixture() {
@@ -237,9 +238,7 @@ describe("SafeInternationalHarbour", () => {
 		expect(storedTxAfter.refundReceiver).to.equal(storedTxBefore.refundReceiver);
 	});
 
-	it("should append signature for the same signer, safe, chainId, and nonce", async () => {
-		// This tests if two *different* signatures from the same signer for the same tx are stored.
-		// This can happen via signature malleability.
+	it("should not support malleable signatures", async () => {
 		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = ethers.Wallet.createRandom();
 		const signerAddress = signerWallet.address;
@@ -275,73 +274,24 @@ describe("SafeInternationalHarbour", () => {
 		const v2 = v1 === 27 ? 28 : 27; // Flip v
 		const signature2 = ethers.concat([r1, s2, ethers.toBeHex(v2, 1)]);
 
-		// Enqueue first signature
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature1,
-		);
-
-		// Enqueue second (malleable) signature
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature2,
-		);
-
-		const [page, totalCount] = await harbour.retrieveSignatures(
-			signerAddress,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			0,
-			10,
-		);
-
-		expect(totalCount).to.equal(2);
-		expect(page.length).to.equal(2);
-		expect(page[0].r).to.equal(r1);
-		expect(page[0].s).to.equal(s1);
-		expect(page[0].txHash).to.equal(safeTxHash);
-		expect(page[1].r).to.equal(r1); // r is the same
-		expect(page[1].s).to.equal(s2); // s is different
-		expect(page[1].txHash).to.equal(safeTxHash);
-
-		// Verify signer recovered correctly for both (optional, implicitly tested by storing)
-		const recoveredAddr1 = ethers.verifyTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-			signature1,
-		);
-		// const recoveredAddr2 = ethers.verifyTypedData( // REMOVED: Fails due to non-canonical s
-		// 	{ chainId, verifyingContract: safeAddress },
-		// 	EIP712_SAFE_TX_TYPE,
-		// 	safeTx,
-		// 	signature2,
-		// );
-		expect(recoveredAddr1).to.equal(signerAddress);
-		// expect(recoveredAddr2).to.equal(signerAddress); // REMOVED: See above
+		// Try to enqueue malleable signature
+		await expect(
+			harbour.enqueueTransaction(
+				safeAddress,
+				chainId,
+				safeTx.nonce,
+				safeTx.to,
+				safeTx.value,
+				safeTx.data,
+				safeTx.operation,
+				safeTx.safeTxGas,
+				safeTx.baseGas,
+				safeTx.gasPrice,
+				safeTx.gasToken,
+				safeTx.refundReceiver,
+				signature2,
+			),
+		).to.be.revertedWithCustomError(harbour, "InvalidSignatureSValue");
 	});
 
 	it("should store signatures from different signers separately", async () => {
@@ -415,16 +365,16 @@ describe("SafeInternationalHarbour", () => {
 		expect(count1).to.equal(1);
 		expect(page1.length).to.equal(1);
 		expect(page1[0].txHash).to.equal(safeTxHash);
-		const sig1Bytes = ethers.getBytes(sig1);
-		expect(page1[0].r).to.equal(ethers.dataSlice(sig1Bytes, 0, 32));
-		expect(page1[0].s).to.equal(ethers.dataSlice(sig1Bytes, 32, 64));
+		const { r, vs } = toCompactSignature(sig1);
+		expect(page1[0].r).to.equal(r);
+		expect(page1[0].vs).to.equal(vs);
 
 		expect(count2).to.equal(1);
 		expect(page2.length).to.equal(1);
 		expect(page2[0].txHash).to.equal(safeTxHash);
-		const sig2Bytes = ethers.getBytes(sig2);
-		expect(page2[0].r).to.equal(ethers.dataSlice(sig2Bytes, 0, 32));
-		expect(page2[0].s).to.equal(ethers.dataSlice(sig2Bytes, 32, 64));
+		const { r: r2, vs: vs2 } = toCompactSignature(sig2);
+		expect(page2[0].r).to.equal(r2);
+		expect(page2[0].vs).to.equal(vs2);
 	});
 
 	it("should handle duplicate enqueueTransaction calls gracefully and append duplicate signature entries", async () => {
@@ -449,9 +399,7 @@ describe("SafeInternationalHarbour", () => {
 			EIP712_SAFE_TX_TYPE,
 			safeTx,
 		);
-		const sigBytes = ethers.getBytes(signature);
-		const r = ethers.dataSlice(sigBytes, 0, 32);
-		const s = ethers.dataSlice(sigBytes, 32, 64);
+		const { r, vs } = toCompactSignature(signature);
 
 		// Call twice with the exact same signature
 		await harbour.enqueueTransaction(
@@ -498,10 +446,10 @@ describe("SafeInternationalHarbour", () => {
 		expect(page.length).to.equal(2);
 		// Both entries should be identical
 		expect(page[0].r).to.equal(r);
-		expect(page[0].s).to.equal(s);
+		expect(page[0].vs).to.equal(vs);
 		expect(page[0].txHash).to.equal(safeTxHash);
 		expect(page[1].r).to.equal(r);
-		expect(page[1].s).to.equal(s);
+		expect(page[1].vs).to.equal(vs);
 		expect(page[1].txHash).to.equal(safeTxHash);
 	});
 
@@ -579,7 +527,7 @@ describe("SafeInternationalHarbour", () => {
 		const nonce = 7n;
 		const signatures = [];
 		const txHashes = [];
-		const sigData: { r: string; s: string; txHash: string }[] = [];
+		const sigData: { r: string; vs: string; txHash: string }[] = [];
 
 		for (let i = 0; i < 5; i++) {
 			const safeTx: SafeTransaction = {
@@ -602,10 +550,10 @@ describe("SafeInternationalHarbour", () => {
 			);
 			signatures.push(signature);
 			txHashes.push(safeTxHash);
-			const sigBytes = ethers.getBytes(signature);
+			const { r, vs } = toCompactSignature(signature);
 			sigData.push({
-				r: ethers.dataSlice(sigBytes, 0, 32),
-				s: ethers.dataSlice(sigBytes, 32, 64),
+				r,
+				vs,
 				txHash: safeTxHash,
 			});
 
@@ -635,10 +583,10 @@ describe("SafeInternationalHarbour", () => {
 		expect(count).to.equal(5);
 		expect(page.length).to.equal(2);
 		expect(page[0].r).to.equal(sigData[0].r);
-		expect(page[0].s).to.equal(sigData[0].s);
+		expect(page[0].vs).to.equal(sigData[0].vs);
 		expect(page[0].txHash).to.equal(sigData[0].txHash);
 		expect(page[1].r).to.equal(sigData[1].r);
-		expect(page[1].s).to.equal(sigData[1].s);
+		expect(page[1].vs).to.equal(sigData[1].vs);
 		expect(page[1].txHash).to.equal(sigData[1].txHash);
 
 		// Page 2: start=2, count=2
@@ -646,10 +594,10 @@ describe("SafeInternationalHarbour", () => {
 		expect(count).to.equal(5);
 		expect(page.length).to.equal(2);
 		expect(page[0].r).to.equal(sigData[2].r);
-		expect(page[0].s).to.equal(sigData[2].s);
+		expect(page[0].vs).to.equal(sigData[2].vs);
 		expect(page[0].txHash).to.equal(sigData[2].txHash);
 		expect(page[1].r).to.equal(sigData[3].r);
-		expect(page[1].s).to.equal(sigData[3].s);
+		expect(page[1].vs).to.equal(sigData[3].vs);
 		expect(page[1].txHash).to.equal(sigData[3].txHash);
 
 		// Page 3: start=4, count=2 (only 1 element left)
@@ -657,7 +605,7 @@ describe("SafeInternationalHarbour", () => {
 		expect(count).to.equal(5);
 		expect(page.length).to.equal(1);
 		expect(page[0].r).to.equal(sigData[4].r);
-		expect(page[0].s).to.equal(sigData[4].s);
+		expect(page[0].vs).to.equal(sigData[4].vs);
 		expect(page[0].txHash).to.equal(sigData[4].txHash);
 	});
 
@@ -1188,23 +1136,25 @@ describe("SafeInternationalHarbour", () => {
 				EIP712_SAFE_TX_TYPE,
 				safeTx,
 			);
-			await expect(harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			))
-			.to.emit(harbour, "SignatureStored")
-			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
+			await expect(
+				harbour.enqueueTransaction(
+					safeAddress,
+					chainId,
+					safeTx.nonce,
+					safeTx.to,
+					safeTx.value,
+					safeTx.data,
+					safeTx.operation,
+					safeTx.safeTxGas,
+					safeTx.baseGas,
+					safeTx.gasPrice,
+					safeTx.gasToken,
+					safeTx.refundReceiver,
+					signature,
+				),
+			)
+				.to.emit(harbour, "SignatureStored")
+				.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
 		}
 
 		const count = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
@@ -1271,180 +1221,7 @@ describe("SafeInternationalHarbour", () => {
 				safeTx.gasPrice,
 				safeTx.gasToken,
 				safeTx.refundReceiver,
-				safeTx.data
-			);
-	});
-
-	/**
-	 * This test verifies that the SafeInternationalHarbour contract can store two ECDSA signatures
-	 * that are mathematically distinct yet recover to the same signer address, demonstrating
-	 * ECDSA signature malleability. In ECDSA over secp256k1, a signature is composed of (r, s, v).
-	 * Given a valid signature (r, s1, v1), the value s2 = N - s1 (where N is the curve order) and
-	 * the flipped recovery parameter v2 (27 ↔ 28) also forms a valid signature recovering to the
-	 * same public key. While EIP-2 enforces a low-s canonical form (s <= N/2), this contract
-	 * deliberately does not enforce that rule, allowing malleable signatures. The test does the
-	 * following steps:
-	 * 1. Generate a standard EIP-712 signature (r, s1, v1) with signTypedData.
-	 * 2. Compute the malleable counterpart: s2 = N - s1 and flip v1 to v2.
-	 * 3. Submit both signatures via enqueueTransaction to the contract.
-	 * 4. Retrieve stored signatures with retrieveSignatures and assert that:
-	 *    - totalCount is 2
-	 *    - both entries have the same r but different s values
-	 *    - both entries share the same safeTxHash
-	 */
-	it("should store multiple malleable signatures that recover to the same address", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
-		const signerAddress = signerWallet.address;
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 17n,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature1 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		const sig1Bytes = ethers.getBytes(signature1);
-		const r1 = ethers.dataSlice(sig1Bytes, 0, 32);
-		const s1 = ethers.dataSlice(sig1Bytes, 32, 64);
-		const v1 = Number.parseInt(ethers.dataSlice(sig1Bytes, 64, 65).substring(2), 16);
-
-		const secp256k1N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-		const s1BN = BigInt(s1);
-		const s2BN = secp256k1N - s1BN;
-		const s2 = ethers.toBeHex(s2BN, 32);
-		const v2 = v1 === 27 ? 28 : 27; // Flip v
-		const signature2 = ethers.concat([r1, s2, ethers.toBeHex(v2, 1)]);
-
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature1,
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature2,
-		);
-
-		const [page, totalCount] = await harbour.retrieveSignatures(
-			signerAddress,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			0,
-			10,
-		);
-		expect(totalCount).to.equal(2);
-		expect(page.length).to.equal(2);
-		expect(page[0].s).to.equal(s1);
-		expect(page[1].s).to.equal(s2);
-		expect(page[0].txHash).to.equal(safeTxHash);
-		expect(page[1].txHash).to.equal(safeTxHash);
-	});
-
-	it("should handle eth_sign prefixed signatures (v > 30 branch) correctly", async () => {
-		// Tests the unusual v > 30 logic in the contract's _recoverSignerAndRS
-		// We sign the EIP-712 hash using personal_sign, then modify v before sending.
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
-		const signerAddress = signerWallet.address;
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 18n,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-
-		// Sign the EIP-712 hash using personal_sign (eth_sign)
-		// signMessage automatically prepends the prefix and hashes
-		const flatSig = await signerWallet.signMessage(ethers.getBytes(safeTxHash));
-
-		// Deconstruct and modify v
-		const sigBytes = ethers.getBytes(flatSig);
-		const r = ethers.dataSlice(sigBytes, 0, 32);
-		const s = ethers.dataSlice(sigBytes, 32, 64);
-		const v = Number.parseInt(ethers.dataSlice(sigBytes, 64, 65).substring(2), 16);
-		// Should be 27 or 28
-
-		expect(v).to.be.oneOf([27, 28]);
-
-		// Modify v to trigger the v > 30 branch in the contract
-		const modifiedV = v + 4; // e.g., 31 or 32
-		const modifiedSig = ethers.concat([r, s, ethers.toBeHex(modifiedV, 1)]);
-
-		// Enqueue with the modified signature
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
 				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				modifiedSig,
-			),
-		)
-			.to.emit(harbour, "SignatureStored")
-			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, safeTx.nonce, 0); // Check event emission
-
-		// Verify retrieval
-		const [page, totalCount] = await harbour.retrieveSignatures(
-			signerAddress,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			0,
-			1,
-		);
-		expect(totalCount).to.equal(1);
-		expect(page.length).to.equal(1);
-		expect(page[0].r).to.equal(r);
-		expect(page[0].s).to.equal(s);
-		expect(page[0].txHash).to.equal(safeTxHash);
+			);
 	});
 });
