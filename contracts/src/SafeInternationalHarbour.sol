@@ -16,12 +16,6 @@ pragma solidity ^0.8.29;
  * its parameters. Signatures are appended under the composite key
  * `(signer, safe, chainId, nonce)`, enabling on‑chain, gas‑efficient look‑ups.
  *
- * ### ⚠️ Signature‑malleability disclaimer
- * This implementation deliberately **does not** enforce the EIP‑2 "low‑`s`" rule. If two distinct
- * `(r,s,v)` values recover to the same address, *both* will be stored. Client code **must**
- * de‑duplicate if that is undesirable.
- *
- *
  * ### ⚠️ Contract‑based signers unsupported
  * Only ECDSA signatures from externally‑owned accounts (EOAs) are supported. Contract wallets that
  * rely on ERC‑1271 or similar cannot be verified on‑chain in a chain‑agnostic way and are therefore
@@ -41,15 +35,25 @@ contract SafeInternationalHarbour {
     /// Thrown if `ecrecover` yields `address(0)`.
     error InvalidSignature();
 
+    /// Thrown if the S value of the signature is not from the lower half of the curve.
+    error InvalidSignatureSValue();
+
     // ------------------------------------------------------------------
     // Constants
     // ------------------------------------------------------------------
 
+    /// The hashes must be the same as the ones in the Safe contract:
+    /// https://github.com/safe-global/safe-smart-account/blob/b115c4c5fe23dca6aefeeccc73d312ddd23322c2/contracts/Safe.sol#L54-L63
+    /// These should cover Safe versions 1.3.0 and 1.4.1
     /// keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
     bytes32 private constant _DOMAIN_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
 
     /// keccak256("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)")
     bytes32 private constant _SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
+
+    /// The lower bound of the S value for a valid secp256k1 signature.
+    /// https://github.com/safe-global/safe-smart-account/blob/b115c4c5fe23dca6aefeeccc73d312ddd23322c2/contracts/Safe.sol#L100
+    bytes32 private constant SECP256K1_LOW_S_BOUND = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     // ------------------------------------------------------------------
     // Data structures
@@ -75,9 +79,11 @@ contract SafeInternationalHarbour {
     /**
      * @dev Minimal, storage‑optimised representation of an ECDSA signature.
      */
-    struct SignatureData {
+    struct SignatureDataWithTxHashIndex {
         bytes32 r;
-        bytes32 s;
+        // vs is the compact representation of s and v coming from
+        // EIP-2098: https://eips.ethereum.org/EIPS/eip-2098
+        bytes32 vs;
         bytes32 txHash; // EIP‑712 digest this signature belongs to
     }
 
@@ -88,8 +94,8 @@ contract SafeInternationalHarbour {
     /// Mapping `safeTxHash → SafeTransaction` parameters
     mapping(bytes32 => SafeTransaction) private _txDetails;
 
-    /// Mapping `signer → safe → chainId → nonce → SignatureData[]`
-    mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[]))))
+    /// Mapping `signer → safe → chainId → nonce → SignatureDataWithTxHashIndex[]`
+    mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureDataWithTxHashIndex[]))))
         private _sigData;
 
     // ------------------------------------------------------------------
@@ -210,8 +216,8 @@ contract SafeInternationalHarbour {
             refundReceiver
         );
 
-        // Recover signer and split signature into (r,s)
-        (address signer, bytes32 r, bytes32 s) = _recoverSignerAndRS(safeTxHash, signature);
+        // Recover signer and split signature into (r,vs)
+        (address signer, bytes32 r, bytes32 vs) = _recoverSigner(safeTxHash, signature);
 
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
@@ -261,9 +267,9 @@ contract SafeInternationalHarbour {
             );
         }
 
-        // Append the (r,s) pair for this signer
-        SignatureData[] storage list = _sigData[signer][safeAddress][chainId][nonce];
-        list.push(SignatureData({r: r, s: s, txHash: safeTxHash}));
+        // Append the (r,vs) pair for this signer
+        SignatureDataWithTxHashIndex[] storage list = _sigData[signer][safeAddress][chainId][nonce];
+        list.push(SignatureDataWithTxHashIndex({r: r, vs: vs, txHash: safeTxHash}));
         unchecked {
             listIndex = list.length - 1; // gas‑free length‑1 because of unchecked
         }
@@ -306,16 +312,16 @@ contract SafeInternationalHarbour {
         uint256 nonce,
         uint256 start,
         uint256 count
-    ) external view returns (SignatureData[] memory page, uint256 totalCount) {
-        SignatureData[] storage all = _sigData[signerAddress][safeAddress][chainId][nonce];
+    ) external view returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount) {
+        SignatureDataWithTxHashIndex[] storage all = _sigData[signerAddress][safeAddress][chainId][nonce];
         totalCount = all.length;
-        if (start >= totalCount) return (new SignatureData[](0), totalCount);
+        if (start >= totalCount) return (new SignatureDataWithTxHashIndex[](0), totalCount);
 
         uint256 end = start + count;
         if (end > totalCount) end = totalCount;
         uint256 len = end - start;
 
-        page = new SignatureData[](len);
+        page = new SignatureDataWithTxHashIndex[](len);
         for (uint256 i; i < len; ++i) {
             page[i] = all[start + i];
         }
@@ -397,26 +403,34 @@ contract SafeInternationalHarbour {
      * @param sig Concatenated 65-byte ECDSA signature (r || s || v).
      * @return signer The address that produced the signature (EOA).
      * @return r First 32 bytes of the ECDSA signature.
-     * @return s Second 32 bytes of the ECDSA signature.
+     * @return vs Compact representation of s and v coming from EIP-2098.
      * @dev Supports both EIP-712 and eth_sign flows by detecting v > 30 and applying the Ethereum Signed Message prefix.
      */
-    function _recoverSignerAndRS(bytes32 digest, bytes calldata sig)
+    function _recoverSigner(bytes32 digest, bytes calldata sig)
         private
         pure
-        returns (address signer, bytes32 r, bytes32 s)
+        returns (address signer, bytes32 r, bytes32 vs)
     {
         uint8 v;
+        bytes32 s;
         assembly ("memory-safe") {
             r := calldataload(sig.offset)
             s := calldataload(add(sig.offset, 0x20))
             v := byte(0, calldataload(add(sig.offset, 0x40)))
         }
-        if (v > 30) {
-            digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", digest));
-            v -= 4;
+
+        if (s > SECP256K1_LOW_S_BOUND) {
+            revert InvalidSignatureSValue();
         }
 
         signer = ecrecover(digest, v, r, s);
         if (signer == address(0)) revert InvalidSignature();
+        
+        assembly ("memory-safe") {
+            // Equivalent to:
+            // vs = bytes32(uint256(v) << 255 | uint256(s));
+            // Which should avoid conversion between uint256 and bytes32
+            vs := or(shl(255, v), s)
+        }
     }
 }
