@@ -2,7 +2,6 @@
 pragma solidity ^0.8.29;
 
 
-
 /**
  * @title SafeInternationalHarbour
  * @notice Permissionless, append‑only registry that lets **any EOA signer** publish Safe
@@ -61,16 +60,21 @@ contract SafeInternationalHarbour {
 
     /**
      * @dev Storage optimised mirror of the SafeTx struct used by Safe contracts.
+     *      Non-optimised version uses uint256 for:
+     *      - value
+     *      - safeTxGas
+     *      - baseGas
+     *      - gasPrice
      */
     struct SafeTransaction {
         // stored, operation and to will be packed into the same storage slot
         bool stored;
         uint8 operation;
         address to;
-        uint256 value;
-        uint256 safeTxGas;
-        uint256 baseGas;
-        uint256 gasPrice;
+        uint128 value;
+        uint128 safeTxGas;
+        uint128 baseGas;
+        uint128 gasPrice;
         address gasToken;
         address refundReceiver;
         bytes data;
@@ -229,16 +233,16 @@ contract SafeInternationalHarbour {
 
             // Writing to storage is expensive, so we only write if the value is non-zero
             if (value > 0) {
-                slot.value = value;
+                slot.value = uint128(value);
             }
             if (safeTxGas > 0) {
-                slot.safeTxGas = safeTxGas;
+                slot.safeTxGas = uint128(safeTxGas);
             }
             if (baseGas > 0) {
-                slot.baseGas = baseGas;
+                slot.baseGas = uint128(baseGas);
             }
             if (gasPrice > 0) {
-                slot.gasPrice = gasPrice;
+                slot.gasPrice = uint128(gasPrice);
             }
             if (gasToken != address(0)) {
                 slot.gasToken = gasToken;

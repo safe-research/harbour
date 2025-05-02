@@ -145,3 +145,7 @@ On average, each extra 32-byte slot adds around ~22k gas.
 ---
 
 For questions or issues, refer to the contract source: `contracts/src/SafeInternationalHarbour.sol`.
+
+## Potential improvements or areas of future research
+
+- Using [SSTORE2](https://github.com/0xsequence/sstore2) for storing the transaction data
