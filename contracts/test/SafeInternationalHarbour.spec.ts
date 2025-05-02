@@ -377,7 +377,7 @@ describe("SafeInternationalHarbour", () => {
 		expect(page2[0].vs).to.equal(vs2);
 	});
 
-	it("should handle duplicate enqueueTransaction calls gracefully and append duplicate signature entries", async () => {
+	it("should revert when a signer tries to enqueue the same transaction signature twice", async () => {
 		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = ethers.Wallet.createRandom();
 		const signerAddress = signerWallet.address;
@@ -399,24 +399,8 @@ describe("SafeInternationalHarbour", () => {
 			EIP712_SAFE_TX_TYPE,
 			safeTx,
 		);
-		const { r, vs } = toCompactSignature(signature);
 
-		// Call twice with the exact same signature
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		);
+		// First call stores signature
 		await harbour.enqueueTransaction(
 			safeAddress,
 			chainId,
@@ -433,24 +417,26 @@ describe("SafeInternationalHarbour", () => {
 			signature,
 		);
 
-		const [page, totalCount] = await harbour.retrieveSignatures(
-			signerAddress,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			0,
-			10,
-		);
-
-		expect(totalCount).to.equal(2);
-		expect(page.length).to.equal(2);
-		// Both entries should be identical
-		expect(page[0].r).to.equal(r);
-		expect(page[0].vs).to.equal(vs);
-		expect(page[0].txHash).to.equal(safeTxHash);
-		expect(page[1].r).to.equal(r);
-		expect(page[1].vs).to.equal(vs);
-		expect(page[1].txHash).to.equal(safeTxHash);
+		// Second call should revert
+		await expect(
+			harbour.enqueueTransaction(
+				safeAddress,
+				chainId,
+				safeTx.nonce,
+				safeTx.to,
+				safeTx.value,
+				safeTx.data,
+				safeTx.operation,
+				safeTx.safeTxGas,
+				safeTx.baseGas,
+				safeTx.gasPrice,
+				safeTx.gasToken,
+				safeTx.refundReceiver,
+				signature,
+			),
+		)
+			.to.be.revertedWithCustomError(harbour, "SignerAlreadySignedTransaction")
+			.withArgs(signerAddress, safeTxHash);
 	});
 
 	it("should retrieve full transaction details via retrieveTransaction", async () => {
