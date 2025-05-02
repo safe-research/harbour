@@ -9,6 +9,12 @@ Custom contracts developed for the Harbour project, located under `src`:
 - **SafeInternationalHarbour.sol** – A singleton contract to enqueue transactions on any chain. [Learn more](docs/international-harbour.md)
 - **SafeModuleHarbour.sol** – A module contract that implements the queued transaction module. [Learn more](docs/module-queue.md)
 
+## Official Deployments
+
+- **Gnosis Chain**: [SafeInternationalHarbour Contract on Gnosis Chain](https://gnosisscan.io/address/0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6) (`0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6`)
+
+> ⚠️ **Disclaimer:** These contracts have not been audited. Use at your own risk.
+
 ## Getting Started
 
 Install dependencies and compile the contracts:
