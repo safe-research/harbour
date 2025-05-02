@@ -24,7 +24,7 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 
 Note: The order of struct variables might differ in the implementation to optimize gas usage.
 
-- **SafeTransaction**: Mirror of Safe's `SafeTx` struct:
+- **SafeTransaction**: Storage-optimized mirror of the `SafeTx` struct used by Safe contracts:
 
   ```solidity
   struct SafeTransaction {
@@ -32,22 +32,25 @@ Note: The order of struct variables might differ in the implementation to optimi
       bool stored;
       uint8 operation;
       address to;
-      uint256 value;
-      uint256 safeTxGas;
-      uint256 baseGas;
-      uint256 gasPrice;
+      uint128 value;
+      uint128 safeTxGas;
+      uint128 baseGas;
+      uint128 gasPrice;
       address gasToken;
       address refundReceiver;
       bytes data;
   }
   ```
 
-- **SignatureDataWithTxHashIndex**: Storage-optimized ECDSA signature with an index (by hash) to the transaction it belongs to :
+- **SignatureDataWithTxHashIndex**: Minimal, storage-optimized representation of an ECDSA signature linked to a Safe transaction:
+
   ```solidity
   struct SignatureDataWithTxHashIndex {
-    bytes32 r;
-    bytes32 vs; // EIP-2098 compact representation of s and v
-    bytes32 txHash; // EIP-712 digest
+      bytes32 r;
+      // vs is the compact representation of s and v coming from
+      // EIP-2098: https://eips.ethereum.org/EIPS/eip-2098
+      bytes32 vs;
+      bytes32 txHash; // EIP-712 digest this signature belongs to
   }
   ```
 
@@ -110,7 +113,7 @@ function retrieveSignatures(
   uint256 nonce,
   uint256 start,
   uint256 count
-) external view returns (SignatureData[] memory page, uint256 totalCount);
+) external view returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount);
 ```
 
 - Returns a paginated slice `[start … start+count)` of signatures and the total count.
