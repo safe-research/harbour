@@ -37,6 +37,9 @@ contract SafeInternationalHarbour {
     /// Thrown if the S value of the signature is not from the lower half of the curve.
     error InvalidSignatureSValue();
 
+    /// Thrown when a value doesn't fit in a uint128.
+    error ValueDoesNotFitInUint128();
+
     /// @notice Thrown when attempting to store a signature for a transaction (safeTxHash)
     /// that the signer has already provided a signature for.
     /// @param signer Signer address.
@@ -253,16 +256,16 @@ contract SafeInternationalHarbour {
 
             // Writing to storage is expensive, so we only write if the value is non-zero
             if (value > 0) {
-                slot.value = uint128(value);
+                slot.value = _safeCastUint256ToUint128(value);
             }
             if (safeTxGas > 0) {
-                slot.safeTxGas = uint128(safeTxGas);
+                slot.safeTxGas = _safeCastUint256ToUint128(safeTxGas);
             }
             if (baseGas > 0) {
-                slot.baseGas = uint128(baseGas);
+                slot.baseGas = _safeCastUint256ToUint128(baseGas);
             }
             if (gasPrice > 0) {
-                slot.gasPrice = uint128(gasPrice);
+                slot.gasPrice = _safeCastUint256ToUint128(gasPrice);
             }
             if (gasToken != address(0)) {
                 slot.gasToken = gasToken;
@@ -457,5 +460,10 @@ contract SafeInternationalHarbour {
             // Which should avoid conversion between uint256 and bytes32
             vs := or(shl(255, sub(v, 27)), s)
         }
+    }
+
+    function _safeCastUint256ToUint128(uint256 value) private pure returns (uint128) {
+        require(value <= type(uint128).max, ValueDoesNotFitInUint128());
+        return uint128(value);
     }
 }
