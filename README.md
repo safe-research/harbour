@@ -7,7 +7,7 @@
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/harbour.git
+git clone https://github.com/cc0x-research/harbour.git
 ```
 
 2. Navigate to the project directory:
