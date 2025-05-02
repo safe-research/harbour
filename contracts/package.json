@@ -6,16 +6,21 @@
     "test": "test"
   },
   "dependencies": {
-    "@safe-global/safe-contracts": "^1.4.1-2"
+    "@safe-global/safe-contracts": "^1.4.1-2",
+    "@safe-global/safe-singleton-factory": "^1.0.43"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "dotenv": "^16.5.0",
     "hardhat": "^2.23.0",
     "hardhat-deploy": "^1.0.2",
     "hardhat-gas-reporter": "^1.0.8"
   },
   "scripts": {
     "build": "hardhat compile",
+    "deploy": "hardhat deploy",
+    "deploy:intl": "hardhat deploy --tags SafeInternationalHarbour",
     "lint": "echo 'No linting rules defined'",
     "format": "echo 'No formatting rules defined'",
     "test": "hardhat test",
