@@ -15,7 +15,6 @@ Off-chain coordination of Safe transactions (e.g. collecting ECDSA signatures) i
 ## Key Disclaimers
 
 - **Signature malleability**: The contract enforces EIP-2098 low-`s` values.
-- **Parameter collision**: Transactions are identified _solely_ by `safeTxHash`. In the astronomically unlikely event of a hash collision, the first stored parameters prevail; later submissions are ignored.
 - **EOA-only signers**: Only ECDSA signatures from EOAs are supported. Contract-based signers (e.g. ERC-1271) cannot be verified on-chain in a chain-agnostic way.
 
 ## Implementation Details
@@ -90,7 +89,7 @@ function enqueueTransaction(
 ```
 
 - **Publishes** a Safe transaction (first call) and **appends** a single 65-byte ECDSA `signature`.
-- Reverts if `signature.length != 65` or if `ecrecover` yields `address(0)`.
+- Reverts if `signature.length != 65`, if the signature's `s` value is not in the lower half of the curve (`InvalidSignatureSValue`), if `ecrecover` yields `address(0)`, or if the signer has already signed this transaction (`SignerAlreadySignedTransaction`).
 - Emits `SignatureStored(address signer, address safe, bytes32 safeTxHash, uint256 chainId, uint256 nonce, uint256 listIndex)`.
 - Returns the index of the stored signature in the signer-specific array.
 
