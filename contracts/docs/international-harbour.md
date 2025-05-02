@@ -139,10 +139,10 @@ function retrieveSignaturesCount(
 
 The gas cost for `enqueueTransaction` grows approximately linearly with the size of the transaction data because each EVM storage slot is 32 bytes. Based on our benchmarks:
 
-- 68 bytes (~3 slots) → ~40k gas.
-- 1024 bytes (~32 slots) → ~907k gas.
+- 68 bytes (~3 slots) → ~262k gas.
+- 1024 bytes (~32 slots) → ~929k gas.
 
-On average, each extra 32-byte slot adds around ~22k gas.
+On average, each extra 32-byte slot adds around ~23k gas.
 
 ---
 
@@ -151,3 +151,4 @@ For questions or issues, refer to the contract source: `contracts/src/SafeIntern
 ## Potential improvements or areas of future research
 
 - Using [SSTORE2](https://github.com/0xsequence/sstore2) for storing the transaction data
+- Compressing the data or the transaction altogether, for example with Solady [FastLZ](https://github.com/Vectorized/solady/blob/main/src/utils/LibZip.sol)
