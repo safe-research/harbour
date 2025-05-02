@@ -106,12 +106,15 @@ contract SafeInternationalHarbour {
 
     /// Mapping `signer → safe → chainId → nonce → SignatureDataWithTxHashIndex[]`
     /// Stores the list of signatures provided by a signer for a given Safe context.
-    /// Note: Addition must check if the signature has already been added
-    /// in the below mapping, only one entry per unique safeTxHash should exist within this list for a given signer.
+    /// Note: A single list entry here could contain signatures for *different* `safeTxHash` values
+    /// if those transactions share the same (safe, chainId, nonce). Use `_hasSignerSignedTx`
+    /// to ensure a signer only signs a specific `safeTxHash` once.
     mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureDataWithTxHashIndex[]))))
         private _sigData;
 
-    /// @dev Tracks if a signer has already submitted *any* signature for a specific safeTxHash.
+    /// @dev Tracks if a signer has already submitted *any* signature for a specific safeTxHash,
+    ///      preventing duplicate signatures for the *exact same* transaction digest.
+    ///      This complements `_sigData` by ensuring uniqueness per (safeTxHash, signer) pair.
     /// Mapping `safeTxHash → signer → bool`
     mapping(bytes32 safeTxHash => mapping(address signer => bool)) private _hasSignerSignedTx;
 
@@ -213,7 +216,7 @@ contract SafeInternationalHarbour {
         address refundReceiver,
         bytes calldata signature
     ) external returns (uint256 listIndex) {
-        if (signature.length != 65) revert InvalidECDSASignatureLength();
+        require(signature.length == 65, InvalidECDSASignatureLength());
 
         // ------------------------------------------------------------------
         // Build the EIP‑712 digest that uniquely identifies the SafeTx
@@ -238,9 +241,7 @@ contract SafeInternationalHarbour {
 
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        if (_hasSignerSignedTx[safeTxHash][signer]) {
-            revert SignerAlreadySignedTransaction(signer, safeTxHash);
-        }
+        require(!_hasSignerSignedTx[safeTxHash][signer], SignerAlreadySignedTransaction(signer, safeTxHash));
 
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
@@ -444,13 +445,10 @@ contract SafeInternationalHarbour {
             s := calldataload(add(sig.offset, 0x20))
             v := byte(0, calldataload(add(sig.offset, 0x40)))
         }
-
-        if (s > SECP256K1_LOW_S_BOUND) {
-            revert InvalidSignatureSValue();
-        }
+        require(s <= SECP256K1_LOW_S_BOUND, InvalidSignatureSValue());
 
         signer = ecrecover(digest, v, r, s);
-        if (signer == address(0)) revert InvalidSignature();
+        require(signer != address(0), InvalidSignature());
         
                     
         assembly ("memory-safe") {
