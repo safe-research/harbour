@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GNU GPLv3
 pragma solidity ^0.8.29;
 
-
 /**
  * @title SafeInternationalHarbour
  * @notice Permissionless, append‑only registry that lets **any EOA signer** publish Safe
@@ -54,14 +53,17 @@ contract SafeInternationalHarbour {
     /// https://github.com/safe-global/safe-smart-account/blob/b115c4c5fe23dca6aefeeccc73d312ddd23322c2/contracts/Safe.sol#L54-L63
     /// These should cover Safe versions 1.3.0 and 1.4.1
     /// keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
-    bytes32 private constant _DOMAIN_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+    bytes32 private constant _DOMAIN_TYPEHASH =
+        0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
 
     /// keccak256("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)")
-    bytes32 private constant _SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
+    bytes32 private constant _SAFE_TX_TYPEHASH =
+        0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
 
     /// The lower bound of the S value for a valid secp256k1 signature.
     /// https://github.com/safe-global/safe-smart-account/blob/b115c4c5fe23dca6aefeeccc73d312ddd23322c2/contracts/Safe.sol#L100
-    bytes32 private constant SECP256K1_LOW_S_BOUND = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
+    bytes32 private constant SECP256K1_LOW_S_BOUND =
+        0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0;
 
     // ------------------------------------------------------------------
     // Data structures
@@ -119,7 +121,8 @@ contract SafeInternationalHarbour {
     ///      preventing duplicate signatures for the *exact same* transaction digest.
     ///      This complements `_sigData` by ensuring uniqueness per (safeTxHash, signer) pair.
     /// Mapping `safeTxHash → signer → bool`
-    mapping(bytes32 safeTxHash => mapping(address signer => bool)) private _hasSignerSignedTx;
+    mapping(bytes32 safeTxHash => mapping(address signer => bool))
+        private _hasSignerSignedTx;
 
     // ------------------------------------------------------------------
     // Events
@@ -240,11 +243,17 @@ contract SafeInternationalHarbour {
         );
 
         // Recover signer and split signature into (r,vs)
-        (address signer, bytes32 r, bytes32 vs) = _recoverSigner(safeTxHash, signature);
+        (address signer, bytes32 r, bytes32 vs) = _recoverSigner(
+            safeTxHash,
+            signature
+        );
 
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        require(!_hasSignerSignedTx[safeTxHash][signer], SignerAlreadySignedTransaction(signer, safeTxHash));
+        require(
+            !_hasSignerSignedTx[safeTxHash][signer],
+            SignerAlreadySignedTransaction(signer, safeTxHash)
+        );
 
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
@@ -294,17 +303,28 @@ contract SafeInternationalHarbour {
             );
         }
 
-         // Mark that this signer has now signed this specific transaction hash
+        // Mark that this signer has now signed this specific transaction hash
         _hasSignerSignedTx[safeTxHash][signer] = true;
 
         // Append the (r,vs) pair for this signer
-        SignatureDataWithTxHashIndex[] storage list = _sigData[signer][safeAddress][chainId][nonce];
-        list.push(SignatureDataWithTxHashIndex({r: r, vs: vs, txHash: safeTxHash}));
+        SignatureDataWithTxHashIndex[] storage list = _sigData[signer][
+            safeAddress
+        ][chainId][nonce];
+        list.push(
+            SignatureDataWithTxHashIndex({r: r, vs: vs, txHash: safeTxHash})
+        );
         unchecked {
             listIndex = list.length - 1; // gas‑free length‑1 because of unchecked
         }
 
-        emit SignatureStored(signer, safeAddress, safeTxHash, chainId, nonce, listIndex);
+        emit SignatureStored(
+            signer,
+            safeAddress,
+            safeTxHash,
+            chainId,
+            nonce,
+            listIndex
+        );
     }
 
     /**
@@ -314,11 +334,9 @@ contract SafeInternationalHarbour {
      *
      * @return txParams Struct with all SafeTx parameters (zero‑initialised if unknown).
      */
-    function retrieveTransaction(bytes32 safeTxHash)
-        external
-        view
-        returns (SafeTransaction memory txParams)
-    {
+    function retrieveTransaction(
+        bytes32 safeTxHash
+    ) external view returns (SafeTransaction memory txParams) {
         txParams = _txDetails[safeTxHash];
     }
 
@@ -342,10 +360,17 @@ contract SafeInternationalHarbour {
         uint256 nonce,
         uint256 start,
         uint256 count
-    ) external view returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount) {
-        SignatureDataWithTxHashIndex[] storage all = _sigData[signerAddress][safeAddress][chainId][nonce];
+    )
+        external
+        view
+        returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount)
+    {
+        SignatureDataWithTxHashIndex[] storage all = _sigData[signerAddress][
+            safeAddress
+        ][chainId][nonce];
         totalCount = all.length;
-        if (start >= totalCount) return (new SignatureDataWithTxHashIndex[](0), totalCount);
+        if (start >= totalCount)
+            return (new SignatureDataWithTxHashIndex[](0), totalCount);
 
         uint256 end = start + count;
         if (end > totalCount) end = totalCount;
@@ -424,7 +449,9 @@ contract SafeInternationalHarbour {
                 nonce
             )
         );
-        safeTxHash = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+        safeTxHash = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, structHash)
+        );
     }
 
     /**
@@ -436,13 +463,13 @@ contract SafeInternationalHarbour {
      * @return vs Compact representation of s and v coming from EIP-2098.
      * @dev Supports both EIP-712 and eth_sign flows by detecting v > 30 and applying the Ethereum Signed Message prefix.
      */
-    function _recoverSigner(bytes32 digest, bytes calldata sig)
-        private
-        pure
-        returns (address signer, bytes32 r, bytes32 vs)
-    {
+    function _recoverSigner(
+        bytes32 digest,
+        bytes calldata sig
+    ) private pure returns (address signer, bytes32 r, bytes32 vs) {
         uint8 v;
         bytes32 s;
+        // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             r := calldataload(sig.offset)
             s := calldataload(add(sig.offset, 0x20))
@@ -452,8 +479,7 @@ contract SafeInternationalHarbour {
 
         signer = ecrecover(digest, v, r, s);
         require(signer != address(0), InvalidSignature());
-        
-                    
+        // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             // Equivalent to:
             // vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
@@ -462,7 +488,9 @@ contract SafeInternationalHarbour {
         }
     }
 
-    function _safeCastUint256ToUint128(uint256 value) private pure returns (uint128) {
+    function _safeCastUint256ToUint128(
+        uint256 value
+    ) private pure returns (uint128) {
         require(value <= type(uint128).max, ValueDoesNotFitInUint128());
         return uint128(value);
     }

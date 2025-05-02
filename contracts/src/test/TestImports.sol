@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: GNU GPLv3
+/* solhint-disable no-unused-import */
 pragma solidity ^0.8.29;
 
-import "@safe-global/safe-contracts/contracts/proxies/SafeProxyFactory.sol";
+import {
+    SafeProxyFactory
+} from "@safe-global/safe-contracts/contracts/proxies/SafeProxyFactory.sol";

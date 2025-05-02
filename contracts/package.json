@@ -10,18 +10,21 @@
     "@safe-global/safe-singleton-factory": "^1.0.43"
   },
   "devDependencies": {
-		"@nomicfoundation/hardhat-toolbox": "^5.0.0",
-		"@nomicfoundation/hardhat-verify": "^2.0.13",
-		"dotenv": "^16.5.0",
-		"hardhat": "^2.23.0",
-		"hardhat-deploy": "^1.0.2",
-		"hardhat-gas-reporter": "^1.0.8"
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "dotenv": "^16.5.0",
+    "hardhat": "^2.23.0",
+    "hardhat-deploy": "^1.0.2",
+    "hardhat-gas-reporter": "^1.0.8",
+    "prettier": "^3.5.3",
+    "prettier-plugin-solidity": "^2.0.0",
+    "solhint": "^5.0.5"
   },
   "scripts": {
     "build": "hardhat compile",
     "deploy": "hardhat deploy-and-verify --network",
-    "lint": "echo 'No linting rules defined'",
-    "format": "echo 'No formatting rules defined'",
+    "lint:sol": "solhint '**/*.sol'",
+    "format:sol": "prettier --write --plugin=prettier-plugin-solidity '**/*.sol'",
     "test": "hardhat test",
     "test:bench": "hardhat test --grep '@bench'",
     "hardhat:clean": "hardhat clean"
