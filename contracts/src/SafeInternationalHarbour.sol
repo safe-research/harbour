@@ -37,6 +37,12 @@ contract SafeInternationalHarbour {
     /// Thrown if the S value of the signature is not from the lower half of the curve.
     error InvalidSignatureSValue();
 
+    /// @notice Thrown when attempting to store a signature for a transaction (safeTxHash)
+    /// that the signer has already provided a signature for.
+    /// @param signer Signer address.
+    /// @param safeTxHash The EIP-712 hash of the Safe transaction.
+    error SignerAlreadySignedTransaction(address signer, bytes32 safeTxHash);
+
     // ------------------------------------------------------------------
     // Constants
     // ------------------------------------------------------------------
@@ -99,8 +105,15 @@ contract SafeInternationalHarbour {
     mapping(bytes32 => SafeTransaction) private _txDetails;
 
     /// Mapping `signer → safe → chainId → nonce → SignatureDataWithTxHashIndex[]`
+    /// Stores the list of signatures provided by a signer for a given Safe context.
+    /// Note: Addition must check if the signature has already been added
+    /// in the below mapping, only one entry per unique safeTxHash should exist within this list for a given signer.
     mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureDataWithTxHashIndex[]))))
         private _sigData;
+
+    /// @dev Tracks if a signer has already submitted *any* signature for a specific safeTxHash.
+    /// Mapping `safeTxHash → signer → bool`
+    mapping(bytes32 safeTxHash => mapping(address signer => bool)) private _hasSignerSignedTx;
 
     // ------------------------------------------------------------------
     // Events
@@ -223,6 +236,12 @@ contract SafeInternationalHarbour {
         // Recover signer and split signature into (r,vs)
         (address signer, bytes32 r, bytes32 vs) = _recoverSigner(safeTxHash, signature);
 
+        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
+        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
+        if (_hasSignerSignedTx[safeTxHash][signer]) {
+            revert SignerAlreadySignedTransaction(signer, safeTxHash);
+        }
+
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
         if (!slot.stored) {
@@ -270,6 +289,9 @@ contract SafeInternationalHarbour {
                 data
             );
         }
+
+         // Mark that this signer has now signed this specific transaction hash
+        _hasSignerSignedTx[safeTxHash][signer] = true;
 
         // Append the (r,vs) pair for this signer
         SignatureDataWithTxHashIndex[] storage list = _sigData[signer][safeAddress][chainId][nonce];
