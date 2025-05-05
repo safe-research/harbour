@@ -12,9 +12,6 @@
     "check": "biome check",
     "test": "npm run test --workspaces"
   },
-  "dependencies": {
-    "@safe-global/safe-contracts": "^1.4.1-2"
-  },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "typescript": "^5.7.2"
