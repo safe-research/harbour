@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: GNU GPLv3
 pragma solidity ^0.8.29;
 
+/// @notice Data structure representing a Safe configuration.
+/// @param owners The list of Safe owners.
+/// @param threshold Required confirmations for transactions.
+/// @param fallbackHandler Fallback handler contract address.
+/// @param nonce Current nonce of the Safe.
+/// @param modules Enabled Safe modules.
+/// @param guard Guard contract address.
 struct SafeConfiguration {
     address[] owners;
     uint256 threshold;
@@ -26,33 +33,41 @@ interface ISafe {
     function getModules() external view returns (address[] memory);
 }
 
+/// @title Safe Configuration Fetcher
+/// @notice A utility contract to fetch basic and full configurations of a Safe.
+/// @dev Provides gas-optimized methods for reading storage and modules with pagination.
 contract SafeConfigurationFetcher {
-    // keccak256("fallback_manager.handler.address")
+    /// @dev Storage slot for fallback handler (keccak256("fallback_manager.handler.address")).
     bytes32 internal constant FALLBACK_HANDLER_STORAGE_SLOT =
         0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5;
 
-    // keccak256("guard_manager.guard.address")
+    /// @dev Storage slot for guard contract (keccak256("guard_manager.guard.address")).
     bytes32 internal constant GUARD_STORAGE_SLOT =
         0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8;
 
-    // SENTINEL_MODULES is used to traverse `modules`, so that:
-    //      1. `modules[SENTINEL_MODULES]` contains the first module
-    //      2. `modules[last_module]` points back to SENTINEL_MODULES
+    /// @dev Sentinel address for module linked-list iteration.
     address internal constant SENTINEL_MODULES = address(0x1);
 
+    /// @dev Internal helper to read an address from a specific storage slot.
+    /// @param safeContract The Safe contract to query.
+    /// @param slot The storage slot to read.
+    /// @return addr The address value decoded from the slot.
     function _addressFromStorage(
         ISafe safeContract,
         bytes32 slot
-    ) internal view returns (address) {
-        return
-            abi.decode(safeContract.getStorageAt(uint256(slot), 1), (address));
+    ) internal view returns (address addr) {
+        addr = abi.decode(
+            safeContract.getStorageAt(uint256(slot), 1),
+            (address)
+        );
     }
 
-    /// @notice Returns the basic Safe configuration (excluding modules).
-    function getBasicConfiguration(
-        address safe
-    ) external view returns (SafeConfiguration memory config) {
-        ISafe safeContract = ISafe(safe);
+    /// @dev Internal helper to fetch the basic configuration fields from the Safe.
+    /// @param safeContract The Safe contract instance.
+    /// @return config SafeConfiguration struct with owners, threshold, fallbackHandler, nonce, and guard populated.
+    function _fetchBasicConfig(
+        ISafe safeContract
+    ) private view returns (SafeConfiguration memory config) {
         config.owners = safeContract.getOwners();
         config.threshold = safeContract.getThreshold();
         config.fallbackHandler = _addressFromStorage(
@@ -63,16 +78,38 @@ contract SafeConfigurationFetcher {
         config.guard = _addressFromStorage(safeContract, GUARD_STORAGE_SLOT);
     }
 
-    /// @notice Returns a page of Safe modules and the next cursor.
+    /// @notice Returns the basic Safe configuration (excluding modules, modules array will be empty).
+    /// @param safe The address of the Safe contract.
+    /// @return config The basic SafeConfiguration with owners, threshold, fallbackHandler, nonce, guard, and an empty modules array.
+    function getBasicConfiguration(
+        address safe
+    ) external view returns (SafeConfiguration memory config) {
+        config = _fetchBasicConfig(ISafe(safe));
+    }
+
+    /// @notice Returns a page of Safe modules and the next cursor for pagination.
+    /// @param safe The address of the Safe contract.
+    /// @param start The starting module address (use SENTINEL_MODULES for first page).
+    /// @param pageSize The maximum number of modules to retrieve.
+    /// @return modulePage List of module addresses in the retrieved page.
+    /// @return nextCursor Address cursor for the next page (address(0) if end reached).
     function getModulesPaginated(
         address safe,
         address start,
         uint256 pageSize
-    ) external view returns (address[] memory modulePage, address next) {
-        return ISafe(safe).getModulesPaginated(start, pageSize);
+    ) external view returns (address[] memory modulePage, address nextCursor) {
+        (modulePage, nextCursor) = ISafe(safe).getModulesPaginated(
+            start,
+            pageSize
+        );
     }
 
-    /// @notice Returns the full Safe configuration (including all modules via pagination, up to a safety cap).
+    /// @notice Returns the full Safe configuration, including all modules up to the specified cap.
+    /// @param safe The address of the Safe contract.
+    /// @param maxIterations Maximum number of pagination loops.
+    /// @param pageSize Number of modules to fetch per iteration.
+    /// @return fullConfig Complete SafeConfiguration with modules populated.
+    /// @return nextCursor Cursor for additional pagination (address(0) if none left).
     function getFullConfiguration(
         address safe,
         uint256 maxIterations,
@@ -80,25 +117,16 @@ contract SafeConfigurationFetcher {
     )
         external
         view
-        returns (SafeConfiguration memory config, address nextCursor)
+        returns (SafeConfiguration memory fullConfig, address nextCursor)
     {
         ISafe safeContract = ISafe(safe);
-        // populate basic config fields
-        config.owners = safeContract.getOwners();
-        config.threshold = safeContract.getThreshold();
-        config.fallbackHandler = _addressFromStorage(
-            safeContract,
-            FALLBACK_HANDLER_STORAGE_SLOT
-        );
-        config.nonce = safeContract.nonce();
-        config.guard = _addressFromStorage(safeContract, GUARD_STORAGE_SLOT);
+        fullConfig = _fetchBasicConfig(safeContract);
 
-        // temporary buffer to collect modules
-        address[] memory temp = new address[](maxIterations * pageSize);
+        uint256 bufferSize = maxIterations * pageSize;
+        address[] memory temp = new address[](bufferSize);
         uint256 count = 0;
         address cursor = SENTINEL_MODULES;
 
-        // paginate through modules up to maxIterations
         for (uint256 i = 0; i < maxIterations && cursor != address(0); i++) {
             (address[] memory page, address next) = safeContract
                 .getModulesPaginated(cursor, pageSize);
@@ -108,13 +136,11 @@ contract SafeConfigurationFetcher {
             cursor = next;
         }
 
-        // trim buffer to actual size
         address[] memory modulesArr = new address[](count);
         for (uint256 k = 0; k < count; k++) {
             modulesArr[k] = temp[k];
         }
-
-        config.modules = modulesArr;
+        fullConfig.modules = modulesArr;
         nextCursor = cursor;
     }
 }
