@@ -40,32 +40,81 @@ contract SafeConfigurationFetcher {
     //      2. `modules[last_module]` points back to SENTINEL_MODULES
     address internal constant SENTINEL_MODULES = address(0x1);
 
-    function get(address safe) public view returns (SafeConfiguration memory) {
-        ISafe safeContract = ISafe(safe);
-        (address[] memory modules, ) = safeContract.getModulesPaginated(
-            SENTINEL_MODULES,
-            100
-        );
-
-        return
-            SafeConfiguration({
-                owners: safeContract.getOwners(),
-                threshold: safeContract.getThreshold(),
-                fallbackHandler: _addressFromStorage(
-                    safeContract,
-                    FALLBACK_HANDLER_STORAGE_SLOT
-                ),
-                nonce: safeContract.nonce(),
-                modules: modules,
-                guard: _addressFromStorage(safeContract, GUARD_STORAGE_SLOT)
-            });
-    }
-
     function _addressFromStorage(
         ISafe safeContract,
         bytes32 slot
     ) internal view returns (address) {
         return
             abi.decode(safeContract.getStorageAt(uint256(slot), 1), (address));
+    }
+
+    /// @notice Returns the basic Safe configuration (excluding modules).
+    function getBasicConfiguration(
+        address safe
+    ) external view returns (SafeConfiguration memory config) {
+        ISafe safeContract = ISafe(safe);
+        config.owners = safeContract.getOwners();
+        config.threshold = safeContract.getThreshold();
+        config.fallbackHandler = _addressFromStorage(
+            safeContract,
+            FALLBACK_HANDLER_STORAGE_SLOT
+        );
+        config.nonce = safeContract.nonce();
+        config.guard = _addressFromStorage(safeContract, GUARD_STORAGE_SLOT);
+    }
+
+    /// @notice Returns a page of Safe modules and the next cursor.
+    function getModulesPaginated(
+        address safe,
+        address start,
+        uint256 pageSize
+    ) external view returns (address[] memory modulePage, address next) {
+        return ISafe(safe).getModulesPaginated(start, pageSize);
+    }
+
+    /// @notice Returns the full Safe configuration (including all modules via pagination, up to a safety cap).
+    function getFullConfiguration(
+        address safe,
+        uint256 maxIterations,
+        uint256 pageSize
+    )
+        external
+        view
+        returns (SafeConfiguration memory config, address nextCursor)
+    {
+        ISafe safeContract = ISafe(safe);
+        // populate basic config fields
+        config.owners = safeContract.getOwners();
+        config.threshold = safeContract.getThreshold();
+        config.fallbackHandler = _addressFromStorage(
+            safeContract,
+            FALLBACK_HANDLER_STORAGE_SLOT
+        );
+        config.nonce = safeContract.nonce();
+        config.guard = _addressFromStorage(safeContract, GUARD_STORAGE_SLOT);
+
+        // temporary buffer to collect modules
+        address[] memory temp = new address[](maxIterations * pageSize);
+        uint256 count = 0;
+        address cursor = SENTINEL_MODULES;
+
+        // paginate through modules up to maxIterations
+        for (uint256 i = 0; i < maxIterations && cursor != address(0); i++) {
+            (address[] memory page, address next) = safeContract
+                .getModulesPaginated(cursor, pageSize);
+            for (uint256 j = 0; j < page.length; j++) {
+                temp[count++] = page[j];
+            }
+            cursor = next;
+        }
+
+        // trim buffer to actual size
+        address[] memory modulesArr = new address[](count);
+        for (uint256 k = 0; k < count; k++) {
+            modulesArr[k] = temp[k];
+        }
+
+        config.modules = modulesArr;
+        nextCursor = cursor;
     }
 }
