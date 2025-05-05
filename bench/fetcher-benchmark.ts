@@ -1,5 +1,8 @@
 #!/usr/bin/env ts-node
 
+import { deepStrictEqual } from "node:assert";
+import { performance } from "node:perf_hooks";
+import * as ethers from "ethers";
 import { Contract, JsonRpcProvider } from "ethers";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -10,6 +13,9 @@ import { SafeConfigurationFetcher__factory } from "../contracts/typechain-types/
 const MULTICALL3_ABI = [
 	"function aggregate(tuple(address target, bytes callData)[] calls) external payable returns (uint256 blockNumber, bytes[] returnData)",
 ];
+
+// Hoisted interface for encoding/decoding Safe calls
+const SAFE_IFACE = ISafe__factory.createInterface();
 
 interface Args {
 	rpcUrl: string;
@@ -36,10 +42,18 @@ const argv = yargs(hideBin(process.argv))
 	.parseSync() as Args;
 
 // Zero address constant
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ethers.ZeroAddress;
 
 // Setup providers and contracts
 const provider = new JsonRpcProvider(argv.rpcUrl);
+// Batched provider for method3Batched
+const batchProvider = new JsonRpcProvider(argv.rpcUrl, undefined, {
+	batchStallTime: 0,
+	batchMaxCount: argv.maxIterations + 5,
+	batchMaxSize: 1024 * 1024,
+});
+// Wrapper contract on batchProvider to include decode overhead
+const batchSafeContract = ISafe__factory.connect(argv.safe, batchProvider);
 const safeContract = ISafe__factory.connect(argv.safe, provider);
 const fetcherContract = SafeConfigurationFetcher__factory.connect(argv.fetcher, provider);
 
@@ -50,12 +64,12 @@ const SENTINEL = "0x0000000000000000000000000000000000000001";
 
 /** Measures one run: returns result and duration in ms */
 async function measure<T>(fn: () => Promise<T>): Promise<{ result: T; time: number }> {
-	const start = Date.now();
+	const start = performance.now();
 	const result = await fn();
-	return { result, time: Date.now() - start };
+	return { result, time: performance.now() - start };
 }
 
-/** Given an array of numbers, computes average and population std-deviation */
+/** Given an array of numbers, computes average and sample standard-deviation */
 function stats(times: number[]): { avg: number; std: number } {
 	const n = times.length;
 	const sum = times.reduce((a, b) => a + b, 0);
@@ -64,95 +78,201 @@ function stats(times: number[]): { avg: number; std: number } {
 	return { avg, std: Math.sqrt(variance) };
 }
 
+/** Helper to paginate modules consistently */
+async function fetchModulesSequential(
+	fetchFn: (cursor: string) => Promise<[string[], string]>,
+	maxIterations: number,
+	pageSize: number,
+): Promise<{ modules: string[]; nextCursor: string }> {
+	let cursor = SENTINEL;
+	const modules: string[] = [];
+	for (let i = 0; i < maxIterations && cursor !== ZERO; i++) {
+		const [page, next] = await fetchFn(cursor);
+		modules.push(...page);
+		cursor = next;
+	}
+	if (cursor !== ZERO) {
+		console.warn(
+			`fetchModulesSequential: pagination truncated after ${maxIterations} iterations; nextCursor=${cursor}`,
+		);
+	}
+	return { modules, nextCursor: cursor };
+}
+
 /** Runner that does warmups and measured runs */
 async function runBenchmark(label: string, fn: () => Promise<unknown>, warmups = argv.warmups, runs = argv.runs) {
+	// Warm-up runs
 	for (let i = 0; i < warmups; i++) {
 		await fn();
 	}
 	const times: number[] = [];
+	let refResult: unknown;
+	// Measured runs with result validation
 	for (let i = 0; i < runs; i++) {
-		const { time } = await measure(fn);
+		const { result, time } = await measure(fn);
+		if (i === 0) {
+			refResult = result;
+		} else {
+			try {
+				deepStrictEqual(result, refResult);
+			} catch (err) {
+				console.error(`${label}: result mismatch on iteration ${i}`);
+				throw err;
+			}
+		}
 		times.push(time);
 	}
 	const { avg, std } = stats(times);
-	console.log(`${label}: avg=${avg.toFixed(1)}ms, std=${std.toFixed(1)}ms`);
+	const min = Math.min(...times);
+	const max = Math.max(...times);
+	console.log(
+		`${label}: avg=${avg.toFixed(1)}ms, std=${std.toFixed(1)}ms, min=${min.toFixed(1)}ms, max=${max.toFixed(1)}ms`,
+	);
 }
 
 // Method 1: sequential eth_call
-async function method1Sequential() {
-	await safeContract.getOwners();
-	await safeContract.getThreshold();
-	await safeContract.getStorageAt(FALLBACK_SLOT, 1);
-	await safeContract.nonce();
-	await safeContract.getStorageAt(GUARD_SLOT, 1);
-	let cursor = SENTINEL;
-	for (let i = 0; i < argv.maxIterations && cursor !== ZERO; i++) {
-		const [page, next] = await safeContract.getModulesPaginated(cursor, argv.pageSize);
-		cursor = next;
-	}
+async function method1Sequential(): Promise<{
+	owners: string[];
+	threshold: string;
+	fallback: string;
+	guard: string;
+	nonce: string;
+	modules: string[];
+}> {
+	const owners = await safeContract.getOwners();
+	const thresholdBN = await safeContract.getThreshold();
+	const fallback = await safeContract.getStorageAt(FALLBACK_SLOT, 1);
+	const nonceBN = await safeContract.nonce();
+	const guard = await safeContract.getStorageAt(GUARD_SLOT, 1);
+	const { modules, nextCursor } = await fetchModulesSequential(
+		(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
+		argv.maxIterations,
+		argv.pageSize,
+	);
+	if (nextCursor !== ZERO) console.warn(`method1Sequential: pagination truncated; nextCursor=${nextCursor}`);
+	return {
+		owners,
+		threshold: thresholdBN.toString(),
+		fallback,
+		guard,
+		nonce: nonceBN.toString(),
+		modules,
+	};
 }
 
 // Method 2: parallel eth_call
-async function method2Parallel() {
-	await Promise.all([
+async function method2Parallel(): Promise<{
+	owners: string[];
+	threshold: string;
+	fallback: string;
+	guard: string;
+	nonce: string;
+	modules: string[];
+}> {
+	const [owners, thresholdBN, fallback, nonceBN, guard] = await Promise.all([
 		safeContract.getOwners(),
 		safeContract.getThreshold(),
 		safeContract.getStorageAt(FALLBACK_SLOT, 1),
 		safeContract.nonce(),
 		safeContract.getStorageAt(GUARD_SLOT, 1),
 	]);
-	let cursor = SENTINEL;
-	for (let i = 0; i < argv.maxIterations && cursor !== ZERO; i++) {
-		const [page, next] = await safeContract.getModulesPaginated(cursor, argv.pageSize);
-		cursor = next;
-	}
+	const { modules, nextCursor } = await fetchModulesSequential(
+		(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
+		argv.maxIterations,
+		argv.pageSize,
+	);
+	if (nextCursor !== ZERO) console.warn(`method2Parallel: pagination truncated; nextCursor=${nextCursor}`);
+	return {
+		owners,
+		threshold: thresholdBN.toString(),
+		fallback,
+		guard,
+		nonce: nonceBN.toString(),
+		modules,
+	};
 }
 
 // Method 3: batched JSON-RPC calls
-async function method3Batched() {
-	// Configure JsonRpcProvider with explicit batching options
-	const batchProvider = new JsonRpcProvider(argv.rpcUrl, undefined, {
-		// Immediately send batch at end of current event loop
-		batchStallTime: 0,
-		// Maximum number of RPC calls to include in each batch
-		batchMaxCount: argv.maxIterations * argv.pageSize + 5,
-		// Maximum total size (bytes) per batch payload
-		batchMaxSize: 1024 * 1024,
-	});
-	const iface = ISafe__factory.createInterface();
-	const calls = [
-		batchProvider.call({ to: argv.safe, data: iface.encodeFunctionData("getOwners") }),
-		batchProvider.call({ to: argv.safe, data: iface.encodeFunctionData("getThreshold") }),
-		batchProvider.call({ to: argv.safe, data: iface.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) }),
-		batchProvider.call({ to: argv.safe, data: iface.encodeFunctionData("nonce") }),
-		batchProvider.call({ to: argv.safe, data: iface.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) }),
-	];
-	await Promise.all(calls);
-	let cursor = SENTINEL;
-	for (let i = 0; i < argv.maxIterations && cursor !== ZERO; i++) {
-		const raw = await batchProvider.call({
-			to: argv.safe,
-			data: iface.encodeFunctionData("getModulesPaginated", [cursor, argv.pageSize]),
-		});
-		const [page, next] = iface.decodeFunctionResult("getModulesPaginated", raw);
-		cursor = next;
-	}
+async function method3Batched(): Promise<{
+	owners: string[];
+	threshold: string;
+	fallback: string;
+	guard: string;
+	nonce: string;
+	modules: string[];
+}> {
+	// Basic config calls via wrapper on batched provider (includes decode)
+	const [owners, thresholdBN, fallback, nonceBN, guard] = await Promise.all([
+		batchSafeContract.getOwners(),
+		batchSafeContract.getThreshold(),
+		batchSafeContract.getStorageAt(FALLBACK_SLOT, 1),
+		batchSafeContract.nonce(),
+		batchSafeContract.getStorageAt(GUARD_SLOT, 1),
+	]);
+	// Modules pagination using shared helper
+	const { modules, nextCursor } = await fetchModulesSequential(
+		(cursor) => batchSafeContract.getModulesPaginated(cursor, argv.pageSize),
+		argv.maxIterations,
+		argv.pageSize,
+	);
+	if (nextCursor !== ZERO) console.warn(`method3Batched: pagination truncated; nextCursor=${nextCursor}`);
+	return {
+		owners,
+		threshold: thresholdBN.toString(),
+		fallback,
+		guard,
+		nonce: nonceBN.toString(),
+		modules,
+	};
 }
 
 // Method 4: on-chain Multicall3
-async function method4Multicall() {
+async function method4Multicall(): Promise<{
+	owners: string[];
+	threshold: string;
+	fallback: string;
+	guard: string;
+	nonce: string;
+	modules: string[];
+}> {
 	if (!argv.multicall) throw new Error("Multicall3 address is required for this method");
 	const multicall = new Contract(argv.multicall, MULTICALL3_ABI, provider);
-	const iface = ISafe__factory.createInterface();
-	const calls = [
-		{ target: argv.safe, callData: iface.encodeFunctionData("getOwners") },
-		{ target: argv.safe, callData: iface.encodeFunctionData("getThreshold") },
-		{ target: argv.safe, callData: iface.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) },
-		{ target: argv.safe, callData: iface.encodeFunctionData("nonce") },
-		{ target: argv.safe, callData: iface.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
+	// Basic config via multicall + decode
+	const basicCalls = [
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getOwners") },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getThreshold") },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("nonce") },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
 	];
-	await multicall.aggregate(calls);
-	// Note: modules pagination via multicall could be implemented similarly
+	const [, returnData] = await multicall.aggregate(basicCalls);
+	// Decode for fairness
+	const owners = SAFE_IFACE.decodeFunctionResult("getOwners", returnData[0])[0] as string[];
+	const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", returnData[1])[0] as bigint;
+	const fallback = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[2])[0] as string;
+	const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", returnData[3])[0] as bigint;
+	const guard = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[4])[0] as string;
+	// Modules pagination via multicall
+	const { modules, nextCursor } = await fetchModulesSequential(
+		async (cursor: string): Promise<[string[], string]> => {
+			const [, data] = await multicall.aggregate([
+				{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [cursor, argv.pageSize]) },
+			]);
+			const result = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", data[0]);
+			return [result[0] as string[], result[1] as string];
+		},
+		argv.maxIterations,
+		argv.pageSize,
+	);
+	if (nextCursor !== ZERO) console.warn(`method4Multicall: pagination truncated; nextCursor=${nextCursor}`);
+	return {
+		owners,
+		threshold: thresholdBN.toString(),
+		fallback,
+		guard,
+		nonce: nonceBN.toString(),
+		modules,
+	};
 }
 
 // Main runner
