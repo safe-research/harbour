@@ -1,0 +1,247 @@
+{
+  "address": "0x4037fb99c0e810883007AeC38c7B712E18F80a3B",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "safe",
+          "type": "address"
+        }
+      ],
+      "name": "getBasicConfiguration",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address[]",
+              "name": "owners",
+              "type": "address[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "threshold",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "fallbackHandler",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address[]",
+              "name": "modules",
+              "type": "address[]"
+            },
+            {
+              "internalType": "address",
+              "name": "guard",
+              "type": "address"
+            }
+          ],
+          "internalType": "struct SafeConfiguration",
+          "name": "config",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "safe",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "maxIterations",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "pageSize",
+          "type": "uint256"
+        }
+      ],
+      "name": "getFullConfiguration",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address[]",
+              "name": "owners",
+              "type": "address[]"
+            },
+            {
+              "internalType": "uint256",
+              "name": "threshold",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "fallbackHandler",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address[]",
+              "name": "modules",
+              "type": "address[]"
+            },
+            {
+              "internalType": "address",
+              "name": "guard",
+              "type": "address"
+            }
+          ],
+          "internalType": "struct SafeConfiguration",
+          "name": "fullConfig",
+          "type": "tuple"
+        },
+        {
+          "internalType": "address",
+          "name": "nextCursor",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "safe",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "start",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "pageSize",
+          "type": "uint256"
+        }
+      ],
+      "name": "getModulesPaginated",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "modulePage",
+          "type": "address[]"
+        },
+        {
+          "internalType": "address",
+          "name": "nextCursor",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0xde26178e74b829703facd11b9acdae8b356ed9935944dcf9b636bb9780c7d49f",
+  "receipt": {
+    "to": "0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7",
+    "from": "0x02270bd144e70cE6963bA02F575776A16184E1E6",
+    "contractAddress": null,
+    "transactionIndex": 25,
+    "gasUsed": "744489",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xdf26bed93a91711aaa286d7fbffa302e502da59c2495e8aa89073e4064f60a71",
+    "transactionHash": "0xde26178e74b829703facd11b9acdae8b356ed9935944dcf9b636bb9780c7d49f",
+    "logs": [],
+    "blockNumber": 39909508,
+    "cumulativeGasUsed": "5144904",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "88085192965ffbb28138ae62d59b7ca7",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.29+commit.ab55807c\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"safe\",\"type\":\"address\"}],\"name\":\"getBasicConfiguration\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"fallbackHandler\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"modules\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"guard\",\"type\":\"address\"}],\"internalType\":\"struct SafeConfiguration\",\"name\":\"config\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"safe\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"maxIterations\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"pageSize\",\"type\":\"uint256\"}],\"name\":\"getFullConfiguration\",\"outputs\":[{\"components\":[{\"internalType\":\"address[]\",\"name\":\"owners\",\"type\":\"address[]\"},{\"internalType\":\"uint256\",\"name\":\"threshold\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"fallbackHandler\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"address[]\",\"name\":\"modules\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"guard\",\"type\":\"address\"}],\"internalType\":\"struct SafeConfiguration\",\"name\":\"fullConfig\",\"type\":\"tuple\"},{\"internalType\":\"address\",\"name\":\"nextCursor\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"safe\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"start\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"pageSize\",\"type\":\"uint256\"}],\"name\":\"getModulesPaginated\",\"outputs\":[{\"internalType\":\"address[]\",\"name\":\"modulePage\",\"type\":\"address[]\"},{\"internalType\":\"address\",\"name\":\"nextCursor\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"details\":\"Provides gas-optimized methods for reading storage and modules with pagination.\",\"kind\":\"dev\",\"methods\":{\"getBasicConfiguration(address)\":{\"params\":{\"safe\":\"The address of the Safe contract.\"},\"returns\":{\"config\":\"The basic SafeConfiguration with owners, threshold, fallbackHandler, nonce, guard, and an empty modules array.\"}},\"getFullConfiguration(address,uint256,uint256)\":{\"params\":{\"maxIterations\":\"Maximum number of pagination loops.\",\"pageSize\":\"Number of modules to fetch per iteration.\",\"safe\":\"The address of the Safe contract.\"},\"returns\":{\"fullConfig\":\"Complete SafeConfiguration with modules populated.\",\"nextCursor\":\"Cursor for additional pagination (address(0) if none left).\"}},\"getModulesPaginated(address,address,uint256)\":{\"params\":{\"pageSize\":\"The maximum number of modules to retrieve.\",\"safe\":\"The address of the Safe contract.\",\"start\":\"The starting module address (use SENTINEL_MODULES for first page).\"},\"returns\":{\"modulePage\":\"List of module addresses in the retrieved page.\",\"nextCursor\":\"Address cursor for the next page (address(0) if end reached).\"}}},\"stateVariables\":{\"FALLBACK_HANDLER_STORAGE_SLOT\":{\"details\":\"Storage slot for fallback handler (keccak256(\\\"fallback_manager.handler.address\\\")).\"},\"GUARD_STORAGE_SLOT\":{\"details\":\"Storage slot for guard contract (keccak256(\\\"guard_manager.guard.address\\\")).\"},\"SENTINEL_MODULES\":{\"details\":\"Sentinel address for module linked-list iteration.\"}},\"title\":\"Safe Configuration Fetcher\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"getBasicConfiguration(address)\":{\"notice\":\"Returns the basic Safe configuration (excluding modules, modules array will be empty).\"},\"getFullConfiguration(address,uint256,uint256)\":{\"notice\":\"Returns the full Safe configuration, including all modules up to the specified cap.\"},\"getModulesPaginated(address,address,uint256)\":{\"notice\":\"Returns a page of Safe modules and the next cursor for pagination.\"}},\"notice\":\"A utility contract to fetch basic and full configurations of a Safe.\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/utils/SafeConfigurationFetcher.sol\":\"SafeConfigurationFetcher\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":10000000},\"remappings\":[],\"viaIR\":true},\"sources\":{\"src/utils/SafeConfigurationFetcher.sol\":{\"content\":\"// SPDX-License-Identifier: GNU GPLv3\\npragma solidity ^0.8.29;\\n\\n/// @notice Data structure representing a Safe configuration.\\n/// @param owners The list of Safe owners.\\n/// @param threshold Required confirmations for transactions.\\n/// @param fallbackHandler Fallback handler contract address.\\n/// @param nonce Current nonce of the Safe.\\n/// @param modules Enabled Safe modules.\\n/// @param guard Guard contract address.\\nstruct SafeConfiguration {\\n    address[] owners;\\n    uint256 threshold;\\n    address fallbackHandler;\\n    uint256 nonce;\\n    address[] modules;\\n    address guard;\\n}\\n\\ninterface ISafe {\\n    function getOwners() external view returns (address[] memory);\\n    function getThreshold() external view returns (uint256);\\n    function getStorageAt(\\n        uint256 offset,\\n        uint256 length\\n    ) external view returns (bytes memory);\\n    function nonce() external view returns (uint256);\\n    function getModulesPaginated(\\n        address start,\\n        uint256 pageSize\\n    ) external view returns (address[] memory array, address next);\\n\\n    function getModules() external view returns (address[] memory);\\n}\\n\\n/// @title Safe Configuration Fetcher\\n/// @notice A utility contract to fetch basic and full configurations of a Safe.\\n/// @dev Provides gas-optimized methods for reading storage and modules with pagination.\\ncontract SafeConfigurationFetcher {\\n    /// @dev Storage slot for fallback handler (keccak256(\\\"fallback_manager.handler.address\\\")).\\n    bytes32 internal constant FALLBACK_HANDLER_STORAGE_SLOT =\\n        0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5;\\n\\n    /// @dev Storage slot for guard contract (keccak256(\\\"guard_manager.guard.address\\\")).\\n    bytes32 internal constant GUARD_STORAGE_SLOT =\\n        0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8;\\n\\n    /// @dev Sentinel address for module linked-list iteration.\\n    address internal constant SENTINEL_MODULES = address(0x1);\\n\\n    /// @dev Internal helper to read an address from a specific storage slot.\\n    /// @param safeContract The Safe contract to query.\\n    /// @param slot The storage slot to read.\\n    /// @return addr The address value decoded from the slot.\\n    function _addressFromStorage(\\n        ISafe safeContract,\\n        bytes32 slot\\n    ) internal view returns (address addr) {\\n        addr = abi.decode(\\n            safeContract.getStorageAt(uint256(slot), 1),\\n            (address)\\n        );\\n    }\\n\\n    /// @dev Internal helper to fetch the basic configuration fields from the Safe.\\n    /// @param safeContract The Safe contract instance.\\n    /// @return config SafeConfiguration struct with owners, threshold, fallbackHandler, nonce, and guard populated.\\n    function _fetchBasicConfig(\\n        ISafe safeContract\\n    ) private view returns (SafeConfiguration memory config) {\\n        config.owners = safeContract.getOwners();\\n        config.threshold = safeContract.getThreshold();\\n        config.fallbackHandler = _addressFromStorage(\\n            safeContract,\\n            FALLBACK_HANDLER_STORAGE_SLOT\\n        );\\n        config.nonce = safeContract.nonce();\\n        config.guard = _addressFromStorage(safeContract, GUARD_STORAGE_SLOT);\\n    }\\n\\n    /// @notice Returns the basic Safe configuration (excluding modules, modules array will be empty).\\n    /// @param safe The address of the Safe contract.\\n    /// @return config The basic SafeConfiguration with owners, threshold, fallbackHandler, nonce, guard, and an empty modules array.\\n    function getBasicConfiguration(\\n        address safe\\n    ) external view returns (SafeConfiguration memory config) {\\n        config = _fetchBasicConfig(ISafe(safe));\\n    }\\n\\n    /// @notice Returns a page of Safe modules and the next cursor for pagination.\\n    /// @param safe The address of the Safe contract.\\n    /// @param start The starting module address (use SENTINEL_MODULES for first page).\\n    /// @param pageSize The maximum number of modules to retrieve.\\n    /// @return modulePage List of module addresses in the retrieved page.\\n    /// @return nextCursor Address cursor for the next page (address(0) if end reached).\\n    function getModulesPaginated(\\n        address safe,\\n        address start,\\n        uint256 pageSize\\n    ) external view returns (address[] memory modulePage, address nextCursor) {\\n        (modulePage, nextCursor) = ISafe(safe).getModulesPaginated(\\n            start,\\n            pageSize\\n        );\\n    }\\n\\n    /// @notice Returns the full Safe configuration, including all modules up to the specified cap.\\n    /// @param safe The address of the Safe contract.\\n    /// @param maxIterations Maximum number of pagination loops.\\n    /// @param pageSize Number of modules to fetch per iteration.\\n    /// @return fullConfig Complete SafeConfiguration with modules populated.\\n    /// @return nextCursor Cursor for additional pagination (address(0) if none left).\\n    function getFullConfiguration(\\n        address safe,\\n        uint256 maxIterations,\\n        uint256 pageSize\\n    )\\n        external\\n        view\\n        returns (SafeConfiguration memory fullConfig, address nextCursor)\\n    {\\n        ISafe safeContract = ISafe(safe);\\n        fullConfig = _fetchBasicConfig(safeContract);\\n\\n        uint256 bufferSize = maxIterations * pageSize;\\n        address[] memory temp = new address[](bufferSize);\\n        uint256 count = 0;\\n        address cursor = SENTINEL_MODULES;\\n\\n        for (uint256 i = 0; i < maxIterations && cursor != address(0); i++) {\\n            (address[] memory page, address next) = safeContract\\n                .getModulesPaginated(cursor, pageSize);\\n            for (uint256 j = 0; j < page.length; j++) {\\n                temp[count++] = page[j];\\n            }\\n            cursor = next;\\n        }\\n\\n        address[] memory modulesArr = new address[](count);\\n        for (uint256 k = 0; k < count; k++) {\\n            modulesArr[k] = temp[k];\\n        }\\n        fullConfig.modules = modulesArr;\\n        nextCursor = cursor;\\n    }\\n}\\n\",\"keccak256\":\"0x3a2b7d20dcf96b45ccdfe339545be5dd0a16e4e0542da2f368da83f0f5953004\",\"license\":\"GNU GPLv3\"}},\"version\":1}",
+  "bytecode": "0x60808060405234601557610c88908161001b8239f35b600080fdfe608080604052600436101561001357600080fd5b60003560e01c9081632fe699bd1461033e5750806394de1ba5146102c55763aa83207f1461004057600080fd5b346102c05760607ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761007761048d565b60243573ffffffffffffffffffffffffffffffffffffffff6044359261009b6106ac565b50166100a6816107af565b92808302838104821484151715610291576100c3909493946106f0565b9060009360019585925b81841080610272575b156101e5576040517fcc2f845200000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff98909816600489015260248801819052959694959394936000856044818a5afa9687156101d95760009586986101b0575b5060005b8651811015610192578073ffffffffffffffffffffffffffffffffffffffff6101766001938a61076c565b511661018b6101848d61073f565b9c8b61076c565b520161014b565b50939291966101a39195509261073f565b92949396959091966100cd565b9097506101cf91953d8091833e6101c78183610565565b810190610673565b9490949638610147565b6040513d6000823e3d90fd5b848389896101f2816106f0565b9060005b81811061023d5750506102329350608083015273ffffffffffffffffffffffffffffffffffffffff6040519384936040855260408501906104fa565b911660208301520390f35b8073ffffffffffffffffffffffffffffffffffffffff61025f6001938961076c565b511661026b828661076c565b52016101f6565b5073ffffffffffffffffffffffffffffffffffffffff881615156100d6565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b600080fd5b346102c05760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761033a61032673ffffffffffffffffffffffffffffffffffffffff61031761048d565b61031f6106ac565b50166107af565b6040519182916020835260208301906104fa565b0390f35b346102c05760607ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761037561048d565b60243573ffffffffffffffffffffffffffffffffffffffff811681036102c0577fcc2f845200000000000000000000000000000000000000000000000000000000835273ffffffffffffffffffffffffffffffffffffffff908116600484015260448035602485015260009284928391165afa9081156101d95760009060009261046f575b50604051906040820160408352815180915260206060840192019060005b8181106104435750505073ffffffffffffffffffffffffffffffffffffffff82931660208301520390f35b825173ffffffffffffffffffffffffffffffffffffffff16845260209384019390920191600101610418565b905061048691503d806000833e6101c78183610565565b90826103fa565b6004359073ffffffffffffffffffffffffffffffffffffffff821682036102c057565b906020808351928381520192019060005b8181106104ce5750505090565b825173ffffffffffffffffffffffffffffffffffffffff168452602093840193909201916001016104c1565b9060a073ffffffffffffffffffffffffffffffffffffffff8161055b610529865160c0875260c08701906104b0565b6020870151602087015283604088015116604087015260608701516060870152608087015186820360808801526104b0565b9401511691015290565b90601f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0910116810190811067ffffffffffffffff8211176105a657604052565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b67ffffffffffffffff81116105a65760051b60200190565b519073ffffffffffffffffffffffffffffffffffffffff821682036102c057565b9080601f830112156102c0578151610625816105d5565b926106336040519485610565565b81845260208085019260051b8201019283116102c057602001905b82821061065b5750505090565b60208091610668846105ed565b81520191019061064e565b91906040838203126102c05782519067ffffffffffffffff82116102c0576106a26020916106a993860161060e565b93016105ed565b90565b6040519060c0820182811067ffffffffffffffff8211176105a657604052600060a08360608152826020820152826040820152826060820152606060808201520152565b906106fa826105d5565b6107076040519182610565565b8281527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe061073582946105d5565b0190602036910137565b7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81146102915760010190565b80518210156107805760209160051b010190565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b9073ffffffffffffffffffffffffffffffffffffffff6107cd6106ac565b92166040517fa0e67e2b000000000000000000000000000000000000000000000000000000008152600081600481855afa9081156101d957600091610c11575b5083526040517fe75235b8000000000000000000000000000000000000000000000000000000008152602081600481855afa9081156101d957600091610bdf575b50602084015260006040517f5624b25b0000000000000000000000000000000000000000000000000000000081527f6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d56004820152600160248201528181604481865afa908115610adf578291610b1c575b506020818051810103126109e357602001519073ffffffffffffffffffffffffffffffffffffffff82168092036109e0575060408401526040517faffed0e0000000000000000000000000000000000000000000000000000000008152602081600481855afa9081156101d957600091610aea575b506060840152604460008092604051928380927f5624b25b0000000000000000000000000000000000000000000000000000000082527f4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c86004830152600160248301525afa908115610adf5782916109e7575b506020818051810103126109e357602001519073ffffffffffffffffffffffffffffffffffffffff82168092036109e0575060a0830152565b80fd5b5080fd5b90503d8083833e6109f88183610565565b810190602081830312610adb5780519067ffffffffffffffff8211610aaa570181601f82011215610adb5780519067ffffffffffffffff8211610aae5760405192610a6b60207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8601160185610565565b82845260208383010111610aaa57908391825b828110610a93575050820160200152386109a7565b602082820181015186830182015286945001610a7e565b8380fd5b6024847f4e487b710000000000000000000000000000000000000000000000000000000081526041600452fd5b8280fd5b6040513d84823e3d90fd5b90506020813d602011610b14575b81610b0560209383610565565b810103126102c0575138610934565b3d9150610af8565b90503d8083833e610b2d8183610565565b810190602081830312610adb5780519067ffffffffffffffff8211610aaa570181601f82011215610adb5780519067ffffffffffffffff8211610aae5760405192610ba060207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8601160185610565565b82845260208383010111610aaa57908391825b828110610bc8575050820160200152386108bf565b602082820181015186830182015286945001610bb3565b90506020813d602011610c09575b81610bfa60209383610565565b810103126102c057513861084e565b3d9150610bed565b903d8082843e610c218184610565565b8201916020818403126109e35780519167ffffffffffffffff83116109e05750610c4c92910161060e565b3861080d56fea2646970667358221220c2dcfbc72a5a7d328e9f1851cae2c5e27a2b797095f1948e200dc1dbae328b2964736f6c634300081d0033",
+  "deployedBytecode": "0x608080604052600436101561001357600080fd5b60003560e01c9081632fe699bd1461033e5750806394de1ba5146102c55763aa83207f1461004057600080fd5b346102c05760607ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761007761048d565b60243573ffffffffffffffffffffffffffffffffffffffff6044359261009b6106ac565b50166100a6816107af565b92808302838104821484151715610291576100c3909493946106f0565b9060009360019585925b81841080610272575b156101e5576040517fcc2f845200000000000000000000000000000000000000000000000000000000815273ffffffffffffffffffffffffffffffffffffffff98909816600489015260248801819052959694959394936000856044818a5afa9687156101d95760009586986101b0575b5060005b8651811015610192578073ffffffffffffffffffffffffffffffffffffffff6101766001938a61076c565b511661018b6101848d61073f565b9c8b61076c565b520161014b565b50939291966101a39195509261073f565b92949396959091966100cd565b9097506101cf91953d8091833e6101c78183610565565b810190610673565b9490949638610147565b6040513d6000823e3d90fd5b848389896101f2816106f0565b9060005b81811061023d5750506102329350608083015273ffffffffffffffffffffffffffffffffffffffff6040519384936040855260408501906104fa565b911660208301520390f35b8073ffffffffffffffffffffffffffffffffffffffff61025f6001938961076c565b511661026b828661076c565b52016101f6565b5073ffffffffffffffffffffffffffffffffffffffff881615156100d6565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b600080fd5b346102c05760207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761033a61032673ffffffffffffffffffffffffffffffffffffffff61031761048d565b61031f6106ac565b50166107af565b6040519182916020835260208301906104fa565b0390f35b346102c05760607ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126102c05761037561048d565b60243573ffffffffffffffffffffffffffffffffffffffff811681036102c0577fcc2f845200000000000000000000000000000000000000000000000000000000835273ffffffffffffffffffffffffffffffffffffffff908116600484015260448035602485015260009284928391165afa9081156101d95760009060009261046f575b50604051906040820160408352815180915260206060840192019060005b8181106104435750505073ffffffffffffffffffffffffffffffffffffffff82931660208301520390f35b825173ffffffffffffffffffffffffffffffffffffffff16845260209384019390920191600101610418565b905061048691503d806000833e6101c78183610565565b90826103fa565b6004359073ffffffffffffffffffffffffffffffffffffffff821682036102c057565b906020808351928381520192019060005b8181106104ce5750505090565b825173ffffffffffffffffffffffffffffffffffffffff168452602093840193909201916001016104c1565b9060a073ffffffffffffffffffffffffffffffffffffffff8161055b610529865160c0875260c08701906104b0565b6020870151602087015283604088015116604087015260608701516060870152608087015186820360808801526104b0565b9401511691015290565b90601f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0910116810190811067ffffffffffffffff8211176105a657604052565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b67ffffffffffffffff81116105a65760051b60200190565b519073ffffffffffffffffffffffffffffffffffffffff821682036102c057565b9080601f830112156102c0578151610625816105d5565b926106336040519485610565565b81845260208085019260051b8201019283116102c057602001905b82821061065b5750505090565b60208091610668846105ed565b81520191019061064e565b91906040838203126102c05782519067ffffffffffffffff82116102c0576106a26020916106a993860161060e565b93016105ed565b90565b6040519060c0820182811067ffffffffffffffff8211176105a657604052600060a08360608152826020820152826040820152826060820152606060808201520152565b906106fa826105d5565b6107076040519182610565565b8281527fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe061073582946105d5565b0190602036910137565b7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff81146102915760010190565b80518210156107805760209160051b010190565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b9073ffffffffffffffffffffffffffffffffffffffff6107cd6106ac565b92166040517fa0e67e2b000000000000000000000000000000000000000000000000000000008152600081600481855afa9081156101d957600091610c11575b5083526040517fe75235b8000000000000000000000000000000000000000000000000000000008152602081600481855afa9081156101d957600091610bdf575b50602084015260006040517f5624b25b0000000000000000000000000000000000000000000000000000000081527f6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d56004820152600160248201528181604481865afa908115610adf578291610b1c575b506020818051810103126109e357602001519073ffffffffffffffffffffffffffffffffffffffff82168092036109e0575060408401526040517faffed0e0000000000000000000000000000000000000000000000000000000008152602081600481855afa9081156101d957600091610aea575b506060840152604460008092604051928380927f5624b25b0000000000000000000000000000000000000000000000000000000082527f4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c86004830152600160248301525afa908115610adf5782916109e7575b506020818051810103126109e357602001519073ffffffffffffffffffffffffffffffffffffffff82168092036109e0575060a0830152565b80fd5b5080fd5b90503d8083833e6109f88183610565565b810190602081830312610adb5780519067ffffffffffffffff8211610aaa570181601f82011215610adb5780519067ffffffffffffffff8211610aae5760405192610a6b60207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8601160185610565565b82845260208383010111610aaa57908391825b828110610a93575050820160200152386109a7565b602082820181015186830182015286945001610a7e565b8380fd5b6024847f4e487b710000000000000000000000000000000000000000000000000000000081526041600452fd5b8280fd5b6040513d84823e3d90fd5b90506020813d602011610b14575b81610b0560209383610565565b810103126102c0575138610934565b3d9150610af8565b90503d8083833e610b2d8183610565565b810190602081830312610adb5780519067ffffffffffffffff8211610aaa570181601f82011215610adb5780519067ffffffffffffffff8211610aae5760405192610ba060207fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8601160185610565565b82845260208383010111610aaa57908391825b828110610bc8575050820160200152386108bf565b602082820181015186830182015286945001610bb3565b90506020813d602011610c09575b81610bfa60209383610565565b810103126102c057513861084e565b3d9150610bed565b903d8082843e610c218184610565565b8201916020818403126109e35780519167ffffffffffffffff83116109e05750610c4c92910161060e565b3861080d56fea2646970667358221220c2dcfbc72a5a7d328e9f1851cae2c5e27a2b797095f1948e200dc1dbae328b2964736f6c634300081d0033",
+  "devdoc": {
+    "details": "Provides gas-optimized methods for reading storage and modules with pagination.",
+    "kind": "dev",
+    "methods": {
+      "getBasicConfiguration(address)": {
+        "params": {
+          "safe": "The address of the Safe contract."
+        },
+        "returns": {
+          "config": "The basic SafeConfiguration with owners, threshold, fallbackHandler, nonce, guard, and an empty modules array."
+        }
+      },
+      "getFullConfiguration(address,uint256,uint256)": {
+        "params": {
+          "maxIterations": "Maximum number of pagination loops.",
+          "pageSize": "Number of modules to fetch per iteration.",
+          "safe": "The address of the Safe contract."
+        },
+        "returns": {
+          "fullConfig": "Complete SafeConfiguration with modules populated.",
+          "nextCursor": "Cursor for additional pagination (address(0) if none left)."
+        }
+      },
+      "getModulesPaginated(address,address,uint256)": {
+        "params": {
+          "pageSize": "The maximum number of modules to retrieve.",
+          "safe": "The address of the Safe contract.",
+          "start": "The starting module address (use SENTINEL_MODULES for first page)."
+        },
+        "returns": {
+          "modulePage": "List of module addresses in the retrieved page.",
+          "nextCursor": "Address cursor for the next page (address(0) if end reached)."
+        }
+      }
+    },
+    "stateVariables": {
+      "FALLBACK_HANDLER_STORAGE_SLOT": {
+        "details": "Storage slot for fallback handler (keccak256(\"fallback_manager.handler.address\"))."
+      },
+      "GUARD_STORAGE_SLOT": {
+        "details": "Storage slot for guard contract (keccak256(\"guard_manager.guard.address\"))."
+      },
+      "SENTINEL_MODULES": {
+        "details": "Sentinel address for module linked-list iteration."
+      }
+    },
+    "title": "Safe Configuration Fetcher",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "getBasicConfiguration(address)": {
+        "notice": "Returns the basic Safe configuration (excluding modules, modules array will be empty)."
+      },
+      "getFullConfiguration(address,uint256,uint256)": {
+        "notice": "Returns the full Safe configuration, including all modules up to the specified cap."
+      },
+      "getModulesPaginated(address,address,uint256)": {
+        "notice": "Returns a page of Safe modules and the next cursor for pagination."
+      }
+    },
+    "notice": "A utility contract to fetch basic and full configurations of a Safe.",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

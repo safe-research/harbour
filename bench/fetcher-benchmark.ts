@@ -32,8 +32,16 @@ const argv = yargs(hideBin(process.argv))
 	.options({
 		rpcUrl: { type: "string", demandOption: true, describe: "RPC endpoint URL" },
 		safe: { type: "string", demandOption: true, describe: "Safe contract address" },
-		fetcher: { type: "string", demandOption: true, describe: "Fetcher contract address" },
-		multicall: { type: "string", demandOption: false, describe: "Multicall3 contract address" },
+		fetcher: {
+			type: "string",
+			default: "0x4037fb99c0e810883007AeC38c7B712E18F80a3B",
+			describe: "Fetcher contract address",
+		},
+		multicall: {
+			type: "string",
+			default: "0xcA11bde05977b3631167028862bE2a173976CA11",
+			describe: "Multicall3 contract address",
+		},
 		runs: { type: "number", default: 10, describe: "Number of measured runs" },
 		warmups: { type: "number", default: 5, describe: "Number of warm-up runs" },
 		pageSize: { type: "number", default: 50, describe: "Page size for modules pagination" },
