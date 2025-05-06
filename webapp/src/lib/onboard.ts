@@ -5,7 +5,14 @@ const injected = injectedModule();
 
 init({
 	wallets: [injected],
-	chains: [],
+	chains: [
+		{
+			id: "0x2105",
+			token: "ETH",
+			label: "Base",
+			rpcUrl: "https://mainnet.base.org",
+		},
+	],
 	connect: {
 		autoConnectLastWallet: true,
 	},
