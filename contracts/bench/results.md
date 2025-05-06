@@ -34,29 +34,37 @@ These benchmarks compare the performance of the on-chain fetcher contract (`getF
 - **Method 3 – batched**: avg=398.4ms, std=102.9ms, min=317.9ms, max=593.1ms
 - **Method 4 – multicall**: avg=516.9ms, std=86.7ms, min=430.5ms, max=665.9ms
 
+## RPC: Infura Sepolia (https://sepolia.infura.io/v3/778c89cfe86f40b4ab4fea0b1c83f3fa)
+
+- **Fetcher – getFullConfiguration**: avg=135.8ms, std=3.9ms, min=129.7ms, max=144.3ms
+- **Method 1 – sequential**: avg=2209.4ms, std=109.6ms, min=2079.2ms, max=2400.6ms
+- **Method 2 – parallel**: avg=1656.2ms, std=102.6ms, min=1566.8ms, max=1928.9ms
+- **Method 3 – batched**: avg=1525.2ms, std=91.7ms, min=1423.1ms, max=1688.0ms
+- **Method 4 – multicall**: avg=1679.9ms, std=115.9ms, min=1555.1ms, max=1932.4ms
+
 # Speculations on Performance
 
-Here’s a speculation into why getFullConfiguration (the on-chain fetcher) handily beats every off-chain variant:
+Here's a speculation into why getFullConfiguration (the on-chain fetcher) handily beats every off-chain variant:
 
 1. One Eth_Call vs N JSON-RPC Calls
-   Single request: the fetcher packs all storage‐reads, owner/threshold queries and module pagination into one eth_call.
+   Single request: the fetcher packs all storage-reads, owner/threshold queries and module pagination into one eth_call.
    Off-chain methods (sequential/parallel/batched/multicall) still end up issuing dozens of separate JSON-RPC calls (e.g. eth_getStorageAt, eth_call(getOwners), pagination loops, etc.).
-   RPC overhead (network round-trips, HTTP headers, JSON‐encode/decode) easily eats 5–20 ms per call. Multiply by 20 calls = +100–400 ms just in plumbing.
+   RPC overhead (network round-trips, HTTP headers, JSON-encode/decode) easily eats 5–20 ms per call. Multiply by 20 calls = +100–400 ms just in plumbing.
 2. Shared EVM Execution Context
    Inside one eth_call the node:
 
-- Loads the Safe contract’s bytecode once into its internal VM cache.
+- Loads the Safe contract's bytecode once into its internal VM cache.
 - Performs all staticcall opcodes (getOwners(), getThreshold(), two getStorageAt(), nonce(), getModulesPaginated()) using the same VM instance.
-- Executes the pagination loop in‐EVM with hot code/data cached in CPU/L1.
+- Executes the pagination loop in-EVM with hot code/data cached in CPU/L1.
 - Contrast that with off-chain batched/multicall: the node still deserializes your batch, then spins up separate VM contexts for each call, re-loading the contract code and state trie in each.
 
 3. Native SLOAD Caching & Trie Hotness
    Back-to-back SLOADs in one VM tick can re-use in-memory trie nodes (leveldb/Geth cache), cutting DB lookups.
-   Off-chain storage calls each spawn a new VM → new state‐trie reads from disk/cache, thrashing the cache.
+   Off-chain storage calls each spawn a new VM → new state-trie reads from disk/cache, thrashing the cache.
 4. ABI Blob vs JSON Overhead
-   The fetcher returns one tight ABI‐encoded blob: owners[], threshold, handler, nonce, guard, modules[].
+   The fetcher returns one tight ABI-encoded blob: owners[], threshold, handler, nonce, guard, modules[].
    Off-chain you get dozens of small JSON objects. Even in a batched RPC, the server must unpack the batch, unmarshal each JSON-RPC call, then your client must parse/deserialize every piece, merge arrays, etc.
 5. Client-side Workload Offloaded to EVM
    All array concatenation, memory resizing and loop logic lives in Solidity.
    Off-chain methods must reassemble pages of modules, manage promise resolution, allocate JS arrays—adding CPU/GC overhead.
-   Result: by shifting all storage access, paging loops, ABI encoding/decoding and caching optimizations into the node’s native EVM, you collapse dozens of slow JSON-RPC hops into one fast eth_call. That single-call EVM path consistently runs in 40–80 ms, whereas even the most optimized off-chain batch hovers around 300–600 ms.
+   Result: by shifting all storage access, paging loops, ABI encoding/decoding and caching optimizations into the node's native EVM, you collapse dozens of slow JSON-RPC hops into one fast eth_call. That single-call EVM path consistently runs in 40–80 ms, whereas even the most optimized off-chain batch hovers around 300–600 ms.

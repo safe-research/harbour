@@ -34,7 +34,7 @@ const argv = yargs(hideBin(process.argv))
 		safe: { type: "string", demandOption: true, describe: "Safe contract address" },
 		fetcher: {
 			type: "string",
-			default: "0x4037fb99c0e810883007AeC38c7B712E18F80a3B",
+			default: "0xF4141483d26a36D6D977303B598b855Cf53188Bd",
 			describe: "Fetcher contract address",
 		},
 		multicall: {
