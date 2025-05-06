@@ -1,7 +1,8 @@
 import type { SafeConfiguration } from "@/lib/contract";
 import { SAFE_CONFIG_FETCHER_ABI, SAFE_CONFIG_FETCHER_ADDRESS } from "@/lib/contract";
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
-import { http, createPublicClient } from "viem";
+import { Contract, JsonRpcProvider } from "ethers";
+import type { JsonFragment } from "ethers";
 
 export interface SafeConfigResult {
 	fullConfig: SafeConfiguration;
@@ -23,13 +24,16 @@ export function useSafeConfiguration(
 	return useQuery<SafeConfigResult, Error>({
 		queryKey: ["safeConfig", rpcUrl, safeAddress, pageSize, maxIterations],
 		queryFn: async () => {
-			const client = createPublicClient({ transport: http(rpcUrl) });
-			const result = (await client.readContract({
-				address: SAFE_CONFIG_FETCHER_ADDRESS,
-				abi: SAFE_CONFIG_FETCHER_ABI,
-				functionName: "getFullConfiguration",
-				args: [safeAddress, maxIterations, pageSize],
-			})) as [SafeConfiguration, string];
+			const provider = new JsonRpcProvider(rpcUrl);
+			const contract = new Contract(
+				SAFE_CONFIG_FETCHER_ADDRESS,
+				SAFE_CONFIG_FETCHER_ABI as unknown as readonly JsonFragment[],
+				provider,
+			);
+			const result = (await contract.getFullConfiguration(safeAddress, maxIterations, pageSize)) as [
+				SafeConfiguration,
+				string,
+			];
 			const [fullConfig, nextCursor] = result;
 			return { fullConfig, nextCursor };
 		},
