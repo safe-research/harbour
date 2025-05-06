@@ -11,11 +11,18 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as EnqueueImport } from './routes/enqueue'
 import { Route as ConfigImport } from './routes/config'
 import { Route as IndexImport } from './routes/index'
 import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 
 // Create/Update Routes
+
+const EnqueueRoute = EnqueueImport.update({
+  id: '/enqueue',
+  path: '/enqueue',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const ConfigRoute = ConfigImport.update({
   id: '/config',
@@ -53,6 +60,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfigImport
       parentRoute: typeof rootRoute
     }
+    '/enqueue': {
+      id: '/enqueue'
+      path: '/enqueue'
+      fullPath: '/enqueue'
+      preLoaderRoute: typeof EnqueueImport
+      parentRoute: typeof rootRoute
+    }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
       path: '/demo/tanstack-query'
@@ -68,12 +82,14 @@ declare module '@tanstack/react-router' {
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/config': typeof ConfigRoute
+  '/enqueue': typeof EnqueueRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/config': typeof ConfigRoute
+  '/enqueue': typeof EnqueueRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
@@ -81,27 +97,30 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/config': typeof ConfigRoute
+  '/enqueue': typeof EnqueueRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/config' | '/demo/tanstack-query'
+  fullPaths: '/' | '/config' | '/enqueue' | '/demo/tanstack-query'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/config' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/config' | '/demo/tanstack-query'
+  to: '/' | '/config' | '/enqueue' | '/demo/tanstack-query'
+  id: '__root__' | '/' | '/config' | '/enqueue' | '/demo/tanstack-query'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ConfigRoute: typeof ConfigRoute
+  EnqueueRoute: typeof EnqueueRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ConfigRoute: ConfigRoute,
+  EnqueueRoute: EnqueueRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
 }
 
@@ -117,6 +136,7 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/config",
+        "/enqueue",
         "/demo/tanstack-query"
       ]
     },
@@ -125,6 +145,9 @@ export const routeTree = rootRoute
     },
     "/config": {
       "filePath": "config.tsx"
+    },
+    "/enqueue": {
+      "filePath": "enqueue.tsx"
     },
     "/demo/tanstack-query": {
       "filePath": "demo.tanstack-query.tsx"

@@ -1,0 +1,27 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        { "internalType": "address", "name": "safeAddress", "type": "address" },
+        { "internalType": "uint256", "name": "chainId", "type": "uint256" },
+        { "internalType": "uint256", "name": "nonce", "type": "uint256" },
+        { "internalType": "address", "name": "to", "type": "address" },
+        { "internalType": "uint256", "name": "value", "type": "uint256" },
+        { "internalType": "bytes", "name": "data", "type": "bytes" },
+        { "internalType": "uint8", "name": "operation", "type": "uint8" },
+        { "internalType": "uint256", "name": "safeTxGas", "type": "uint256" },
+        { "internalType": "uint256", "name": "baseGas", "type": "uint256" },
+        { "internalType": "uint256", "name": "gasPrice", "type": "uint256" },
+        { "internalType": "address", "name": "gasToken", "type": "address" },
+        { "internalType": "address", "name": "refundReceiver", "type": "address" },
+        { "internalType": "bytes", "name": "signature", "type": "bytes" }
+      ],
+      "name": "enqueueTransaction",
+      "outputs": [
+        { "internalType": "uint256", "name": "listIndex", "type": "uint256" }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+} 

@@ -29,6 +29,15 @@ function ConfigPage() {
 			{isLoading && <p className="text-gray-600">Loading configuration…</p>}
 			{error && <p className="text-red-600">Error: {error.message}</p>}
 			{data && <SafeConfigDisplay config={data.fullConfig} nextCursor={data.nextCursor} />}
+			{data && (
+				<Link
+					to="/enqueue"
+					search={{ rpcUrl, safe: safeAddress }}
+					className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+				>
+					Enqueue Transaction
+				</Link>
+			)}
 		</div>
 	);
 }
