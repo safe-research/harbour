@@ -127,7 +127,12 @@ contract SafeConfigurationFetcher {
         uint256 count = 0;
         address cursor = SENTINEL_MODULES;
 
-        for (uint256 i = 0; i < maxIterations && cursor != address(0); i++) {
+        for (
+            uint256 i = 0;
+            i < maxIterations &&
+                (cursor != address(0) && cursor != SENTINEL_MODULES);
+            i++
+        ) {
             (address[] memory page, address next) = safeContract
                 .getModulesPaginated(cursor, pageSize);
             for (uint256 j = 0; j < page.length; j++) {
