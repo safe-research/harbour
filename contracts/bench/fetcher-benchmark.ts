@@ -1,13 +1,11 @@
-#!/usr/bin/env ts-node
-
 import { deepStrictEqual } from "node:assert";
 import { performance } from "node:perf_hooks";
 import * as ethers from "ethers";
 import { Contract, JsonRpcProvider } from "ethers";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { ISafe__factory } from "../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/ISafe__factory";
-import { SafeConfigurationFetcher__factory } from "../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/SafeConfigurationFetcher__factory";
+import { ISafe__factory } from "../../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/ISafe__factory";
+import { SafeConfigurationFetcher__factory } from "../../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/SafeConfigurationFetcher__factory";
 
 // Minimal Multicall3 ABI for on-chain batching
 const MULTICALL3_ABI = [
@@ -26,6 +24,7 @@ interface Args {
 	warmups: number;
 	pageSize: number;
 	maxIterations: number;
+	verbose: boolean;
 }
 
 // 0x1c32fA78CB9a7A15ADC0BbEFAd1986C47D55eEd2
@@ -47,6 +46,7 @@ const argv = yargs(hideBin(process.argv))
 		warmups: { type: "number", default: 5, describe: "Number of warm-up runs" },
 		pageSize: { type: "number", default: 50, describe: "Page size for modules pagination" },
 		maxIterations: { type: "number", default: 10, describe: "Max iterations for modules pagination" },
+		verbose: { type: "boolean", default: false, describe: "Enable verbose logging" },
 	})
 	.parseSync() as Args;
 
@@ -100,7 +100,7 @@ async function fetchModulesSequential(
 		modules.push(...page);
 		cursor = next;
 	}
-	if (cursor !== ZERO) {
+	if (cursor !== ZERO && argv.verbose) {
 		console.warn(
 			`fetchModulesSequential: pagination truncated after ${maxIterations} iterations; nextCursor=${cursor}`,
 		);
@@ -158,7 +158,8 @@ async function method1Sequential(): Promise<{
 		argv.maxIterations,
 		argv.pageSize,
 	);
-	if (nextCursor !== ZERO) console.warn(`method1Sequential: pagination truncated; nextCursor=${nextCursor}`);
+	if (nextCursor !== ZERO && argv.verbose)
+		console.warn(`method1Sequential: pagination truncated; nextCursor=${nextCursor}`);
 	return {
 		owners,
 		threshold: thresholdBN.toString(),
@@ -190,7 +191,8 @@ async function method2Parallel(): Promise<{
 		argv.maxIterations,
 		argv.pageSize,
 	);
-	if (nextCursor !== ZERO) console.warn(`method2Parallel: pagination truncated; nextCursor=${nextCursor}`);
+	if (nextCursor !== ZERO && argv.verbose)
+		console.warn(`method2Parallel: pagination truncated; nextCursor=${nextCursor}`);
 	return {
 		owners,
 		threshold: thresholdBN.toString(),
@@ -224,7 +226,8 @@ async function method3Batched(): Promise<{
 		argv.maxIterations,
 		argv.pageSize,
 	);
-	if (nextCursor !== ZERO) console.warn(`method3Batched: pagination truncated; nextCursor=${nextCursor}`);
+	if (nextCursor !== ZERO && argv.verbose)
+		console.warn(`method3Batched: pagination truncated; nextCursor=${nextCursor}`);
 	return {
 		owners,
 		threshold: thresholdBN.toString(),
@@ -254,7 +257,7 @@ async function method4Multicall(): Promise<{
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("nonce") },
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
 	];
-	const [, returnData] = await multicall.aggregate(basicCalls);
+	const [, returnData] = await multicall.aggregate.staticCall(basicCalls);
 	// Decode for fairness
 	const owners = SAFE_IFACE.decodeFunctionResult("getOwners", returnData[0])[0] as string[];
 	const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", returnData[1])[0] as bigint;
@@ -264,7 +267,7 @@ async function method4Multicall(): Promise<{
 	// Modules pagination via multicall
 	const { modules, nextCursor } = await fetchModulesSequential(
 		async (cursor: string): Promise<[string[], string]> => {
-			const [, data] = await multicall.aggregate([
+			const [, data] = await multicall.aggregate.staticCall([
 				{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [cursor, argv.pageSize]) },
 			]);
 			const result = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", data[0]);
@@ -273,7 +276,8 @@ async function method4Multicall(): Promise<{
 		argv.maxIterations,
 		argv.pageSize,
 	);
-	if (nextCursor !== ZERO) console.warn(`method4Multicall: pagination truncated; nextCursor=${nextCursor}`);
+	if (nextCursor !== ZERO && argv.verbose)
+		console.warn(`method4Multicall: pagination truncated; nextCursor=${nextCursor}`);
 	return {
 		owners,
 		threshold: thresholdBN.toString(),
@@ -287,15 +291,15 @@ async function method4Multicall(): Promise<{
 // Main runner
 async function main() {
 	console.log("Benchmarking configuration fetch on Safe:", argv.safe);
+	await runBenchmark("Fetcher – getFullConfiguration", () =>
+		fetcherContract.getFullConfiguration(argv.safe, argv.maxIterations, argv.pageSize),
+	);
 	await runBenchmark("Method 1 – sequential", method1Sequential);
 	await runBenchmark("Method 2 – parallel", method2Parallel);
 	await runBenchmark("Method 3 – batched", method3Batched);
 	if (argv.multicall) {
 		await runBenchmark("Method 4 – multicall", method4Multicall);
 	}
-	await runBenchmark("Fetcher – getFullConfiguration", () =>
-		fetcherContract.getFullConfiguration(argv.safe, argv.maxIterations, argv.pageSize),
-	);
 }
 
 main().catch((e) => {

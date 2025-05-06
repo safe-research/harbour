@@ -7,13 +7,15 @@
   },
   "dependencies": {
     "@safe-global/safe-contracts": "^1.4.1-2",
-    "@safe-global/safe-singleton-factory": "^1.0.43"
+    "@safe-global/safe-singleton-factory": "^1.0.43",
+    "yargs": "^17.7.1"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.13",
     "@safe-global/safe-deployments": "^1.0.43",
     "@safe-global/safe-modules-deployments": "^2.2.8",
+    "@types/yargs": "^17.0.33",
     "dotenv": "^16.5.0",
     "ethers": "^6.13.5",
     "hardhat": "^2.23.0",
