@@ -58,6 +58,9 @@ const config: HardhatUserConfig = {
 			// because the Safe contract is imported by the SafeModuleHarbour contract.
 			"src/module/SafeModuleHarbour.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
 			"@safe-global/safe-contracts/contracts/Safe.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
+			"src/test/TestImports.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
+			"@safe-global/safe-contracts/contracts/examples/guards/DebugTransactionGuard.sol":
+				SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
 		},
 	},
 	typechain: {

@@ -28,6 +28,7 @@ interface Args {
 	maxIterations: number;
 }
 
+// 0x1c32fA78CB9a7A15ADC0BbEFAd1986C47D55eEd2
 const argv = yargs(hideBin(process.argv))
 	.options({
 		rpcUrl: { type: "string", demandOption: true, describe: "RPC endpoint URL" },
