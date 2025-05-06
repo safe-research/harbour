@@ -1,0 +1,67 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        { "internalType": "address", "name": "safe", "type": "address" }
+      ],
+      "name": "getBasicConfiguration",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "address[]", "name": "owners", "type": "address[]" },
+            { "internalType": "uint256", "name": "threshold", "type": "uint256" },
+            { "internalType": "address", "name": "fallbackHandler", "type": "address" },
+            { "internalType": "uint256", "name": "nonce", "type": "uint256" },
+            { "internalType": "address[]", "name": "modules", "type": "address[]" },
+            { "internalType": "address", "name": "guard", "type": "address" }
+          ],
+          "internalType": "struct SafeConfiguration",
+          "name": "config",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "address", "name": "safe", "type": "address" },
+        { "internalType": "uint256", "name": "maxIterations", "type": "uint256" },
+        { "internalType": "uint256", "name": "pageSize", "type": "uint256" }
+      ],
+      "name": "getFullConfiguration",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "address[]", "name": "owners", "type": "address[]" },
+            { "internalType": "uint256", "name": "threshold", "type": "uint256" },
+            { "internalType": "address", "name": "fallbackHandler", "type": "address" },
+            { "internalType": "uint256", "name": "nonce", "type": "uint256" },
+            { "internalType": "address[]", "name": "modules", "type": "address[]" },
+            { "internalType": "address", "name": "guard", "type": "address" }
+          ],
+          "internalType": "struct SafeConfiguration",
+          "name": "fullConfig",
+          "type": "tuple"
+        },
+        { "internalType": "address", "name": "nextCursor", "type": "address" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        { "internalType": "address", "name": "safe", "type": "address" },
+        { "internalType": "address", "name": "start", "type": "address" },
+        { "internalType": "uint256", "name": "pageSize", "type": "uint256" }
+      ],
+      "name": "getModulesPaginated",
+      "outputs": [
+        { "internalType": "address[]", "name": "modulePage", "type": "address[]" },
+        { "internalType": "address", "name": "nextCursor", "type": "address" }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ]
+} 

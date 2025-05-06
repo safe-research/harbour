@@ -24,11 +24,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.476.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.6",
     "tailwindcss-animate": "^1.0.7",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "viem": "^2.29.0",
+    "wagmi": "^2.15.2"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.0",
