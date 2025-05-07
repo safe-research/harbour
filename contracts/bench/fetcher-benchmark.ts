@@ -34,7 +34,7 @@ const argv = yargs(hideBin(process.argv))
 		safe: { type: "string", demandOption: true, describe: "Safe contract address" },
 		fetcher: {
 			type: "string",
-			default: "0xF4141483d26a36D6D977303B598b855Cf53188Bd",
+			default: "0x9D7F213D9fF14F1a9286aE8A19fE744dfE840699",
 			describe: "Fetcher contract address",
 		},
 		multicall: {
@@ -48,7 +48,7 @@ const argv = yargs(hideBin(process.argv))
 		maxIterations: { type: "number", default: 10, describe: "Max iterations for modules pagination" },
 		verbose: { type: "boolean", default: false, describe: "Enable verbose logging" },
 	})
-	.parseSync() as Args;
+	.parseSync();
 
 // Zero address constant
 const ZERO = ethers.ZeroAddress;
@@ -258,6 +258,7 @@ async function method3Batched(): Promise<{
 	}));
 
 	const batchResponses = await sendBatch(batchRequests);
+	console.log(batchResponses);
 
 	// Sort and extract results by request id
 	const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
