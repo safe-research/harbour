@@ -69,6 +69,7 @@ const fetcherContract = SafeConfigurationFetcher__factory.connect(argv.fetcher, 
 // Storage slot constants
 const FALLBACK_SLOT = "0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5";
 const GUARD_SLOT = "0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8";
+const SINGLETON_SLOT = 0;
 const SENTINEL = "0x0000000000000000000000000000000000000001";
 
 /** Measures one run: returns result and duration in ms */
@@ -141,6 +142,7 @@ async function runBenchmark(label: string, fn: () => Promise<unknown>, warmups =
 
 // Method 1: sequential eth_call
 async function method1Sequential(): Promise<{
+	singleton: string;
 	owners: string[];
 	threshold: string;
 	fallback: string;
@@ -153,6 +155,7 @@ async function method1Sequential(): Promise<{
 	const fallback = await safeContract.getStorageAt(FALLBACK_SLOT, 1);
 	const nonceBN = await safeContract.nonce();
 	const guard = await safeContract.getStorageAt(GUARD_SLOT, 1);
+	const singleton = await safeContract.getStorageAt(SINGLETON_SLOT, 1);
 	const { modules, nextCursor } = await fetchModulesSequential(
 		(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
 		argv.maxIterations,
@@ -161,6 +164,7 @@ async function method1Sequential(): Promise<{
 	if (nextCursor !== ZERO && argv.verbose)
 		console.warn(`method1Sequential: pagination truncated; nextCursor=${nextCursor}`);
 	return {
+		singleton,
 		owners,
 		threshold: thresholdBN.toString(),
 		fallback,
@@ -172,6 +176,7 @@ async function method1Sequential(): Promise<{
 
 // Method 2: parallel eth_call
 async function method2Parallel(): Promise<{
+	singleton: string;
 	owners: string[];
 	threshold: string;
 	fallback: string;
@@ -179,12 +184,13 @@ async function method2Parallel(): Promise<{
 	nonce: string;
 	modules: string[];
 }> {
-	const [owners, thresholdBN, fallback, nonceBN, guard] = await Promise.all([
+	const [owners, thresholdBN, fallback, nonceBN, guard, singleton] = await Promise.all([
 		safeContract.getOwners(),
 		safeContract.getThreshold(),
 		safeContract.getStorageAt(FALLBACK_SLOT, 1),
 		safeContract.nonce(),
 		safeContract.getStorageAt(GUARD_SLOT, 1),
+		safeContract.getStorageAt(SINGLETON_SLOT, 1),
 	]);
 	const { modules, nextCursor } = await fetchModulesSequential(
 		(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
@@ -194,6 +200,7 @@ async function method2Parallel(): Promise<{
 	if (nextCursor !== ZERO && argv.verbose)
 		console.warn(`method2Parallel: pagination truncated; nextCursor=${nextCursor}`);
 	return {
+		singleton,
 		owners,
 		threshold: thresholdBN.toString(),
 		fallback,
@@ -205,6 +212,7 @@ async function method2Parallel(): Promise<{
 
 // Method 3: batched JSON-RPC calls
 async function method3Batched(): Promise<{
+	singleton: string;
 	owners: string[];
 	threshold: string;
 	fallback: string;
@@ -213,12 +221,13 @@ async function method3Batched(): Promise<{
 	modules: string[];
 }> {
 	// Basic config calls via wrapper on batched provider (includes decode)
-	const [owners, thresholdBN, fallback, nonceBN, guard] = await Promise.all([
+	const [owners, thresholdBN, fallback, nonceBN, guard, singleton] = await Promise.all([
 		batchSafeContract.getOwners(),
 		batchSafeContract.getThreshold(),
 		batchSafeContract.getStorageAt(FALLBACK_SLOT, 1),
 		batchSafeContract.nonce(),
 		batchSafeContract.getStorageAt(GUARD_SLOT, 1),
+		batchSafeContract.getStorageAt(SINGLETON_SLOT, 1),
 	]);
 	// Modules pagination using shared helper
 	const { modules, nextCursor } = await fetchModulesSequential(
@@ -229,6 +238,7 @@ async function method3Batched(): Promise<{
 	if (nextCursor !== ZERO && argv.verbose)
 		console.warn(`method3Batched: pagination truncated; nextCursor=${nextCursor}`);
 	return {
+		singleton,
 		owners,
 		threshold: thresholdBN.toString(),
 		fallback,
@@ -240,6 +250,7 @@ async function method3Batched(): Promise<{
 
 // Method 4: on-chain Multicall3
 async function method4Multicall(): Promise<{
+	singleton: string;
 	owners: string[];
 	threshold: string;
 	fallback: string;
@@ -256,6 +267,7 @@ async function method4Multicall(): Promise<{
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) },
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("nonce") },
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]) },
 	];
 	const [, returnData] = await multicall.aggregate.staticCall(basicCalls);
 	// Decode for fairness
@@ -264,6 +276,7 @@ async function method4Multicall(): Promise<{
 	const fallback = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[2])[0] as string;
 	const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", returnData[3])[0] as bigint;
 	const guard = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[4])[0] as string;
+	const singleton = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[5])[0] as string;
 	// Modules pagination via multicall
 	const { modules, nextCursor } = await fetchModulesSequential(
 		async (cursor: string): Promise<[string[], string]> => {
@@ -279,6 +292,7 @@ async function method4Multicall(): Promise<{
 	if (nextCursor !== ZERO && argv.verbose)
 		console.warn(`method4Multicall: pagination truncated; nextCursor=${nextCursor}`);
 	return {
+		singleton,
 		owners,
 		threshold: thresholdBN.toString(),
 		fallback,

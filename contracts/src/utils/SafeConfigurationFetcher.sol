@@ -9,6 +9,7 @@ pragma solidity ^0.8.29;
 /// @param modules Enabled Safe modules.
 /// @param guard Guard contract address.
 struct SafeConfiguration {
+    address singleton;
     address[] owners;
     uint256 threshold;
     address fallbackHandler;
@@ -37,6 +38,9 @@ interface ISafe {
 /// @notice A utility contract to fetch basic and full configurations of a Safe.
 /// @dev Provides gas-optimized methods for reading storage and modules with pagination.
 contract SafeConfigurationFetcher {
+    /// @dev Storage slot for singleton
+    bytes32 internal constant SINGLETON_STORAGE_SLOT = 0;
+
     /// @dev Storage slot for fallback handler (keccak256("fallback_manager.handler.address")).
     bytes32 internal constant FALLBACK_HANDLER_STORAGE_SLOT =
         0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5;
@@ -68,6 +72,10 @@ contract SafeConfigurationFetcher {
     function _fetchBasicConfig(
         ISafe safeContract
     ) private view returns (SafeConfiguration memory config) {
+        config.singleton = _addressFromStorage(
+            safeContract,
+            SINGLETON_STORAGE_SLOT
+        );
         config.owners = safeContract.getOwners();
         config.threshold = safeContract.getThreshold();
         config.fallbackHandler = _addressFromStorage(
