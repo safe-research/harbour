@@ -12,24 +12,8 @@ interface TestContext {
 	fetcher: SafeConfigurationFetcher;
 	safe: Safe;
 	safeAddress: string;
-	singletonAddress: string;
-	owners: string[];
-	threshold: bigint;
-	modules: string[];
-	fallbackHandler: string;
-	guardAddress: string;
-	safeModules: string[];
+	safeConfig: SafeConfigurationStruct;
 }
-
-type SafeConfig = {
-	singleton: string;
-	owners: string[];
-	threshold: number;
-	fallbackHandler: string;
-	guard: string;
-	nonce?: bigint;
-	modules?: string[];
-};
 
 /**
  * Fixture: deploys a Safe proxy with optional modules and a guard
@@ -86,13 +70,15 @@ async function setupSafe(modCount = 5): Promise<TestContext> {
 		fetcher,
 		safe,
 		safeAddress,
-		singletonAddress,
-		owners,
-		threshold,
-		modules,
-		fallbackHandler,
-		guardAddress,
-		safeModules,
+		safeConfig: {
+			singleton: singletonAddress,
+			owners,
+			threshold,
+			modules: safeModules,
+			fallbackHandler,
+			guard: guardAddress,
+			nonce: await safe.nonce(),
+		},
 	};
 }
 
@@ -146,13 +132,13 @@ describe("SafeConfigurationFetcher", () => {
 		it("returns correct basic configuration without modules", async () => {
 			const config = await ctx.fetcher.getBasicConfiguration(ctx.safeAddress);
 			assertSafeConfig(config, {
-				singleton: ctx.singletonAddress,
-				owners: ctx.owners,
-				threshold: ctx.threshold,
-				fallbackHandler: ctx.fallbackHandler,
-				guard: ctx.guardAddress,
+				singleton: ctx.safeConfig.singleton,
+				owners: ctx.safeConfig.owners,
+				threshold: ctx.safeConfig.threshold,
+				fallbackHandler: ctx.safeConfig.fallbackHandler,
+				guard: ctx.safeConfig.guard,
 				modules: [],
-				nonce: await ctx.safe.nonce(),
+				nonce: ctx.safeConfig.nonce,
 			});
 		});
 
@@ -174,13 +160,13 @@ describe("SafeConfigurationFetcher", () => {
 			const pageSize = 2;
 			const [page1, next1] = await ctx.fetcher.getModulesPaginated(ctx.safeAddress, SENTINEL_MODULES, pageSize);
 			expect(page1).to.have.length.of.at.most(pageSize);
-			for (const m of page1) expect(ctx.safeModules).to.include(m);
+			for (const m of page1) expect(ctx.safeConfig.modules).to.include(m);
 
-			if (ctx.safeModules.length > pageSize) {
+			if (ctx.safeConfig.modules.length > pageSize) {
 				expect(next1).to.not.equal(ethers.ZeroAddress);
 				const [page2, next2] = await ctx.fetcher.getModulesPaginated(ctx.safeAddress, next1, pageSize);
-				for (const m of page2) expect(ctx.safeModules).to.include(m);
-				expect(next2).to.equal(ctx.safeModules.length > pageSize * 2 ? next2 : ethers.ZeroAddress);
+				for (const m of page2) expect(ctx.safeConfig.modules).to.include(m);
+				expect(next2).to.equal(ctx.safeConfig.modules.length > pageSize * 2 ? next2 : ethers.ZeroAddress);
 			} else {
 				expect(next1).to.equal(ethers.ZeroAddress);
 			}
@@ -197,23 +183,23 @@ describe("SafeConfigurationFetcher", () => {
 			const nonce = await ctx.safe.nonce();
 			const [full, cursor] = await ctx.fetcher.getFullConfiguration(ctx.safeAddress, 3, 2);
 			assertSafeConfig(full, {
-				singleton: ctx.singletonAddress,
-				owners: ctx.owners,
-				threshold: ctx.threshold,
-				fallbackHandler: ctx.fallbackHandler,
-				guard: ctx.guardAddress,
-				modules: ctx.safeModules,
+				singleton: ctx.safeConfig.singleton,
+				owners: ctx.safeConfig.owners,
+				threshold: ctx.safeConfig.threshold,
+				fallbackHandler: ctx.safeConfig.fallbackHandler,
+				guard: ctx.safeConfig.guard,
+				modules: ctx.safeConfig.modules,
 				nonce,
 			});
 			expect(cursor).to.equal(SENTINEL_MODULES);
 		});
 
 		it("supports truncated pagination", async () => {
-			if (ctx.safeModules.length <= 2) return;
+			if (ctx.safeConfig.modules.length <= 2) return;
 			const [full, cursor] = await ctx.fetcher.getFullConfiguration(ctx.safeAddress, 1, 2);
 			expect(full.modules).to.have.length.of.at.most(2);
-			for (const m of full.modules) expect(ctx.safeModules).to.include(m);
-			if (ctx.safeModules.length > 2) expect(cursor).to.not.equal(ethers.ZeroAddress);
+			for (const m of full.modules) expect(ctx.safeConfig.modules).to.include(m);
+			if (ctx.safeConfig.modules.length > 2) expect(cursor).to.not.equal(ethers.ZeroAddress);
 		});
 
 		it("returns no modules if none enabled", async () => {
@@ -245,9 +231,9 @@ describe("SafeConfigurationFetcher", () => {
 	describe("Storage Helpers", () => {
 		it("reads stored addresses correctly", async () => {
 			const cfg = await ctx.fetcher.getBasicConfiguration(ctx.safeAddress);
-			expect(cfg.singleton).to.equal(ctx.singletonAddress);
-			expect(cfg.fallbackHandler).to.equal(ctx.fallbackHandler);
-			expect(cfg.guard).to.equal(ctx.guardAddress);
+			expect(cfg.singleton).to.equal(ctx.safeConfig.singleton);
+			expect(cfg.fallbackHandler).to.equal(ctx.safeConfig.fallbackHandler);
+			expect(cfg.guard).to.equal(ctx.safeConfig.guard);
 		});
 	});
 });
