@@ -220,23 +220,67 @@ async function method3Batched(): Promise<{
 	nonce: string;
 	modules: string[];
 }> {
-	// Basic config calls via wrapper on batched provider (includes decode)
-	const [owners, thresholdBN, fallback, nonceBN, guard, singleton] = await Promise.all([
-		batchSafeContract.getOwners(),
-		batchSafeContract.getThreshold(),
-		batchSafeContract.getStorageAt(FALLBACK_SLOT, 1),
-		batchSafeContract.nonce(),
-		batchSafeContract.getStorageAt(GUARD_SLOT, 1),
-		batchSafeContract.getStorageAt(SINGLETON_SLOT, 1),
-	]);
-	// Modules pagination using shared helper
-	const { modules, nextCursor } = await fetchModulesSequential(
-		(cursor) => batchSafeContract.getModulesPaginated(cursor, argv.pageSize),
-		argv.maxIterations,
-		argv.pageSize,
+	// Helper to send batch JSON-RPC requests
+	const rpcUrl = argv.rpcUrl;
+	const sendBatch = async (requests: any[]): Promise<any[]> => {
+		const response = await fetch(rpcUrl, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(requests),
+		});
+		const json = await response.json();
+		return json;
+	};
+
+	// Prepare basic config calls
+	const calls = [
+		{ method: "getOwners" , args: [] },
+		{ method: "getThreshold" 	, args: [] },
+		{ method: "getStorageAt" 	, args: [FALLBACK_SLOT, 1] },
+		{ method: "nonce" 		, args: [] },
+		{ method: "getStorageAt" 	, args: [GUARD_SLOT, 1] },
+		{ method: "getStorageAt" 	, args: [SINGLETON_SLOT, 1] },
+		{ method: "getModulesPaginated", args: [SENTINEL, argv.pageSize] },
+	] as const;
+
+	const batchRequests = calls.map((call, index) => ({
+		jsonrpc: "2.0",
+		id: index + 1,
+		method: "eth_call",
+		params: [
+			{
+				to: argv.safe,
+				// @ts-expect-error idk why this is not working
+				data: SAFE_IFACE.encodeFunctionData(call.method, call.args),
+			},
+			"latest",
+		],
+	}));
+
+	const batchResponses = await sendBatch(batchRequests);
+
+	// Sort and extract results by request id
+	const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
+	const results = sorted.map((resp: any) => resp.result);
+
+	// Decode basic config results
+	const owners = SAFE_IFACE.decodeFunctionResult("getOwners", results[0])[0] as string[];
+	const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", results[1])[0] as bigint;
+	const fallback = SAFE_IFACE.decodeFunctionResult("getStorageAt", results[2])[0] as string;
+	const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", results[3])[0] as bigint;
+	const guard = SAFE_IFACE.decodeFunctionResult("getStorageAt", results[4])[0] as string;
+	const singleton = SAFE_IFACE.decodeFunctionResult("getStorageAt", results[5])[0] as string;
+
+	// Decode first page of modules from batched call
+	const [modulePage, nextCursor] = SAFE_IFACE.decodeFunctionResult(
+		"getModulesPaginated",
+		results[6],
 	);
-	if (nextCursor !== ZERO && argv.verbose)
-		console.warn(`method3Batched: pagination truncated; nextCursor=${nextCursor}`);
+	const modules = modulePage as string[];
+	if (nextCursor !== ZERO && argv.verbose) {
+		console.warn(`method3Batched: first page truncated; nextCursor=${nextCursor}`);
+	}
+
 	return {
 		singleton,
 		owners,
