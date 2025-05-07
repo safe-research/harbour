@@ -138,7 +138,8 @@ contract SafeConfigurationFetcher {
         for (
             uint256 i = 0;
             i < maxIterations &&
-                (cursor != address(0) && cursor != SENTINEL_MODULES);
+                (i == 0 ||
+                    (cursor != address(0) && cursor != SENTINEL_MODULES));
             i++
         ) {
             (address[] memory page, address next) = safeContract

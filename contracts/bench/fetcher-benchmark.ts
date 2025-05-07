@@ -27,14 +27,13 @@ interface Args {
 	verbose: boolean;
 }
 
-// 0x1c32fA78CB9a7A15ADC0BbEFAd1986C47D55eEd2
 const argv = yargs(hideBin(process.argv))
 	.options({
 		rpcUrl: { type: "string", demandOption: true, describe: "RPC endpoint URL" },
 		safe: { type: "string", demandOption: true, describe: "Safe contract address" },
 		fetcher: {
 			type: "string",
-			default: "0x9D7F213D9fF14F1a9286aE8A19fE744dfE840699",
+			default: "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6",
 			describe: "Fetcher contract address",
 		},
 		multicall: {
@@ -234,12 +233,12 @@ async function method3Batched(): Promise<{
 
 	// Prepare basic config calls
 	const calls = [
-		{ method: "getOwners" , args: [] },
-		{ method: "getThreshold" 	, args: [] },
-		{ method: "getStorageAt" 	, args: [FALLBACK_SLOT, 1] },
-		{ method: "nonce" 		, args: [] },
-		{ method: "getStorageAt" 	, args: [GUARD_SLOT, 1] },
-		{ method: "getStorageAt" 	, args: [SINGLETON_SLOT, 1] },
+		{ method: "getOwners", args: [] },
+		{ method: "getThreshold", args: [] },
+		{ method: "getStorageAt", args: [FALLBACK_SLOT, 1] },
+		{ method: "nonce", args: [] },
+		{ method: "getStorageAt", args: [GUARD_SLOT, 1] },
+		{ method: "getStorageAt", args: [SINGLETON_SLOT, 1] },
 		{ method: "getModulesPaginated", args: [SENTINEL, argv.pageSize] },
 	] as const;
 
@@ -258,7 +257,6 @@ async function method3Batched(): Promise<{
 	}));
 
 	const batchResponses = await sendBatch(batchRequests);
-	console.log(batchResponses);
 
 	// Sort and extract results by request id
 	const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
@@ -273,10 +271,7 @@ async function method3Batched(): Promise<{
 	const singleton = SAFE_IFACE.decodeFunctionResult("getStorageAt", results[5])[0] as string;
 
 	// Decode first page of modules from batched call
-	const [modulePage, nextCursor] = SAFE_IFACE.decodeFunctionResult(
-		"getModulesPaginated",
-		results[6],
-	);
+	const [modulePage, nextCursor] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", results[6]);
 	const modules = modulePage as string[];
 	if (nextCursor !== ZERO && argv.verbose) {
 		console.warn(`method3Batched: first page truncated; nextCursor=${nextCursor}`);
