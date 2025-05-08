@@ -15,25 +15,13 @@ const MULTICALL3_ABI = [
 // Hoisted interface for encoding/decoding Safe calls
 const SAFE_IFACE = ISafe__factory.createInterface();
 
-interface Args {
-	rpcUrl: string;
-	safe: string;
-	fetcher: string;
-	multicall?: string;
-	runs: number;
-	warmups: number;
-	pageSize: number;
-	maxIterations: number;
-	verbose: boolean;
-}
-
 const argv = yargs(hideBin(process.argv))
 	.options({
 		rpcUrl: { type: "string", demandOption: true, describe: "RPC endpoint URL" },
 		safe: { type: "string", demandOption: true, describe: "Safe contract address" },
 		fetcher: {
 			type: "string",
-			default: "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6",
+			default: "0xE2d5a00B860b07492BA9c06D51a8E31a4E159412",
 			describe: "Fetcher contract address",
 		},
 		multicall: {
@@ -308,6 +296,7 @@ async function method4Multicall(): Promise<{
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("nonce") },
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
 		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]) },
+		{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, argv.pageSize]) },
 	];
 	const [, returnData] = await multicall.aggregate.staticCall(basicCalls);
 	// Decode for fairness
@@ -318,19 +307,13 @@ async function method4Multicall(): Promise<{
 	const guard = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[4])[0] as string;
 	const singleton = SAFE_IFACE.decodeFunctionResult("getStorageAt", returnData[5])[0] as string;
 	// Modules pagination via multicall
-	const { modules, nextCursor } = await fetchModulesSequential(
-		async (cursor: string): Promise<[string[], string]> => {
-			const [, data] = await multicall.aggregate.staticCall([
-				{ target: argv.safe, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [cursor, argv.pageSize]) },
-			]);
-			const result = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", data[0]);
-			return [result[0] as string[], result[1] as string];
-		},
-		argv.maxIterations,
-		argv.pageSize,
-	);
-	if (nextCursor !== ZERO && argv.verbose)
-		console.warn(`method4Multicall: pagination truncated; nextCursor=${nextCursor}`);
+	const [fetchedModules, nextCursorPaginated] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", returnData[6]);
+	const modules = fetchedModules as string[];
+
+	if (nextCursorPaginated !== SENTINEL && argv.verbose)
+		console.warn(
+			`method4Multicall: Only first page of modules fetched via multicall; nextCursor=${nextCursorPaginated}`,
+		);
 	return {
 		singleton,
 		owners,

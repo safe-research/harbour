@@ -1,11 +1,9 @@
 # SafeConfigurationFetcher Benchmark Results
 
-## RPC: Gnosis Chain (https://rpc.gnosischain.com)
+## RPC: Polygon (https://polygon-mainnet.infura.io/v3)
 
-- **Fetcher – getFullConfiguration**: avg=87.9ms, std=17.5ms, min=72.5ms, max=134.2ms
-- **Method 1 – sequential**: avg=1554.6ms, std=243.2ms, min=1243.6ms, max=1892.9ms
-- **Method 2 – parallel**: avg=1052.1ms, std=215.1ms, min=815.4ms, max=1521.7ms
-- **Method 3 – batched**: avg=84.3ms, std=14.5ms, min=69.6ms, max=116.7ms
-- **Method 4 – multicall**: avg=1078.6ms, std=167.2ms, min=905.9ms, max=1412.5ms
-
-# Speculations on Performance
+- **Fetcher – getFullConfiguration**: avg=181.5ms, std=103.2ms, min=137.2ms, max=484.9ms
+- **Method 1 – sequential**: avg=2363.9ms, std=389.8ms, min=2145.1ms, max=3469.7ms
+- **Method 2 – parallel**: avg=2730.2ms, std=2592.2ms, min=1490.8ms, max=10339.5ms
+- **Method 3 – batched**: avg=143.5ms, std=4.8ms, min=138.5ms, max=151.2ms
+- **Method 4 – multicall**: avg=152.2ms, std=3.3ms, min=148.2ms, max=158.4ms
