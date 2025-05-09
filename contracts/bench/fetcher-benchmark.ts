@@ -32,7 +32,7 @@ const argv = yargs(hideBin(process.argv))
 		runs: { type: "number", default: 10, describe: "Number of measured runs" },
 		warmups: { type: "number", default: 5, describe: "Number of warm-up runs" },
 		pageSize: { type: "number", default: 50, describe: "Page size for modules pagination" },
-		maxIterations: { type: "number", default: 10, describe: "Max iterations for modules pagination" },
+		maxIterations: { type: "number", default: 1, describe: "Max iterations for modules pagination" },
 		verbose: { type: "boolean", default: false, describe: "Enable verbose logging" },
 	})
 	.parseSync();
@@ -42,14 +42,6 @@ const ZERO = ethers.ZeroAddress;
 
 // Setup providers and contracts
 const provider = new JsonRpcProvider(argv.rpcUrl);
-// Batched provider for method3Batched
-const batchProvider = new JsonRpcProvider(argv.rpcUrl, undefined, {
-	batchStallTime: 0,
-	batchMaxCount: argv.maxIterations + 5,
-	batchMaxSize: 1024 * 1024,
-});
-// Wrapper contract on batchProvider to include decode overhead
-const batchSafeContract = ISafe__factory.connect(argv.safe, batchProvider);
 const safeContract = ISafe__factory.connect(argv.safe, provider);
 const fetcherContract = SafeConfigurationFetcher__factory.connect(argv.fetcher, provider);
 
@@ -171,19 +163,19 @@ async function method2Parallel(): Promise<{
 	nonce: string;
 	modules: string[];
 }> {
-	const [owners, thresholdBN, fallback, nonceBN, guard, singleton] = await Promise.all([
+	const [owners, thresholdBN, fallback, nonceBN, guard, singleton, { modules, nextCursor }] = await Promise.all([
 		safeContract.getOwners(),
 		safeContract.getThreshold(),
 		safeContract.getStorageAt(FALLBACK_SLOT, 1),
 		safeContract.nonce(),
 		safeContract.getStorageAt(GUARD_SLOT, 1),
 		safeContract.getStorageAt(SINGLETON_SLOT, 1),
+		fetchModulesSequential(
+			(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
+			argv.maxIterations,
+			argv.pageSize,
+		),
 	]);
-	const { modules, nextCursor } = await fetchModulesSequential(
-		(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
-		argv.maxIterations,
-		argv.pageSize,
-	);
 	if (nextCursor !== ZERO && argv.verbose)
 		console.warn(`method2Parallel: pagination truncated; nextCursor=${nextCursor}`);
 	return {
