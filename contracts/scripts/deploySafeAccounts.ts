@@ -1,182 +1,226 @@
 import {
-	getMultiSendCallOnlyDeployment,
-	getProxyFactoryDeployment,
-	getSafeSingletonDeployment,
+  getMultiSendCallOnlyDeployment,
+  getProxyFactoryDeployment,
+  getSafeSingletonDeployment,
 } from "@safe-global/safe-deployments";
 import { getSafeModuleSetupDeployment } from "@safe-global/safe-modules-deployments";
 import { hexlify, randomBytes } from "ethers";
-import type { Contract } from "ethers";
 import { ethers } from "hardhat";
-
-const SAFE_DEPLOYMENTS_PER_TRANSACTION = 20;
-
-type MultisendCall = {
-	to: string;
-	value: bigint;
-	data: string;
-};
-
-const encodeMetaTransaction = (tx: MultisendCall): string => {
-	const data = ethers.getBytes(tx.data);
-	const encoded = ethers.solidityPacked(
-		["uint8", "address", "uint256", "uint256", "bytes"],
-		[0, tx.to, tx.value, data.length, data],
-	);
-	return encoded.slice(2);
-};
-
-export const encodeMultiSend = (calls: MultisendCall[]): string => {
-	return `0x${calls.map((tx) => encodeMetaTransaction(tx)).join("")}`;
-};
+import fs from "fs";
+import path from "path";
 
 /**
- * Deploy a new Safe proxy using existing deployments:
- * - singleton & proxy factory from @safe-global/safe-deployments
- * - modules setup via SafeModulesSetup contract
+ * Configuration
  */
-async function main() {
-	// Determine network
-	const network = await ethers.provider.getNetwork();
-	const chainId = network.chainId.toString();
+const SAFE_DEPLOYMENTS_PER_TRANSACTION = 10;
+const EXTRA_RANDOM_OWNERS = 20;
+const THRESHOLD = 1;
 
-	// Fetch existing Safe singleton
-	const safeDep = getSafeSingletonDeployment({ network: chainId });
-	if (!safeDep) {
-		throw new Error(`Safe singleton deployment not found for network ${chainId}`);
-	}
-	const safeSingletonAddress = safeDep.defaultAddress;
-	console.log(`Safe singleton address: ${safeSingletonAddress}`);
+/**
+ * Types
+ */
+interface MultisendCall {
+  to: string;
+  value: bigint;
+  data: string;
+  operation?: 0 | 1;
+}
 
-	// Fetch existing SafeProxyFactory
-	const proxyDep = getProxyFactoryDeployment({ network: chainId });
-	if (!proxyDep) {
-		throw new Error(`SafeProxyFactory deployment not found for network ${chainId}`);
-	}
-	const proxyFactoryAddress = proxyDep.defaultAddress;
-	console.log(`SafeProxyFactory address: ${proxyFactoryAddress}`);
+/**
+ * Helpers
+ */
+const SAFE_ADDRESSES_FILE = path.join(__dirname, "safeAddresses.json");
 
-	// Fetch SafeModulesSetup
-	const modulesDep = getSafeModuleSetupDeployment({ network: chainId });
-	if (!modulesDep) {
-		throw new Error(`SafeModulesSetup deployment not found for network ${chainId}`);
-	}
-	const modulesSetupAddress = modulesDep.networkAddresses[chainId];
-	console.log(`SafeModulesSetup address: ${modulesSetupAddress}`);
+function encodeMetaTransaction({
+  to,
+  value,
+  data,
+  operation = 0,
+}: MultisendCall): string {
+  const bytes = ethers.getBytes(data);
+  const encoded = ethers.solidityPacked(
+    ["uint8", "address", "uint256", "uint256", "bytes"],
+    [operation, to, value, bytes.length, bytes],
+  );
+  return encoded.slice(2);
+}
 
-	const multiSendCallOnlyDeployment = getMultiSendCallOnlyDeployment({
-		network: chainId,
-	});
-	if (!multiSendCallOnlyDeployment) {
-		throw new Error(`MultiSendCallOnly deployment not found for network ${chainId}`);
-	}
-	const multiSendCallOnlyAddress = multiSendCallOnlyDeployment.defaultAddress;
-	console.log(`MultiSendCallOnly address: ${multiSendCallOnlyAddress}`);
+function encodeMultiSend(calls: MultisendCall[]): string {
+  return `0x${calls.map(encodeMetaTransaction).join("")}`;
+}
 
-	// Signer
-	const [deployer] = await ethers.getSigners();
-	console.log(`Deployer: ${deployer.address}`);
+function saveSafeAddresses(addresses: readonly string[]): void {
+  fs.writeFileSync(SAFE_ADDRESSES_FILE, JSON.stringify(addresses, null, 2));
+}
 
-	// Build owner list (1 from mnemonic + 20 random)
-	const owners: string[] = [deployer.address];
-	for (let i = 0; i < 20; i++) {
-		owners.push(hexlify(randomBytes(20)));
-	}
-	console.log("Owners:", owners);
+/**
+ * Entrypoint
+ */
+async function main(): Promise<void> {
+  const chainId = (await ethers.provider.getNetwork()).chainId.toString();
 
-	// Parameters
-	const threshold = 1;
-	const modules = Array.from({ length: 15 }, () => hexlify(randomBytes(20)));
-	const fallbackHandler = hexlify(randomBytes(20));
-	const guard = await ethers.getContractFactory("DebugTransactionGuard").then((f) => f.deploy());
-	const guardAddress = await guard.getAddress();
-	console.log("Modules:", modules);
-	console.log("Fallback handler:", fallbackHandler);
-	console.log("Guard:", guardAddress);
+  // Fetch Safe deployments already present on the network
+  const safeSingleton = getSafeSingletonDeployment({
+    network: chainId,
+  })?.defaultAddress;
+  const proxyFactory = getProxyFactoryDeployment({
+    network: chainId,
+  })?.defaultAddress;
+  const multiSend = getMultiSendCallOnlyDeployment({ network: chainId });
+  const modulesDep = getSafeModuleSetupDeployment({ network: chainId });
 
-	// Attach the factory
-	const proxyFactory = await ethers.getContractAt("SafeProxyFactory", proxyFactoryAddress, deployer);
-	const SafeFactory = await ethers.getContractFactory("Safe");
-	const multisendContract = new ethers.Contract(multiSendCallOnlyAddress, multiSendCallOnlyDeployment.abi, deployer);
+  if (!safeSingleton || !proxyFactory || !multiSend || !modulesDep) {
+    throw new Error(`Required Safe deployments not found for chain ${chainId}`);
+  }
 
-	const safeCreations: MultisendCall[] = [];
+  const modulesSetup = modulesDep.networkAddresses[chainId];
+  const [deployer] = await ethers.getSigners();
 
-	for (let i = 0; i < SAFE_DEPLOYMENTS_PER_TRANSACTION; i++) {
-		// Build initializer for Safe.setup, with inline modulesSetup call
-		// Prepare modules setup calldata
-		const modulesSetupContract = new ethers.Contract(modulesSetupAddress, modulesDep.abi, deployer);
-		const modulesSetupCalldata = modulesSetupContract.interface.encodeFunctionData("enableModules", [modules]);
-		const initializer = SafeFactory.interface.encodeFunctionData("setup", [
-			owners,
-			threshold,
-			modulesSetupAddress, // to: SafeModulesSetup contract
-			modulesSetupCalldata, // data: call to setupModules(modules)
-			fallbackHandler,
-			ethers.ZeroAddress, // payment token
-			0, // payment
-			ethers.ZeroAddress, // payment receiver
-		]);
+  // Build the owner set (caller + random addresses)
+  const owners = [
+    deployer.address,
+    ...Array.from({ length: EXTRA_RANDOM_OWNERS }, () =>
+      hexlify(randomBytes(20)),
+    ),
+  ];
 
-		// Create the proxy
-		const saltNonce = Date.now();
-		const txCreate = proxyFactory.interface.encodeFunctionData("createProxyWithNonce", [
-			safeSingletonAddress,
-			initializer,
-			saltNonce,
-		]);
-		safeCreations.push({
-			to: proxyFactoryAddress,
-			value: 0n,
-			data: txCreate,
-		});
-	}
-	const multisendTx = await multisendContract.multisend(encodeMultiSend(safeCreations));
-	const receipt = await multisendTx.wait(5);
-	if (!receipt) {
-		throw new Error("multisend transaction has no receipt");
-	}
-	const creationEvents = await proxyFactory.queryFilter(proxyFactory.filters.ProxyCreation(), receipt.blockNumber);
-	console.log("Creation event:", creationEvents);
-	const proxyAddress = creationEvents[0].args.proxy;
-	console.log(`Safe proxy deployed at: ${proxyAddress}`);
+  // Deploy debug transaction guard
+  const guardFactory = await ethers.getContractFactory("DebugTransactionGuard");
+  const guardAddress = await (await guardFactory.deploy()).getAddress();
 
-	// Modules enabled as part of proxy setup
+  /**
+   * Attach on‑chain deployments
+   */
+  const proxyFactoryContract = await ethers.getContractAt(
+    "SafeProxyFactory",
+    proxyFactory,
+    deployer,
+  );
+  const safeFactory = await ethers.getContractFactory("Safe");
+  const multisendContract = new ethers.Contract(
+    multiSend.defaultAddress,
+    multiSend.abi,
+    deployer,
+  );
+  const modulesSetupContract = new ethers.Contract(
+    modulesSetup,
+    modulesDep.abi,
+    deployer,
+  );
 
-	// Set guard on the Safe proxy via execTransaction
-	const safeProxy = await ethers.getContractAt("Safe", proxyAddress, deployer);
-	const setGuardData = safeProxy.interface.encodeFunctionData("setGuard", [guardAddress]);
-	const txHashGuard = await safeProxy.getTransactionHash(
-		proxyAddress,
-		0,
-		setGuardData,
-		0,
-		0,
-		0,
-		0,
-		ethers.ZeroAddress,
-		ethers.ZeroAddress,
-		0,
-	);
-	const hashBytesGuard = ethers.getBytes(txHashGuard);
-	const flatSigGuard = (await deployer.signMessage(hashBytesGuard)).replace(/1b$/, "1f").replace(/1c$/, "20");
-	const txGuardExec = await safeProxy.execTransaction(
-		proxyAddress,
-		0,
-		setGuardData,
-		0,
-		0,
-		0,
-		0,
-		ethers.ZeroAddress,
-		ethers.ZeroAddress,
-		flatSigGuard,
-	);
-	await txGuardExec.wait(5);
-	console.log("Guard set");
+  /**
+   * ──────────────────────────────────────────────────────────────────────────
+   * 1. Create Safe proxies via MultiSend
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  const proxyCreations: MultisendCall[] = [];
 
-	console.log("✅ Safe account ready at:", proxyAddress);
+  for (let i = 0; i < SAFE_DEPLOYMENTS_PER_TRANSACTION; i++) {
+    // Encode inline call to SafeModulesSetup.enableModules(modules)
+    const modules = Array.from({ length: 15 }, () => hexlify(randomBytes(20)));
+    const fallbackHandler = hexlify(randomBytes(20));
+
+    const modulesCalldata = modulesSetupContract.interface.encodeFunctionData(
+      "enableModules",
+      [modules],
+    );
+
+    const initializer = safeFactory.interface.encodeFunctionData("setup", [
+      owners,
+      THRESHOLD,
+      modulesSetup,
+      modulesCalldata,
+      fallbackHandler,
+      ethers.ZeroAddress,
+      0,
+      ethers.ZeroAddress,
+    ]);
+
+    const createProxyCalldata =
+      proxyFactoryContract.interface.encodeFunctionData(
+        "createProxyWithNonce",
+        [safeSingleton, initializer, 0],
+      );
+
+    proxyCreations.push({
+      to: proxyFactory,
+      value: 0n,
+      data: createProxyCalldata,
+    });
+  }
+
+  const creationReceipt = await multisendContract
+    .multiSend(encodeMultiSend(proxyCreations))
+    .then((tx) => tx.wait());
+  if (!creationReceipt)
+    throw new Error("MultiSend transaction failed while creating proxies");
+
+  // Retrieve addresses of newly created proxies
+  const creationEvents = await proxyFactoryContract.queryFilter(
+    proxyFactoryContract.filters.ProxyCreation(),
+    creationReceipt.blockNumber,
+  );
+  const proxies = creationEvents.map((event) => event.args.proxy);
+
+  /**
+   * ──────────────────────────────────────────────────────────────────────────
+   * 2. Assign DebugTransactionGuard to each Safe
+   * ──────────────────────────────────────────────────────────────────────────
+   */
+  const guardTransactions: MultisendCall[] = [];
+  const setGuardData = safeFactory.interface.encodeFunctionData("setGuard", [
+    guardAddress,
+  ]);
+
+  for (const proxy of proxies) {
+    const safeProxy = await ethers.getContractAt("Safe", proxy, deployer);
+
+    const txHash = await safeProxy.getTransactionHash(
+      proxy,
+      0,
+      setGuardData,
+      0,
+      0,
+      0,
+      0,
+      ethers.ZeroAddress,
+      ethers.ZeroAddress,
+      0,
+    );
+
+    const signature = (await deployer.signMessage(ethers.getBytes(txHash)))
+      .replace(/1b$/, "1f")
+      .replace(/1c$/, "20");
+
+    guardTransactions.push({
+      to: proxy,
+      value: 0n,
+      data: safeProxy.interface.encodeFunctionData("execTransaction", [
+        proxy,
+        0,
+        setGuardData,
+        0,
+        0,
+        0,
+        0,
+        ethers.ZeroAddress,
+        ethers.ZeroAddress,
+        signature,
+      ]),
+    });
+  }
+
+  await multisendContract
+    .multiSend(encodeMultiSend(guardTransactions))
+    .then((tx) => tx.wait());
+
+  /**
+   * Persist results
+   */
+  saveSafeAddresses(proxies);
 }
 
 main().catch((err) => {
-	console.error(err);
-	process.exit(1);
+  console.error(err);
+  process.exit(1);
 });
