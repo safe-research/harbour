@@ -20,12 +20,16 @@ struct SafeConfiguration {
 
 interface ISafe {
     function getOwners() external view returns (address[] memory);
+
     function getThreshold() external view returns (uint256);
+
     function getStorageAt(
         uint256 offset,
         uint256 length
     ) external view returns (bytes memory);
+
     function nonce() external view returns (uint256);
+
     function getModulesPaginated(
         address start,
         uint256 pageSize
@@ -123,7 +127,7 @@ contract SafeConfigurationFetcher {
         uint256 maxIterations,
         uint256 pageSize
     )
-        external
+        public
         view
         returns (SafeConfiguration memory fullConfig, address nextCursor)
     {
@@ -156,5 +160,35 @@ contract SafeConfigurationFetcher {
         }
         fullConfig.modules = modulesArr;
         nextCursor = cursor;
+    }
+
+    /// @notice Returns full configurations for multiple Safe contracts in a single call.
+    /// @param safes Array of Safe contract addresses to query.
+    /// @param maxIterations Maximum number of pagination loops for each Safe.
+    /// @param pageSize Number of modules to fetch per iteration for each Safe.
+    /// @return fullConfigs Array of complete SafeConfiguration structs, one for each Safe address.
+    /// @return nextCursors Array of cursors for additional pagination (address(0) if none left).
+    function getFullConfigurationMany(
+        address[] calldata safes,
+        uint256 maxIterations,
+        uint256 pageSize
+    )
+        external
+        view
+        returns (
+            SafeConfiguration[] memory fullConfigs,
+            address[] memory nextCursors
+        )
+    {
+        fullConfigs = new SafeConfiguration[](safes.length);
+        nextCursors = new address[](safes.length);
+
+        for (uint256 i = 0; i < safes.length; i++) {
+            (fullConfigs[i], nextCursors[i]) = getFullConfiguration(
+                safes[i],
+                maxIterations,
+                pageSize
+            );
+        }
     }
 }
