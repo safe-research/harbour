@@ -19,6 +19,42 @@ type SafeBasicConfig = {
 	modules: string[];
 };
 
+// -----------------------------------------------------------------------------
+// Shared pool scheduler (copy once, above the two new methods)
+// -----------------------------------------------------------------------------
+async function runWithPool<T>(
+  jobs: (() => Promise<T>)[],
+  limit = 20,                  // prompt requirement: ≤ 20 in flight
+): Promise<T[]> {
+  const results: T[] = new Array(jobs.length);
+  let next = 0;
+  let active = 0;
+
+  return new Promise((resolve, reject) => {
+    const launch = () => {
+      // all queued and finished?
+      if (next >= jobs.length && active === 0) {
+        resolve(results);
+        return;
+      }
+      // fill the pool
+      while (active < limit && next < jobs.length) {
+        const idx = next++;
+        active++;
+        jobs[idx]()
+          .then((res) => (results[idx] = res))
+          .catch(reject)      // first error aborts everything
+          .finally(() => {
+            active--;
+            launch();         // back-fill slots
+          });
+      }
+    };
+    launch();
+  });
+}
+
+
 // Minimal Multicall3 ABI for on-chain batching
 const MULTICALL3_ABI = [
 	"function aggregate(tuple(address target, bytes callData)[] calls) external payable returns (uint256 blockNumber, bytes[] returnData)",
@@ -138,8 +174,8 @@ async function fetchModulesSequential(
 }
 
 // Decode address from 32-byte storage slot result
-function decodeAddressFromSlot(slotData: string): string {
-	return ethers.getAddress(ethers.dataSlice(slotData, 12));
+function decodeAddressFromBytes(slotData: string): string {
+	return ethers.AbiCoder.defaultAbiCoder().decode(["address"], slotData)[0];
 }
 
 // Method 1: Fetch data sequentially using individual eth_calls per Safe
@@ -166,202 +202,335 @@ async function method1SequentialIndividual(safeAddresses: string[]): Promise<Saf
 			console.warn(`method1SequentialIndividual: pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`);
 
 		results.push({
-			singleton: decodeAddressFromSlot(singletonBytes),
+			singleton: decodeAddressFromBytes(singletonBytes),
 			owners,
 			threshold: thresholdBN.toString(),
-			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
+			fallbackHandler: decodeAddressFromBytes(fallbackHandlerBytes),
 			nonce: nonceBN.toString(),
-			guard: decodeAddressFromSlot(guardBytes),
+			guard: decodeAddressFromBytes(guardBytes),
 			modules,
 		});
 	}
 	return results;
 }
 
-// Method 2: Fetch data using parallel individual eth_calls per Safe
-async function method2ParallelIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
-	const results: SafeBasicConfig[] = [];
-	for (const safeAddress of safeAddresses) {
-		const safeContract = ISafe__factory.connect(safeAddress, provider);
+// -----------------------------------------------------------------------------
+// Method 2 – parallel *across* Safes, ≤ 20 concurrent fetches, no extra deps
+// -----------------------------------------------------------------------------
+async function method2ParallelAcrossSafes(
+  safeAddresses: string[],
+): Promise<SafeBasicConfig[]> {
+  const MAX_CONCURRENCY = 20;                     // hard cap from the prompt
+  const results: SafeBasicConfig[] = new Array(safeAddresses.length);
 
-		// Fetch basic data in parallel
-		const [owners, thresholdBN, fallbackHandlerBytes, nonceBN, guardBytes, singletonBytes] = await Promise.all([
-			safeContract.getOwners(),
-			safeContract.getThreshold(),
-			safeContract.getStorageAt(FALLBACK_SLOT, 1),
-			safeContract.nonce(),
-			safeContract.getStorageAt(GUARD_SLOT, 1),
-			safeContract.getStorageAt(SINGLETON_SLOT, 1),
-		]);
+  // --- one Safe --------------------------------------------------------------
+  async function fetchSafe(idx: number, safeAddress: string): Promise<void> {
+    const safeContract = ISafe__factory.connect(safeAddress, provider);
 
-		// Fetch modules sequentially after parallel calls complete
-		const { modules, nextCursor } = await fetchModulesSequential(
-			(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
-			argv.maxIterations,
-			argv.pageSize,
-		);
-		if (nextCursor !== ZERO && argv.verbose)
-			console.warn(`method2ParallelIndividual: pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`);
+    // in-Safe data: six independent calls fetched concurrently
+    const [
+      owners,
+      thresholdBN,
+      fallbackHandlerBytes,
+      nonceBN,
+      guardBytes,
+      singletonBytes,
+    ] = await Promise.all([
+      safeContract.getOwners(),
+      safeContract.getThreshold(),
+      safeContract.getStorageAt(FALLBACK_SLOT, 1),
+      safeContract.nonce(),
+      safeContract.getStorageAt(GUARD_SLOT, 1),
+      safeContract.getStorageAt(SINGLETON_SLOT, 1),
+    ]);
 
-		results.push({
-			singleton: decodeAddressFromSlot(singletonBytes),
-			owners,
-			threshold: thresholdBN.toString(),
-			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
-			nonce: nonceBN.toString(),
-			guard: decodeAddressFromSlot(guardBytes),
-			modules,
-		});
-	}
-	return results;
+    // modules pagination keeps its original sequential logic
+    const { modules, nextCursor } = await fetchModulesSequential(
+      (cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
+      argv.maxIterations,
+      argv.pageSize,
+    );
+    if (nextCursor !== ZERO && argv.verbose) {
+      console.warn(
+        `method2ParallelAcrossSafes: pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`,
+      );
+    }
+
+    results[idx] = {
+      singleton: decodeAddressFromBytes(singletonBytes),
+      owners,
+      threshold: thresholdBN.toString(),
+      fallbackHandler: decodeAddressFromBytes(fallbackHandlerBytes),
+      nonce: nonceBN.toString(),
+      guard: decodeAddressFromBytes(guardBytes),
+      modules,
+    };
+  }
+
+  // --- simple pool scheduler -------------------------------------------------
+  let inFlight = 0;
+  let nextIndex = 0;
+
+  return new Promise((resolve, reject) => {
+    const maybeLaunch = () => {
+      // finished?
+      if (nextIndex >= safeAddresses.length && inFlight === 0) {
+        resolve(results);
+        return;
+      }
+      // spawn until limit reached or no jobs left
+      while (inFlight < MAX_CONCURRENCY && nextIndex < safeAddresses.length) {
+        const i = nextIndex++;
+        inFlight++;
+        fetchSafe(i, safeAddresses[i])
+          .catch(reject)                 // fail fast on first error
+          .finally(() => {
+            inFlight--;
+            maybeLaunch();               // back-fill the slot we just freed
+          });
+      }
+    };
+
+    maybeLaunch();                        // kick off the first batch
+  });
 }
+
 
 // Method 3: Fetch data using batched JSON-RPC calls per Safe
-async function method3BatchedIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
-	const rpcUrl = argv.rpcUrl;
-	const sendBatch = async (requests: any[]): Promise<any[]> => {
-		const response = await fetch(rpcUrl, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(requests),
-		});
-		if (!response.ok) {
-			throw new Error(`Batch request failed with status ${response.status}: ${await response.text()}`);
-		}
-		const json = await response.json();
-		if (!Array.isArray(json)) {
-			if (json.error) {
-				throw new Error(`Batch request failed: ${json.error.message} (Code: ${json.error.code})`);
-			}
-			throw new Error(`Unexpected batch response format: ${JSON.stringify(json)}`);
-		}
-		return json;
-	};
+async function method3BatchedAcrossSafes(
+  safeAddresses: string[],
+): Promise<SafeBasicConfig[]> {
+  const rpcUrl = argv.rpcUrl;
 
-	const results: SafeBasicConfig[] = [];
-	for (const safeAddress of safeAddresses) {
-		// Prepare batch requests for individual calls on this specific Safe
-		const calls = [
-			{ method: "getOwners", args: [] },
-			{ method: "getThreshold", args: [] },
-			{ method: "getStorageAt", args: [FALLBACK_SLOT, 1] },
-			{ method: "nonce", args: [] },
-			{ method: "getStorageAt", args: [GUARD_SLOT, 1] },
-			{ method: "getStorageAt", args: [SINGLETON_SLOT, 1] },
-			{ method: "getModulesPaginated", args: [SENTINEL, argv.pageSize] }, // Only first page
-		] as const;
+  // helper preserved from original implementation
+  const sendBatch = async (requests: any[]): Promise<any[]> => {
+    const response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requests),
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Batch request failed with status ${response.status}: ${await response.text()}`,
+      );
+    }
+    const json = await response.json();
+    if (!Array.isArray(json)) {
+      if (json.error) {
+        throw new Error(
+          `Batch request failed: ${json.error.message} (Code: ${json.error.code})`,
+        );
+      }
+      throw new Error(
+        `Unexpected batch response format: ${JSON.stringify(json)}`,
+      );
+    }
+    return json;
+  };
 
-		// Encode call data explicitly outside the map to satisfy TypeScript
-		const callData = [
-			SAFE_IFACE.encodeFunctionData("getOwners"),
-			SAFE_IFACE.encodeFunctionData("getThreshold"),
-			SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]),
-			SAFE_IFACE.encodeFunctionData("nonce"),
-			SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]),
-			SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]),
-			SAFE_IFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, argv.pageSize]),
-		];
+  // one job per Safe ----------------------------------------------------------
+  const jobs = safeAddresses.map((safeAddress) => async () => {
+    // ----- identical per-Safe logic (unchanged) ------------------------------
+    const calls = [
+      { method: "getOwners", args: [] },
+      { method: "getThreshold", args: [] },
+      { method: "getStorageAt", args: [FALLBACK_SLOT, 1] },
+      { method: "nonce", args: [] },
+      { method: "getStorageAt", args: [GUARD_SLOT, 1] },
+      { method: "getStorageAt", args: [SINGLETON_SLOT, 1] },
+      {
+        method: "getModulesPaginated",
+        args: [SENTINEL, argv.pageSize],
+      }, // first page only
+    ] as const;
 
-		const batchRequests = calls.map((_, index) => ({
-			jsonrpc: "2.0",
-			id: index + 1,
-			method: "eth_call",
-			params: [
-				{
-					to: safeAddress, // Target the specific Safe
-					data: callData[index], // Use pre-encoded data
-				},
-				"latest",
-			],
-		}));
+    // pre-encode
+    const callData = [
+      SAFE_IFACE.encodeFunctionData("getOwners"),
+      SAFE_IFACE.encodeFunctionData("getThreshold"),
+      SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]),
+      SAFE_IFACE.encodeFunctionData("nonce"),
+      SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]),
+      SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]),
+      SAFE_IFACE.encodeFunctionData("getModulesPaginated", [
+        SENTINEL,
+        argv.pageSize,
+      ]),
+    ];
 
-		const batchResponses = await sendBatch(batchRequests);
+    const batchRequests = calls.map((_, index) => ({
+      jsonrpc: "2.0",
+      id: index + 1,
+      method: "eth_call",
+      params: [
+        { to: safeAddress, data: callData[index] },
+        "latest",
+      ],
+    }));
 
-		// Sort and extract results by request id
-		const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
-		const callResults = sorted.map((resp: any) => {
-			if (resp.error) {
-				console.error(`Error in batch response for ID ${resp.id} on Safe ${safeAddress}: ${resp.error.message}`);
-				throw new Error(`Batch call failed for ${safeAddress}, ID ${resp.id}: ${resp.error.message}`);
-			}
-			return resp.result;
-		});
+    const batchResponses = await sendBatch(batchRequests);
 
-		// Decode basic config results
-		const owners = SAFE_IFACE.decodeFunctionResult("getOwners", callResults[0])[0] as string[];
-		const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", callResults[1])[0] as bigint;
-		const fallbackHandlerBytes = callResults[2];
-		const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", callResults[3])[0] as bigint;
-		const guardBytes = callResults[4];
-		const singletonBytes = callResults[5];
+    const sorted = batchResponses.sort(
+      (a: any, b: any) => a.id - b.id,
+    );
+    const callResults = sorted.map((resp: any) => {
+      if (resp.error) {
+        throw new Error(
+          `Batch call failed for ${safeAddress}, ID ${resp.id}: ${resp.error.message}`,
+        );
+      }
+      return resp.result;
+    });
 
-		// Decode first page of modules from batched call
-		const [modulePage, nextCursor] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", callResults[6]);
-		const modules = modulePage as string[]; // Only first page
+    // decode
+    const owners = SAFE_IFACE.decodeFunctionResult(
+      "getOwners",
+      callResults[0],
+    )[0] as string[];
+    const thresholdBN = SAFE_IFACE.decodeFunctionResult(
+      "getThreshold",
+      callResults[1],
+    )[0] as bigint;
+    const fallbackHandlerBytes = callResults[2];
+    const nonceBN = SAFE_IFACE.decodeFunctionResult(
+      "nonce",
+      callResults[3],
+    )[0] as bigint;
+    const guardBytes = callResults[4];
+    const singletonBytes = callResults[5];
+    const [modulePage, nextCursor] =
+      SAFE_IFACE.decodeFunctionResult(
+        "getModulesPaginated",
+        callResults[6],
+      );
+    const modules = modulePage as string[];
 
-		if (nextCursor !== ZERO && argv.verbose) {
-			console.warn(`method3BatchedIndividual: Module pagination truncated for ${safeAddress} (fetched first page only); nextCursor=${nextCursor}`);
-		}
+    if (nextCursor !== ZERO && argv.verbose) {
+      console.warn(
+        `method3BatchedAcrossSafes: Module pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`,
+      );
+    }
 
-		results.push({
-			singleton: decodeAddressFromSlot(singletonBytes),
-			owners,
-			threshold: thresholdBN.toString(),
-			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
-			nonce: nonceBN.toString(),
-			guard: decodeAddressFromSlot(guardBytes),
-			modules,
-		});
-	}
-	return results;
+    return {
+      singleton: decodeAddressFromBytes(singletonBytes),
+      owners,
+      threshold: thresholdBN.toString(),
+      fallbackHandler: decodeAddressFromBytes(fallbackHandlerBytes),
+      nonce: nonceBN.toString(),
+      guard: decodeAddressFromBytes(guardBytes),
+      modules,
+    } as SafeBasicConfig;
+  });
+
+  // pool scheduler ------------------------------------------------------------
+  return runWithPool(jobs);
 }
+
 
 // Method 4: Fetch data using on-chain Multicall3 per Safe
-async function method4MulticallIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
-	if (!argv.multicall) throw new Error("Multicall3 address is required for this method");
-	const multicall = new ethers.Contract(argv.multicall, MULTICALL3_ABI, provider);
+async function method4MulticallAcrossSafes(
+  safeAddresses: string[],
+): Promise<SafeBasicConfig[]> {
+  if (!argv.multicall) {
+    throw new Error("Multicall3 address is required for this method");
+  }
+  const multicall = new ethers.Contract(
+    argv.multicall,
+    MULTICALL3_ABI,
+    provider,
+  );
 
-	const results: SafeBasicConfig[] = [];
-	for (const safeAddress of safeAddresses) {
-		// Prepare multicall aggregate for individual calls on this specific Safe
-		const calls = [
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getOwners") },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getThreshold") },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("nonce") },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]) },
-			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, argv.pageSize]) }, // Only first page
-		];
+  // one job per Safe ----------------------------------------------------------
+  const jobs = safeAddresses.map((safeAddress) => async () => {
+    const calls = [
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("getOwners"),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("getThreshold"),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [
+          FALLBACK_SLOT,
+          1,
+        ]),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("nonce"),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [
+          GUARD_SLOT,
+          1,
+        ]),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [
+          SINGLETON_SLOT,
+          1,
+        ]),
+      },
+      {
+        target: safeAddress,
+        callData: SAFE_IFACE.encodeFunctionData(
+          "getModulesPaginated",
+          [SENTINEL, argv.pageSize],
+        ),
+      },
+    ];
 
-		const [, returnData] = await multicall.aggregate.staticCall(calls);
+    const [, returnData] = await multicall.aggregate.staticCall(calls);
 
-		// Decode results
-		const owners = SAFE_IFACE.decodeFunctionResult("getOwners", returnData[0])[0] as string[];
-		const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", returnData[1])[0] as bigint;
-		const fallbackHandlerBytes = returnData[2];
-		const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", returnData[3])[0] as bigint;
-		const guardBytes = returnData[4];
-		const singletonBytes = returnData[5];
-		const [fetchedModules, nextCursorPaginated] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", returnData[6]);
-		const modules = fetchedModules as string[]; // Only first page
+    // decode
+    const owners = SAFE_IFACE.decodeFunctionResult(
+      "getOwners",
+      returnData[0],
+    )[0] as string[];
+    const thresholdBN = SAFE_IFACE.decodeFunctionResult(
+      "getThreshold",
+      returnData[1],
+    )[0] as bigint;
+    const fallbackHandlerBytes = returnData[2];
+    const nonceBN = SAFE_IFACE.decodeFunctionResult(
+      "nonce",
+      returnData[3],
+    )[0] as bigint;
+    const guardBytes = returnData[4];
+    const singletonBytes = returnData[5];
+    const [modulePage, nextCursorPaginated] =
+      SAFE_IFACE.decodeFunctionResult(
+        "getModulesPaginated",
+        returnData[6],
+      );
+    const modules = modulePage as string[];
 
-		if (nextCursorPaginated !== ZERO && argv.verbose) {
-			console.warn(`method4MulticallIndividual: Module pagination truncated for ${safeAddress} (fetched first page only); nextCursor=${nextCursorPaginated}`);
-		}
+    if (nextCursorPaginated !== ZERO && argv.verbose) {
+      console.warn(
+        `method4MulticallAcrossSafes: Module pagination truncated for ${safeAddress}; nextCursor=${nextCursorPaginated}`,
+      );
+    }
 
-		results.push({
-			singleton: decodeAddressFromSlot(singletonBytes),
-			owners,
-			threshold: thresholdBN.toString(),
-			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
-			nonce: nonceBN.toString(),
-			guard: decodeAddressFromSlot(guardBytes),
-			modules,
-		});
-	}
-	return results;
+    return {
+      singleton: decodeAddressFromBytes(singletonBytes),
+      owners,
+      threshold: thresholdBN.toString(),
+      fallbackHandler: decodeAddressFromBytes(fallbackHandlerBytes),
+      nonce: nonceBN.toString(),
+      guard: decodeAddressFromBytes(guardBytes),
+      modules,
+    } as SafeBasicConfig;
+  });
+
+  // pool scheduler ------------------------------------------------------------
+  return runWithPool(jobs);
 }
+
 
 // Main runner
 async function main() {
@@ -392,10 +561,10 @@ async function main() {
 
 	// Benchmark methods using individual calls targeting Safe contracts directly
 	await runBenchmark("Method 1 – sequential individual", () => method1SequentialIndividual(safeAddresses));
-	await runBenchmark("Method 2 – parallel individual", () => method2ParallelIndividual(safeAddresses));
-	await runBenchmark("Method 3 – batched individual", () => method3BatchedIndividual(safeAddresses));
+	await runBenchmark("Method 2 – parallel across safes", () => method2ParallelAcrossSafes(safeAddresses));
+	await runBenchmark("Method 3 – batched across safes", () => method3BatchedAcrossSafes(safeAddresses));
 	if (argv.multicall) {
-		await runBenchmark("Method 4 – multicall individual", () => method4MulticallIndividual(safeAddresses));
+		await runBenchmark("Method 4 – multicall across safes", () => method4MulticallAcrossSafes(safeAddresses));
 	}
 }
 
