@@ -5,8 +5,8 @@ import { JsonRpcProvider } from "ethers";
 import * as fs from "node:fs";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { SafeConfigurationFetcher__factory } from "../../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/SafeConfigurationFetcher__factory";
 import { ISafe__factory } from "../../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/ISafe__factory";
+import { SafeConfigurationFetcher__factory } from "../../contracts/typechain-types/factories/src/utils/SafeConfigurationFetcher.sol/SafeConfigurationFetcher__factory";
 
 // Define a type for the basic configuration structure for comparison
 type SafeBasicConfig = {
@@ -16,6 +16,7 @@ type SafeBasicConfig = {
 	fallbackHandler: string;
 	nonce: string;
 	guard: string;
+	modules: string[];
 };
 
 // Minimal Multicall3 ABI for on-chain batching
@@ -23,8 +24,8 @@ const MULTICALL3_ABI = [
 	"function aggregate(tuple(address target, bytes callData)[] calls) external payable returns (uint256 blockNumber, bytes[] returnData)",
 ];
 
-// Hoisted interface for encoding/decoding Fetcher calls
-const FETCHER_IFACE = SafeConfigurationFetcher__factory.createInterface();
+// Hoisted interfaces
+const SAFE_IFACE = ISafe__factory.createInterface();
 
 const argv = yargs(hideBin(process.argv))
 	.options({
@@ -47,11 +48,14 @@ const argv = yargs(hideBin(process.argv))
 		runs: { type: "number", default: 10, describe: "Number of measured runs" },
 		warmups: { type: "number", default: 5, describe: "Number of warm-up runs" },
 		pageSize: { type: "number", default: 50, describe: "Page size for modules pagination" },
-		maxIterations: { type: "number", default: 1, describe: "Max iterations for modules pagination (used by getFullConfigurationMany)" },
+		maxIterations: { type: "number", default: 1, describe: "Max iterations for modules pagination" },
 		verbose: { type: "boolean", default: false, describe: "Enable verbose logging" },
 	})
 	.parseSync();
 
+// Re-added constants needed by fetchModulesSequential and individual calls
+const ZERO = ethers.ZeroAddress;
+const SENTINEL = "0x0000000000000000000000000000000000000001";
 
 // Setup providers and contracts
 const provider = new JsonRpcProvider(argv.rpcUrl);
@@ -96,6 +100,8 @@ async function runBenchmark(label: string, fn: () => Promise<unknown>, warmups =
 				deepStrictEqual(result, refResult);
 			} catch (err) {
 				console.error(`${label}: result mismatch on iteration ${i}`);
+				console.error("Expected:", JSON.stringify(refResult, null, 2));
+				console.error("Got:", JSON.stringify(result, null, 2));
 				throw err;
 			}
 		}
@@ -131,13 +137,15 @@ async function fetchModulesSequential(
 	return { modules, nextCursor: cursor };
 }
 
-// --- Updated Methods to fetch Basic Config for Multiple Safes ---
+// Decode address from 32-byte storage slot result
+function decodeAddressFromSlot(slotData: string): string {
+	return ethers.getAddress(ethers.dataSlice(slotData, 12));
+}
 
 // Method 1: Fetch data sequentially using individual eth_calls per Safe
-async function method1Sequential(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
+async function method1SequentialIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
 	const results: SafeBasicConfig[] = [];
 	for (const safeAddress of safeAddresses) {
-		// Connect to the specific Safe contract
 		const safeContract = ISafe__factory.connect(safeAddress, provider);
 
 		// Make individual sequential calls for this Safe
@@ -148,46 +156,68 @@ async function method1Sequential(safeAddresses: string[]): Promise<SafeBasicConf
 		const guardBytes = await safeContract.getStorageAt(GUARD_SLOT, 1);
 		const singletonBytes = await safeContract.getStorageAt(SINGLETON_SLOT, 1);
 
-		// Decode storage slot results (assuming they return address as bytes)
-		const fallbackHandler = ethers.getAddress(ethers.dataSlice(fallbackHandlerBytes, 12)); // Extract address from 32 bytes
-		const guard = ethers.getAddress(ethers.dataSlice(guardBytes, 12));
-		const singleton = ethers.getAddress(ethers.dataSlice(singletonBytes, 12));
+		// Fetch modules for this safe
 		const { modules, nextCursor } = await fetchModulesSequential(
 			(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
 			argv.maxIterations,
 			argv.pageSize,
 		);
+		if (nextCursor !== ZERO && argv.verbose)
+			console.warn(`method1SequentialIndividual: pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`);
 
 		results.push({
-			singleton,
+			singleton: decodeAddressFromSlot(singletonBytes),
 			owners,
 			threshold: thresholdBN.toString(),
-			fallbackHandler,
+			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
 			nonce: nonceBN.toString(),
-			guard,
+			guard: decodeAddressFromSlot(guardBytes),
+			modules,
 		});
 	}
 	return results;
 }
 
-// Method 2: parallel getFullConfiguration
-async function method2Parallel(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
-	const promises = safeAddresses.map((safeAddress) =>
-		fetcherContract.getFullConfiguration(safeAddress, argv.maxIterations, argv.pageSize)
-	);
-	const configs = await Promise.all(promises);
-	return configs.map(config => ({
-		singleton: config.fullConfig.singleton,
-		owners: config.fullConfig.owners,
-		threshold: config.fullConfig.threshold.toString(),
-		fallbackHandler: config.fullConfig.fallbackHandler,
-		nonce: config.fullConfig.nonce.toString(),
-		guard: config.fullConfig.guard,
-	}));
+// Method 2: Fetch data using parallel individual eth_calls per Safe
+async function method2ParallelIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
+	const results: SafeBasicConfig[] = [];
+	for (const safeAddress of safeAddresses) {
+		const safeContract = ISafe__factory.connect(safeAddress, provider);
+
+		// Fetch basic data in parallel
+		const [owners, thresholdBN, fallbackHandlerBytes, nonceBN, guardBytes, singletonBytes] = await Promise.all([
+			safeContract.getOwners(),
+			safeContract.getThreshold(),
+			safeContract.getStorageAt(FALLBACK_SLOT, 1),
+			safeContract.nonce(),
+			safeContract.getStorageAt(GUARD_SLOT, 1),
+			safeContract.getStorageAt(SINGLETON_SLOT, 1),
+		]);
+
+		// Fetch modules sequentially after parallel calls complete
+		const { modules, nextCursor } = await fetchModulesSequential(
+			(cursor) => safeContract.getModulesPaginated(cursor, argv.pageSize),
+			argv.maxIterations,
+			argv.pageSize,
+		);
+		if (nextCursor !== ZERO && argv.verbose)
+			console.warn(`method2ParallelIndividual: pagination truncated for ${safeAddress}; nextCursor=${nextCursor}`);
+
+		results.push({
+			singleton: decodeAddressFromSlot(singletonBytes),
+			owners,
+			threshold: thresholdBN.toString(),
+			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
+			nonce: nonceBN.toString(),
+			guard: decodeAddressFromSlot(guardBytes),
+			modules,
+		});
+	}
+	return results;
 }
 
-// Method 3: batched JSON-RPC calls for getFullConfiguration
-async function method3Batched(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
+// Method 3: Fetch data using batched JSON-RPC calls per Safe
+async function method3BatchedIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
 	const rpcUrl = argv.rpcUrl;
 	const sendBatch = async (requests: any[]): Promise<any[]> => {
 		const response = await fetch(rpcUrl, {
@@ -195,89 +225,142 @@ async function method3Batched(safeAddresses: string[]): Promise<SafeBasicConfig[
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(requests),
 		});
+		if (!response.ok) {
+			throw new Error(`Batch request failed with status ${response.status}: ${await response.text()}`);
+		}
 		const json = await response.json();
+		if (!Array.isArray(json)) {
+			if (json.error) {
+				throw new Error(`Batch request failed: ${json.error.message} (Code: ${json.error.code})`);
+			}
+			throw new Error(`Unexpected batch response format: ${JSON.stringify(json)}`);
+		}
 		return json;
 	};
 
-	// Prepare batch requests for getFullConfiguration for each safe
-	const batchRequests = safeAddresses.map((safeAddress, index) => ({
-		jsonrpc: "2.0",
-		id: index + 1,
-		method: "eth_call",
-		params: [
-			{
-				to: argv.fetcher,
-				data: FETCHER_IFACE.encodeFunctionData("getFullConfiguration", [safeAddress, argv.maxIterations, argv.pageSize]),
-			},
-			"latest",
-		],
-	}));
+	const results: SafeBasicConfig[] = [];
+	for (const safeAddress of safeAddresses) {
+		// Prepare batch requests for individual calls on this specific Safe
+		const calls = [
+			{ method: "getOwners", args: [] },
+			{ method: "getThreshold", args: [] },
+			{ method: "getStorageAt", args: [FALLBACK_SLOT, 1] },
+			{ method: "nonce", args: [] },
+			{ method: "getStorageAt", args: [GUARD_SLOT, 1] },
+			{ method: "getStorageAt", args: [SINGLETON_SLOT, 1] },
+			{ method: "getModulesPaginated", args: [SENTINEL, argv.pageSize] }, // Only first page
+		] as const;
 
-	const batchResponses = await sendBatch(batchRequests);
+		// Encode call data explicitly outside the map to satisfy TypeScript
+		const callData = [
+			SAFE_IFACE.encodeFunctionData("getOwners"),
+			SAFE_IFACE.encodeFunctionData("getThreshold"),
+			SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]),
+			SAFE_IFACE.encodeFunctionData("nonce"),
+			SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]),
+			SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]),
+			SAFE_IFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, argv.pageSize]),
+		];
 
-	// Sort responses by ID to match input order
-	const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
-	const results = sorted.map((resp: any) => resp.result);
+		const batchRequests = calls.map((_, index) => ({
+			jsonrpc: "2.0",
+			id: index + 1,
+			method: "eth_call",
+			params: [
+				{
+					to: safeAddress, // Target the specific Safe
+					data: callData[index], // Use pre-encoded data
+				},
+				"latest",
+			],
+		}));
 
-	// Decode results
-	return results.map(resultData => {
-		// Define the expected struct output type inline
-		type SafeConfigStructOutput = {
-			singleton: string;
-			owners: string[];
-			threshold: bigint; // Use bigint as returned by ethers
-			fallbackHandler: string;
-			nonce: bigint; // Use bigint
-			guard: string;
-			modules: string[]; // Include modules even if empty for type matching
-		};
-		const decoded = FETCHER_IFACE.decodeFunctionResult("getFullConfiguration", resultData)[0]; // Use the inline type
-		return {
-			singleton: decoded.singleton,
-			owners: decoded.owners,
-			threshold: decoded.threshold.toString(),
-			fallbackHandler: decoded.fallbackHandler,
-			nonce: decoded.nonce.toString(),
-			guard: decoded.guard,
-		};
-	});
+		const batchResponses = await sendBatch(batchRequests);
+
+		// Sort and extract results by request id
+		const sorted = batchResponses.sort((a: any, b: any) => a.id - b.id);
+		const callResults = sorted.map((resp: any) => {
+			if (resp.error) {
+				console.error(`Error in batch response for ID ${resp.id} on Safe ${safeAddress}: ${resp.error.message}`);
+				throw new Error(`Batch call failed for ${safeAddress}, ID ${resp.id}: ${resp.error.message}`);
+			}
+			return resp.result;
+		});
+
+		// Decode basic config results
+		const owners = SAFE_IFACE.decodeFunctionResult("getOwners", callResults[0])[0] as string[];
+		const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", callResults[1])[0] as bigint;
+		const fallbackHandlerBytes = callResults[2];
+		const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", callResults[3])[0] as bigint;
+		const guardBytes = callResults[4];
+		const singletonBytes = callResults[5];
+
+		// Decode first page of modules from batched call
+		const [modulePage, nextCursor] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", callResults[6]);
+		const modules = modulePage as string[]; // Only first page
+
+		if (nextCursor !== ZERO && argv.verbose) {
+			console.warn(`method3BatchedIndividual: Module pagination truncated for ${safeAddress} (fetched first page only); nextCursor=${nextCursor}`);
+		}
+
+		results.push({
+			singleton: decodeAddressFromSlot(singletonBytes),
+			owners,
+			threshold: thresholdBN.toString(),
+			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
+			nonce: nonceBN.toString(),
+			guard: decodeAddressFromSlot(guardBytes),
+			modules,
+		});
+	}
+	return results;
 }
 
-// Method 4: on-chain Multicall3 for getFullConfiguration
-async function method4Multicall(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
+// Method 4: Fetch data using on-chain Multicall3 per Safe
+async function method4MulticallIndividual(safeAddresses: string[]): Promise<SafeBasicConfig[]> {
 	if (!argv.multicall) throw new Error("Multicall3 address is required for this method");
 	const multicall = new ethers.Contract(argv.multicall, MULTICALL3_ABI, provider);
 
-	// Prepare multicall aggregate for getFullConfiguration for each safe
-	const calls = safeAddresses.map(safeAddress => ({
-		target: argv.fetcher,
-		callData: FETCHER_IFACE.encodeFunctionData("getFullConfiguration", [safeAddress, argv.maxIterations, argv.pageSize]),
-	}));
+	const results: SafeBasicConfig[] = [];
+	for (const safeAddress of safeAddresses) {
+		// Prepare multicall aggregate for individual calls on this specific Safe
+		const calls = [
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getOwners") },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getThreshold") },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]) },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("nonce") },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]) },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]) },
+			{ target: safeAddress, callData: SAFE_IFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, argv.pageSize]) }, // Only first page
+		];
 
-	const [, returnData] = await multicall.aggregate.staticCall(calls);
+		const [, returnData] = await multicall.aggregate.staticCall(calls);
 
-	// Decode results
-	return returnData.map((resultData: string) => {
-		// Define the expected struct output type inline (or reuse if hoisted)
-		type SafeConfigStructOutput = {
-			singleton: string;
-			owners: string[];
-			threshold: bigint;
-			fallbackHandler: string;
-			nonce: bigint;
-			guard: string;
-			modules: string[];
-		};
-		const decoded = FETCHER_IFACE.decodeFunctionResult("getFullConfiguration", resultData)[0] as SafeConfigStructOutput; // Use the inline type
-		return {
-			singleton: decoded.singleton,
-			owners: decoded.owners,
-			threshold: decoded.threshold.toString(),
-			fallbackHandler: decoded.fallbackHandler,
-			nonce: decoded.nonce.toString(),
-			guard: decoded.guard,
-		};
-	});
+		// Decode results
+		const owners = SAFE_IFACE.decodeFunctionResult("getOwners", returnData[0])[0] as string[];
+		const thresholdBN = SAFE_IFACE.decodeFunctionResult("getThreshold", returnData[1])[0] as bigint;
+		const fallbackHandlerBytes = returnData[2];
+		const nonceBN = SAFE_IFACE.decodeFunctionResult("nonce", returnData[3])[0] as bigint;
+		const guardBytes = returnData[4];
+		const singletonBytes = returnData[5];
+		const [fetchedModules, nextCursorPaginated] = SAFE_IFACE.decodeFunctionResult("getModulesPaginated", returnData[6]);
+		const modules = fetchedModules as string[]; // Only first page
+
+		if (nextCursorPaginated !== ZERO && argv.verbose) {
+			console.warn(`method4MulticallIndividual: Module pagination truncated for ${safeAddress} (fetched first page only); nextCursor=${nextCursorPaginated}`);
+		}
+
+		results.push({
+			singleton: decodeAddressFromSlot(singletonBytes),
+			owners,
+			threshold: thresholdBN.toString(),
+			fallbackHandler: decodeAddressFromSlot(fallbackHandlerBytes),
+			nonce: nonceBN.toString(),
+			guard: decodeAddressFromSlot(guardBytes),
+			modules,
+		});
+	}
+	return results;
 }
 
 // Main runner
@@ -296,22 +379,27 @@ async function main() {
 	}
 
 	console.log(`Benchmarking configuration fetch for ${safeAddresses.length} Safes from ${argv.safeAddressesFile}`);
+	console.log(`Fetcher contract: ${argv.fetcher}`);
+	console.log(`Multicall contract: ${argv.multicall ?? 'Not used'}`);
+	console.log(`RPC URL: ${argv.rpcUrl}`);
+	console.log(`Runs: ${argv.runs} (Warmups: ${argv.warmups})`);
+	console.log(`Module Iterations: ${argv.maxIterations}, Page Size: ${argv.pageSize}`);
 
-	// Benchmark getFullConfigurationMany using the Fetcher contract
+	// Benchmark getFullConfigurationMany using the Fetcher contract (as the baseline)
 	await runBenchmark("Fetcher – getFullConfigurationMany", () =>
 		fetcherContract.getFullConfigurationMany(safeAddresses, argv.maxIterations, argv.pageSize),
 	);
 
-	// Benchmark other methods using getFullConfiguration for multiple safes
-	await runBenchmark("Method 1 – sequential full", () => method1Sequential(safeAddresses));
-	await runBenchmark("Method 2 – parallel full", () => method2Parallel(safeAddresses));
-	await runBenchmark("Method 3 – batched full", () => method3Batched(safeAddresses));
+	// Benchmark methods using individual calls targeting Safe contracts directly
+	await runBenchmark("Method 1 – sequential individual", () => method1SequentialIndividual(safeAddresses));
+	await runBenchmark("Method 2 – parallel individual", () => method2ParallelIndividual(safeAddresses));
+	await runBenchmark("Method 3 – batched individual", () => method3BatchedIndividual(safeAddresses));
 	if (argv.multicall) {
-		await runBenchmark("Method 4 – multicall full", () => method4Multicall(safeAddresses));
+		await runBenchmark("Method 4 – multicall individual", () => method4MulticallIndividual(safeAddresses));
 	}
 }
 
 main().catch((e) => {
-	console.error(e);
+	console.error("Benchmark run failed:", e);
 	process.exit(1);
 });
