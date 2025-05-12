@@ -21,14 +21,20 @@
 | **Method 3 – batched across safes** | **30.2**          | **1.4**      | **28.3**      | **33.3**      |
 | Method 4 – multicall across safes   | 75.5              | 6.0          | 70.4          | 92.1          |
 
-**Total Execution Time:** 47.95s
+## Motivation & Recommendation
 
-## Conclusion
+This benchmark was primarily conducted to evaluate the feasibility and performance benefits of a dedicated **Fetcher Smart Contract**. The goal was to determine if such a contract could efficiently aggregate Safe configuration data (owners, threshold, modules, guards, nonce, version) into a single RPC request and EVM call frame.
 
-The benchmark results clearly indicate that **Method 3 (batched across safes)** offers the most efficient way to fetch configurations for multiple Safes, with the lowest average time (30.2ms) and standard deviation.
+This approach was hypothesized to be particularly beneficial for scenarios involving a large number of Safes, such as a potential decentralized Safe interface or power users managing numerous, highly customized Safes (the benchmark assumed 20 complex Safes per user). The Fetcher contract aimed to optimize data retrieval by minimizing RPC calls and potentially offering more efficient data encoding compared to standard methods.
 
-- The dedicated **Fetcher contract's `getFullConfigurationMany`** method provides the second-best performance (44.2ms).
-- **Method 4 (multicall)** and **Method 2 (parallel)** offer significant improvements over sequential fetching but are less performant than batching or the dedicated fetcher contract in this scenario.
-- **Method 1 (sequential individual calls)** is significantly slower (2921.6ms) and should be avoided for fetching data for multiple Safes due to its high latency.
+However, the benchmark results, combined with typical real-world usage patterns (users generally manage fewer than 20 Safes, often with simpler configurations), led to the following conclusions:
 
-For optimal performance when fetching configurations for numerous Safes, the batching approach (Method 3) is recommended. The dedicated Fetcher contract also presents a highly viable and efficient alternative.
+1.  **Batching (Method 3) is Highly Effective:** Simple batched RPC requests proved to be the most performant method in the tested scenario.
+2.  **Fetcher Overhead:** While the Fetcher contract (`getFullConfigurationMany`) performed well (second fastest), the benefits for the common use case do not necessarily outweigh the overhead associated with developing, deploying, and maintaining a dedicated smart contract across multiple networks.
+3.  **Multicall is a Strong Alternative:** Multicall (Method 4) also provides significant performance gains over sequential calls and is a widely adopted, standard pattern requiring no custom contract deployment.
+
+**Recommendation:**
+
+Although the Fetcher contract may have potential advantages for scenarios involving hundreds or thousands of Safes or where specific encoding efficiencies are critical, the added complexity and maintenance overhead are not justified for the primary target use cases.
+
+Therefore, we recommend utilizing **batched RPC requests (Method 3)** or **Multicall (Method 4)** for fetching Safe configurations, as they offer excellent performance with lower implementation and maintenance costs.
