@@ -45,15 +45,15 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 		error: queueError,
 	} = useSafeQueue({ provider: harbourProvider, safeAddress, safeConfig, chainId });
 
-   // State for managing execution feedback for a specific transaction
-   const [executingTxHash, setExecutingTxHash] = useState<string | null>(null);
-   const [executionSuccessTxHash, setExecutionSuccessTxHash] = useState<string | null>(null);
-   const [executionError, setExecutionError] = useState<Error | null>(null);
-  
-  // State for managing signing feedback when not enough signatures
-  const [signingTxHash, setSigningTxHash] = useState<string | null>(null);
-  const [signSuccessTxHash, setSignSuccessTxHash] = useState<string | null>(null);
-  const [signError, setSignError] = useState<string | null>(null);
+	// State for managing execution feedback for a specific transaction
+	const [executingTxHash, setExecutingTxHash] = useState<string | null>(null);
+	const [executionSuccessTxHash, setExecutionSuccessTxHash] = useState<string | null>(null);
+	const [executionError, setExecutionError] = useState<Error | null>(null);
+
+	// State for managing signing feedback when not enough signatures
+	const [signingTxHash, setSigningTxHash] = useState<string | null>(null);
+	const [signSuccessTxHash, setSignSuccessTxHash] = useState<string | null>(null);
+	const [signError, setSignError] = useState<string | null>(null);
 
 	const { mutate: execute, isPending: isExecutionPending } = useExecuteTransaction({
 		provider: walletProvider,
@@ -72,44 +72,47 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 		},
 	});
 
-  // Handler to sign a pending Safe transaction and enqueue signature
-  const handleSignTransaction = async (
-	txWithSigs: NonceGroup["transactions"][number],
-	nonce: string
-  ) => {
-	setSigningTxHash(txWithSigs.safeTxHash);
-	setSignSuccessTxHash(null);
-	setSignError(null);
-	try {
-	  // Build full transaction object for signing
-	  const fullTx: FullSafeTransaction = {
-		to: txWithSigs.details.to,
-		value: txWithSigs.details.value,
-		data: txWithSigs.details.data,
-		operation: txWithSigs.details.operation,
-		safeTxGas: txWithSigs.details.safeTxGas,
-		baseGas: txWithSigs.details.baseGas,
-		gasPrice: txWithSigs.details.gasPrice,
-		gasToken: txWithSigs.details.gasToken,
-		refundReceiver: txWithSigs.details.refundReceiver,
-		nonce,
-		safeAddress,
-		chainId,
-	  };
-	  // Sign with EIP-712 on the Safe chain
-	  await switchToChain({ request: async ({ method, params }) => walletProvider.send(method, params || []) }, chainId);
-	  const signer = await walletProvider.getSigner();
-	  const signature = await signSafeTransaction(signer, fullTx);
-	  // Enqueue signature on Harbour chain
-	  await switchToChain({ request: async ({ method, params }) => walletProvider.send(method, params || []) }, HARBOUR_CHAIN_ID);
-	  await enqueueSafeTransaction(signer, fullTx, signature);
-	  setSignSuccessTxHash(txWithSigs.safeTxHash);
-	} catch (err: any) {
-	  setSignError(err?.message || "Signature failed");
-	} finally {
-	  setSigningTxHash(null);
-	}
-  };
+	// Handler to sign a pending Safe transaction and enqueue signature
+	const handleSignTransaction = async (txWithSigs: NonceGroup["transactions"][number], nonce: string) => {
+		setSigningTxHash(txWithSigs.safeTxHash);
+		setSignSuccessTxHash(null);
+		setSignError(null);
+		try {
+			// Build full transaction object for signing
+			const fullTx: FullSafeTransaction = {
+				to: txWithSigs.details.to,
+				value: txWithSigs.details.value,
+				data: txWithSigs.details.data,
+				operation: txWithSigs.details.operation,
+				safeTxGas: txWithSigs.details.safeTxGas,
+				baseGas: txWithSigs.details.baseGas,
+				gasPrice: txWithSigs.details.gasPrice,
+				gasToken: txWithSigs.details.gasToken,
+				refundReceiver: txWithSigs.details.refundReceiver,
+				nonce,
+				safeAddress,
+				chainId,
+			};
+			// Sign with EIP-712 on the Safe chain
+			await switchToChain(
+				{ request: async ({ method, params }) => walletProvider.send(method, params || []) },
+				chainId,
+			);
+			const signer = await walletProvider.getSigner();
+			const signature = await signSafeTransaction(signer, fullTx);
+			// Enqueue signature on Harbour chain
+			await switchToChain(
+				{ request: async ({ method, params }) => walletProvider.send(method, params || []) },
+				HARBOUR_CHAIN_ID,
+			);
+			await enqueueSafeTransaction(signer, fullTx, signature);
+			setSignSuccessTxHash(txWithSigs.safeTxHash);
+		} catch (err: any) {
+			setSignError(err?.message || "Signature failed");
+		} finally {
+			setSigningTxHash(null);
+		}
+	};
 
 	const handleExecuteTransaction = (txWithSigs: NonceGroup["transactions"][number]) => {
 		const transactionToExecute: TransactionToExecute = {
@@ -223,41 +226,44 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 												</div>
 
 												<div className="mt-3">
-												   {canExecute && !successForThisTx && (
-													   <button
-														   type="button"
-														   onClick={() => handleExecuteTransaction(txWithSigs)}
-														   disabled={isLoadingThisTx || isExecutionPending}
-														   className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-colors"
-													   >
-														   {isLoadingThisTx ? "Processing..." : "Execute Transaction"}
-													   </button>
-												   )}
-												   {!canExecute && (
-													   <div className="space-y-2">
-														   <button
-															   type="button"
-															   onClick={() => handleSignTransaction(txWithSigs, nonceGroup.nonce.toString())}
-															   disabled={signingTxHash === txWithSigs.safeTxHash}
-															   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 transition-colors"
-														   >
-															   {signingTxHash === txWithSigs.safeTxHash ? "Signing..." : "Sign Transaction"}
-														   </button>
-														   {signError && signingTxHash === txWithSigs.safeTxHash && (
-															   <div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3">
-																   <p className="text-sm text-red-700">Signature failed: {signError}</p>
-															   </div>
-														   )}
-														   {signSuccessTxHash === txWithSigs.safeTxHash && (
-															   <div className="mt-2 bg-green-50 border-l-4 border-green-400 p-3">
-																   <p className="text-sm text-green-700">✓ Signature submitted!</p>
-															   </div>
-														   )}
-														   <p className="text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded-md">
-															   <i className="mr-1">⚠️</i> Needs {Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length} more signature{Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length !== 1 ? "s" : ""} to execute.
-														   </p>
-													   </div>
-												   )}
+													{canExecute && !successForThisTx && (
+														<button
+															type="button"
+															onClick={() => handleExecuteTransaction(txWithSigs)}
+															disabled={isLoadingThisTx || isExecutionPending}
+															className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 transition-colors"
+														>
+															{isLoadingThisTx ? "Processing..." : "Execute Transaction"}
+														</button>
+													)}
+													{!canExecute && (
+														<div className="space-y-2">
+															<button
+																type="button"
+																onClick={() => handleSignTransaction(txWithSigs, nonceGroup.nonce.toString())}
+																disabled={signingTxHash === txWithSigs.safeTxHash}
+																className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 transition-colors"
+															>
+																{signingTxHash === txWithSigs.safeTxHash ? "Signing..." : "Sign Transaction"}
+															</button>
+															{signError && signingTxHash === txWithSigs.safeTxHash && (
+																<div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3">
+																	<p className="text-sm text-red-700">Signature failed: {signError}</p>
+																</div>
+															)}
+															{signSuccessTxHash === txWithSigs.safeTxHash && (
+																<div className="mt-2 bg-green-50 border-l-4 border-green-400 p-3">
+																	<p className="text-sm text-green-700">✓ Signature submitted!</p>
+																</div>
+															)}
+															<p className="text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded-md">
+																<i className="mr-1">⚠️</i> Needs{" "}
+																{Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length} more signature
+																{Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length !== 1 ? "s" : ""}{" "}
+																to execute.
+															</p>
+														</div>
+													)}
 													{isLoadingThisTx && (
 														<div className="mt-2 text-sm text-gray-600 flex items-center">
 															<svg
@@ -328,7 +334,11 @@ function QueuePageInner({
 	chainId: ChainId;
 }) {
 	const browserProvider = useWalletProvider();
-	const { provider: harbourProvider, error: harbourError, isLoading: isLoadingHarbour } = useChainlistRpcProvider(HARBOUR_CHAIN_ID);
+	const {
+		provider: harbourProvider,
+		error: harbourError,
+		isLoading: isLoadingHarbour,
+	} = useChainlistRpcProvider(HARBOUR_CHAIN_ID);
 	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(Number(chainId));
 	const {
 		data: safeConfig,
@@ -350,6 +360,12 @@ function QueuePageInner({
 	}
 
 	return (
-		<QueueContent harbourProvider={harbourProvider} walletProvider={browserProvider} safeAddress={safeAddress} safeConfig={safeConfig} chainId={chainId} />
+		<QueueContent
+			harbourProvider={harbourProvider}
+			walletProvider={browserProvider}
+			safeAddress={safeAddress}
+			safeConfig={safeConfig}
+			chainId={chainId}
+		/>
 	);
 }

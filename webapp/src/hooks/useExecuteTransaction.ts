@@ -19,11 +19,16 @@ interface UseExecuteTransactionProps {
 	onError?: (error: Error) => void;
 }
 
-export function useExecuteTransaction({ provider, safeAddress, chainId, onSuccess, onError }: UseExecuteTransactionProps) {
+export function useExecuteTransaction({
+	provider,
+	safeAddress,
+	chainId,
+	onSuccess,
+	onError,
+}: UseExecuteTransactionProps) {
 	return useMutation<TransactionResponse, Error, ExecuteTransactionVariables>({
 		mutationFn: async ({ transaction }: ExecuteTransactionVariables) => {
-
-			await switchToChain({request: async ({method, params}) => provider.send(method, params || [])}, chainId);
+			await switchToChain({ request: async ({ method, params }) => provider.send(method, params || []) }, chainId);
 			const signer = await provider.getSigner();
 
 			return executeTransaction(signer, safeAddress, transaction);

@@ -57,7 +57,6 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 			setIsSubmitting(true);
 			const txNonce = nonce !== "" ? BigInt(nonce) : (configResult?.nonce ?? BigInt(0));
 
-
 			const transaction: FullSafeTransaction = {
 				to,
 				value: value || "0",
@@ -73,11 +72,17 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 				refundReceiver: ethers.ZeroAddress,
 			};
 
-			await switchToChain({ request: async ({params, method}) => await browserProvider.send(method, params || [])}, chainId);
+			await switchToChain(
+				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				chainId,
+			);
 			const signer = await browserProvider.getSigner();
 			const signature = await signSafeTransaction(signer, transaction);
 
-			await switchToChain({ request: async ({params, method}) => await browserProvider.send(method, params || [])}, HARBOUR_CHAIN_ID);
+			await switchToChain(
+				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				HARBOUR_CHAIN_ID,
+			);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);
