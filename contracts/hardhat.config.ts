@@ -1,7 +1,6 @@
 import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
-import "hardhat-gas-reporter";
 import "@nomicfoundation/hardhat-verify";
 import { getSingletonFactoryInfo } from "@safe-global/safe-singleton-factory/dist";
 import * as dotenv from "dotenv";
@@ -58,6 +57,9 @@ const config: HardhatUserConfig = {
 			// because the Safe contract is imported by the SafeModuleHarbour contract.
 			"src/module/SafeModuleHarbour.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
 			"@safe-global/safe-contracts/contracts/Safe.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
+			"src/test/TestImports.sol": SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
+			"@safe-global/safe-contracts/contracts/examples/guards/DebugTransactionGuard.sol":
+				SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE,
 		},
 	},
 	typechain: {

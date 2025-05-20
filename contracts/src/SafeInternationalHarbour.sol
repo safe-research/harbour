@@ -36,6 +36,9 @@ contract SafeInternationalHarbour {
     /// Thrown if the S value of the signature is not from the lower half of the curve.
     error InvalidSignatureSValue();
 
+    /// Thrown when adding a signature for a transaction that is missing details
+    error MissingTxDetails();
+
     /// Thrown when a value doesn't fit in a uint128.
     error ValueDoesNotFitInUint128();
 
@@ -248,13 +251,6 @@ contract SafeInternationalHarbour {
             signature
         );
 
-        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
-        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        require(
-            !_hasSignerSignedTx[safeTxHash][signer],
-            SignerAlreadySignedTransaction(signer, safeTxHash)
-        );
-
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
         if (!slot.stored) {
@@ -302,6 +298,48 @@ contract SafeInternationalHarbour {
                 data
             );
         }
+
+        // Store the signature
+        return
+            _storeSignature(
+                signer,
+                safeAddress,
+                chainId,
+                nonce,
+                safeTxHash,
+                r,
+                vs
+            );
+    }
+
+    /**
+     * @dev Internal function to store a signature after validation.
+     *
+     * @param signer        Address that signed the transaction.
+     * @param safeAddress   Target Safe Smart-Account.
+     * @param chainId       Chain id the transaction is meant for.
+     * @param nonce         Safe nonce.
+     * @param safeTxHash    EIP-712 digest of the transaction.
+     * @param r             First 32 bytes of the signature.
+     * @param vs            Compact representation of s and v from EIP-2098.
+     *
+     * @return listIndex    Index of the stored signature in the signer-specific list.
+     */
+    function _storeSignature(
+        address signer,
+        address safeAddress,
+        uint256 chainId,
+        uint256 nonce,
+        bytes32 safeTxHash,
+        bytes32 r,
+        bytes32 vs
+    ) internal returns (uint256 listIndex) {
+        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
+        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
+        require(
+            !_hasSignerSignedTx[safeTxHash][signer],
+            SignerAlreadySignedTransaction(signer, safeTxHash)
+        );
 
         // Mark that this signer has now signed this specific transaction hash
         _hasSignerSignedTx[safeTxHash][signer] = true;
@@ -423,7 +461,7 @@ contract SafeInternationalHarbour {
         uint256 nonce,
         address to,
         uint256 value,
-        bytes calldata data,
+        bytes memory data,
         uint8 operation,
         uint256 safeTxGas,
         uint256 baseGas,

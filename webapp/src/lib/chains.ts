@@ -1,0 +1,168 @@
+import type { Eip1193Provider } from "ethers";
+import type { ChainId } from "./types";
+
+import { shuffle } from "./arrays";
+import chainsJson from "./chains.json" with { type: "json" };
+
+type EtherscanExplorerStandard = "EIP3091";
+
+interface ChainsJsonEntry {
+	name: string;
+	chain: string;
+	chainId: number;
+	nativeCurrency: {
+		name: string;
+		symbol: string;
+		decimals: number;
+	};
+	infoURL: string;
+	// "& {}" is a workaround to keep the autocomplete for constant strings
+	explorers: { name: string; url: string; standard: EtherscanExplorerStandard | (string & {}) }[];
+	rpc: { url: string }[];
+}
+
+interface WalletAddEthereumChainParams {
+	chainId: string;
+	chainName: string;
+	nativeCurrency: {
+		name: string;
+		symbol: string;
+		decimals: number;
+	};
+	rpcUrls: string[];
+	blockExplorerUrls: string[];
+}
+
+/**
+ * Retrieves the chain data for a given chain ID.
+ *
+ * Looks up the specified `chainId` in `chains.json` and returns the corresponding entry.
+ *
+ * @param chainId - The numeric chain ID to look up.
+ * @returns The `ChainsJsonEntry` matching the provided chain ID.
+ * @throws {Error} When no chain with the given ID exists in `chains.json`.
+ */
+function getChainDataByChainId(chainId: number): ChainsJsonEntry {
+	const entry = (chainsJson as ChainsJsonEntry[]).find((e) => e.chainId === chainId);
+	if (!entry) {
+		throw new Error(`no chain with id ${chainId} in chains.json`);
+	}
+
+	return entry;
+}
+
+/**
+ * Maps chain data to the parameters required by `wallet_addEthereumChain`.
+ *
+ * Constructs the `WalletAddEthereumChainParams` object from a `ChainsJsonEntry`.
+ *
+ * @param entry - The chain data entry retrieved from `chains.json`.
+ * @returns The parameters for adding the chain to a wallet provider.
+ */
+function mapChainDataToWalletAddEthereumChainParams(entry: ChainsJsonEntry): WalletAddEthereumChainParams {
+	return {
+		chainId: `0x${entry.chainId.toString(16)}`,
+		chainName: entry.name,
+		nativeCurrency: {
+			name: entry.nativeCurrency.name,
+			symbol: entry.nativeCurrency.symbol,
+			decimals: entry.nativeCurrency.decimals,
+		},
+		rpcUrls: entry.rpc.map((rpc) => rpc.url),
+		blockExplorerUrls: entry.explorers.map((explorer) => explorer.url),
+	};
+}
+
+/**
+ * Retrieves an RPC endpoint URL for a given Ethereum-style chain ID.
+ *
+ * Looks up the `chainId` in `chains.json`, throws if not found or if no URLs are configured.
+ * If `verify` is `true` (default), it will send an `eth_chainId` JSON-RPC call to each URL
+ * until one responds with the expected chain ID, to avoid returning dead endpoints.
+ *
+ * @param chainId - The numeric chain ID to look up in the RPC list.
+ * @param verify - Whether to verify the endpoint by sending an `eth_chainId` request (default: true).
+ * @returns A Promise that resolves to the first valid RPC URL for the chain.
+ * @throws {Error} When the `chainId` is not present, no URLs configured, or none respond correctly.
+ */
+async function getRpcUrlByChainId(chainId: number, verify = true): Promise<string> {
+	const entry = getChainDataByChainId(chainId);
+	if (!entry.rpc || entry.rpc.length === 0) {
+		throw new Error(`no rpc URLs configured for chain ${chainId}`);
+	}
+
+	const httpRpcs = entry.rpc.filter((rpc) => rpc.url.startsWith("http"));
+	if (httpRpcs.length === 0) {
+		throw new Error(`no http rpc URLs configured for chain ${chainId}`);
+	}
+	// shuffle the rpcs so we don't overload the same RPCs
+	const rpcs = shuffle(httpRpcs);
+	if (!verify) {
+		return rpcs[0].url;
+	}
+
+	while (rpcs.length) {
+		const rpc = rpcs.shift() as { url: string };
+		try {
+			const res = (await Promise.race([
+				fetch(rpc.url, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						jsonrpc: "2.0",
+						id: 1,
+						method: "eth_chainId",
+						params: [],
+					}),
+				}),
+				new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3000)),
+			])) as Response;
+
+			if (!res.ok) throw new Error(`HTTP ${res.status}`);
+			const j = await res.json();
+			// result is hex string, e.g. '0x1'
+			if (Number.parseInt(j.result, 16) === chainId) {
+				return rpc.url;
+			}
+		} catch {
+			// try next URL
+		}
+	}
+
+	throw new Error(`no valid rpc URL responded for chain ${chainId}`);
+}
+
+/**
+ * Switches the connected wallet to the specified chain and adds it if missing.
+ *
+ * Attempts to switch the active network using `wallet_switchEthereumChain`. If the chain
+ * is not added (error code 4902), it uses `wallet_addEthereumChain` with parameters from
+ * the local `chains.json` configuration.
+ *
+ * @param provider - The wallet provider supporting the EIP-1193 request API.
+ * @param chainId - The chain identifier to switch to, in hex string format (e.g., '0x1').
+ * @returns A Promise that resolves once the network switch or addition completes.
+ * @throws Will rethrow the original error if switching fails for reasons other than
+ *        a missing chain (error code 4902).
+ */
+async function switchToChain(provider: Eip1193Provider, chainId: ChainId): Promise<void> {
+	try {
+		await provider.request({
+			method: "wallet_switchEthereumChain",
+			params: [{ chainId: `0x${chainId.toString(16)}` }],
+		});
+	} catch (error: unknown) {
+		const chainData = mapChainDataToWalletAddEthereumChainParams(getChainDataByChainId(chainId));
+		if ((error as { code?: number }).code === 4902) {
+			await provider.request({
+				method: "wallet_addEthereumChain",
+				params: [chainData],
+			});
+		} else {
+			console.error("Failed to switch network:", error);
+			throw error;
+		}
+	}
+}
+
+export { getRpcUrlByChainId, switchToChain };

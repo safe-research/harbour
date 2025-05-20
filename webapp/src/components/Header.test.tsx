@@ -10,12 +10,20 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
+// Mock the Web3 Onboard hook to prevent init errors
+vi.mock("@web3-onboard/react", () => {
+	return {
+		init: vi.fn(),
+		useConnectWallet: () => [{ wallet: null }, vi.fn(), vi.fn()],
+	};
+});
+
 import Header from "./Header";
 
 describe("Header", () => {
-	it("renders navigation links", () => {
+	it("renders navigation links and the connect button", () => {
 		render(<Header />);
-		expect(screen.getByRole("link", { name: /Home/i })).toBeDefined();
-		expect(screen.getByRole("link", { name: /TanStack Query/i })).toBeDefined();
+		expect(screen.getByRole("link", { name: /Harbour/i })).toBeDefined();
+		expect(screen.getAllByText(/Connect Wallet/i)).toHaveLength(1);
 	});
 });
