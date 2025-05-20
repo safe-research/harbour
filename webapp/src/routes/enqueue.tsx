@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useSetChain } from "@web3-onboard/react";
 import { type BrowserProvider, ethers, isAddress } from "ethers";
 import type { JsonRpcApiProvider } from "ethers";
 import { useEffect, useState } from "react";
@@ -28,7 +27,6 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 		isLoading: isLoadingConfig,
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
-	const [, setChain] = useSetChain();
 
 	const [to, setTo] = useState("");
 	const [value, setValue] = useState("");
