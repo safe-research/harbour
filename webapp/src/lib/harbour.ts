@@ -80,7 +80,6 @@ async function fetchSafeQueue({
 	for (let i = 0; i < maxNoncesToFetch; i++) {
 		const nonce = startNonce + i;
 		for (const owner of owners) {
-			console.log({ owner });
 			sigCalls.push({
 				target: HARBOUR_ADDRESS,
 				allowFailure: false,
@@ -142,7 +141,7 @@ async function fetchSafeQueue({
 			to,
 			value: value.toString(),
 			data,
-			operation,
+			operation: Number(operation),
 			stored,
 			safeTxGas: safeTxGas.toString(),
 			baseGas: baseGas.toString(),

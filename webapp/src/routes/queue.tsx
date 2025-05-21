@@ -1,3 +1,4 @@
+import { switchToChain } from "@/lib/chains";
 import type { ChainId } from "@/lib/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -14,9 +15,8 @@ import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { useSafeQueue } from "../hooks/useSafeQueue";
 import { HARBOUR_CHAIN_ID, type NonceGroup, enqueueSafeTransaction } from "../lib/harbour";
 import { signSafeTransaction } from "../lib/safe";
-import type { FullSafeTransaction } from "../lib/types";
-import { switchToChain } from "@/lib/chains";
 import type { SafeConfiguration } from "../lib/safe";
+import type { FullSafeTransaction } from "../lib/types";
 import { chainIdSchema, safeAddressSchema } from "../lib/validators";
 
 // Define the route before the component so Route is in scope
@@ -107,8 +107,10 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 			);
 			await enqueueSafeTransaction(signer, fullTx, signature);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
-		} catch (err: any) {
-			setSignError(err?.message || "Signature failed");
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : "Unknown error when signing transaction";
+			setSignError(errMsg);
+			console.error(err);
 		} finally {
 			setSigningTxHash(null);
 		}
@@ -206,7 +208,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 															: txWithSigs.details.data}
 													</p>
 													<p>
-														<strong>Operation:</strong> {txWithSigs.details.operation == 0 ? "CALL" : "DELEGATECALL"}
+														<strong>Operation:</strong> {txWithSigs.details.operation === 0 ? "CALL" : "DELEGATECALL"}
 													</p>
 												</div>
 												<div className="mt-2">
