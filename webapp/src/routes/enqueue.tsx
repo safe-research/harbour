@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { switchToChain } from "@/lib/chains";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { type BrowserProvider, ethers, isAddress } from "ethers";
 import type { JsonRpcApiProvider } from "ethers";
@@ -12,7 +13,6 @@ import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "../lib/harbour";
 import { signSafeTransaction } from "../lib/safe";
 import type { ChainId, FullSafeTransaction } from "../lib/types";
 import { chainIdSchema, safeAddressSchema } from "../lib/validators";
-import { switchToChain } from "@/lib/chains";
 
 interface EnqueueContentProps {
 	browserProvider: BrowserProvider;
@@ -27,6 +27,7 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 		isLoading: isLoadingConfig,
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
+	const navigate = useNavigate();
 
 	const [to, setTo] = useState("");
 	const [value, setValue] = useState("");
@@ -84,6 +85,8 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);
+			// Redirect to queue page after successful enqueue
+			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 			setError(message);
