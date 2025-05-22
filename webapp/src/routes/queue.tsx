@@ -192,7 +192,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 								)}
 								<div className="space-y-4">
 									{nonceGroup.transactions.map((txWithSigs) => {
-										const canExecute = txWithSigs.signatures.length >= Number.parseInt(safeConfig.threshold);
+										const canExecute = txWithSigs.signatures.length >= safeConfig.threshold;
 										const isLoadingThisTx = isExecutionPending && executingTxHash === txWithSigs.safeTxHash;
 										const errorForThisTx = executionError && executingTxHash === txWithSigs.safeTxHash;
 										const successForThisTx = executionSuccessTxHash === txWithSigs.safeTxHash;
@@ -271,10 +271,9 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 																</div>
 															)}
 															<p className="text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded-md">
-																<i className="mr-1">⚠️</i> Needs{" "}
-																{Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length} more signature
-																{Number.parseInt(safeConfig.threshold) - txWithSigs.signatures.length !== 1 ? "s" : ""}{" "}
-																to execute.
+																<i className="mr-1">⚠️</i> Needs {safeConfig.threshold - txWithSigs.signatures.length}{" "}
+																more signature
+																{safeConfig.threshold - txWithSigs.signatures.length !== 1 ? "s" : ""} to execute.
 															</p>
 														</div>
 													)}
