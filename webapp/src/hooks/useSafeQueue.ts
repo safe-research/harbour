@@ -38,7 +38,7 @@ function useSafeQueue({
 				safeAddress,
 				safeConfig,
 				maxNoncesToFetch,
-				chainId: safeChainId,
+				safeChainId,
 			});
 		},
 		enabled: !!provider && !!safeConfig && !!safeConfig.nonce && !!safeConfig.owners?.length,

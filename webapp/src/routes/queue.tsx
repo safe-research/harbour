@@ -204,7 +204,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 											>
 												<h3 className="text-lg font-medium text-gray-900 mb-2">Transaction</h3>
 												<p className="text-xs bg-gray-50 p-2 rounded font-mono break-all mb-3">
-													TxHash: {txWithSigs.safeTxHash}
+													SafeTxHash: {txWithSigs.safeTxHash}
 												</p>
 												<div className="text-sm text-gray-700 space-y-1">
 													<p>

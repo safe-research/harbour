@@ -29,5 +29,7 @@ export function useSafeConfiguration(
 		},
 		enabled: Boolean(provider && chainId && safeAddress),
 		retry: false,
+		staleTime: 15 * 1000,
+		refetchInterval: 30 * 1000,
 	});
 }
