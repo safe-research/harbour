@@ -8,7 +8,7 @@ Harbour Safe Dashboard is a web application for managing [Safe](https://safe.glo
 - Execute transactions once enough signatures are collected
 - All actions are performed client-side, with no external backend dependencies
 
-Pending transactions and signatures are stored on-chain in the Harbour (SafeInternationalHarbour) smart contract deployed to Gnosis Chain. As long as the chain is running and an RPC endpoint is available, transactions can be enqueued and executed—no additional backend or off-chain indexer is required.
+Pending transactions and signatures are stored on-chain in the Harbour ([SafeInternationalHarbour](../contracts/src/SafeInternationalHarbour.sol)) smart contract deployed to Gnosis Chain. As long as the chain is running and an RPC endpoint is available, transactions can be enqueued and executed—no additional backend or off-chain indexer is required.
 
 ## Getting Started
 
@@ -81,3 +81,9 @@ See `package.json` for the full list of dependencies and versions.
 ---
 
 For more details, see the code in the `src/` directory. Contributions and issues are welcome!
+
+## Smart Contract
+
+This app interacts with the [`SafeInternationalHarbour.sol`](../contracts/src/SafeInternationalHarbour.sol) contract, found in the [`@contracts`](../contracts) package of this monorepo.
+
+**Deployed contract address:** [`0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6`](https://gnosisscan.io/address/0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6) on [Gnosis Chain](https://gnosisscan.io/).
