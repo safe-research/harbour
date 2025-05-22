@@ -22,3 +22,11 @@ export const safeAddressSchema = ethereumAddressSchema;
  * Ensures the chain ID is an integer and a positive number.
  */
 export const chainIdSchema = z.number().int().positive();
+
+/**
+ * Zod schema for validating search parameters for routes that require Safe address and chain ID.
+ */
+export const configSearchSchema = z.object({
+	safe: safeAddressSchema,
+	chainId: chainIdSchema,
+});

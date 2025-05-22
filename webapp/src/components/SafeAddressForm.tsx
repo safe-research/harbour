@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ETHEREUM_ADDRESS_REGEX } from "../lib/validators";
+import { chainIdSchema, safeAddressSchema } from "../lib/validators";
 
 interface SafeAddressFormProps {
 	/**
@@ -30,12 +30,18 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 		const addr = safeAddress.trim();
 		const parsedChainId = Number.parseInt(chainIdInput ?? "0", 10);
 
-		if (!ETHEREUM_ADDRESS_REGEX.test(addr)) {
+		try {
+			safeAddressSchema.parse(addr);
+		} catch (error) {
 			errs.safeAddress = "Invalid Safe address (must be an Ethereum address)";
 		}
-		if (Number.isNaN(parsedChainId) || parsedChainId <= 0) {
+
+		try {
+			chainIdSchema.parse(parsedChainId);
+		} catch (error) {
 			errs.chainId = "Chain ID must be a positive number";
 		}
+
 		setErrors(errs);
 		return Object.keys(errs).length === 0;
 	};

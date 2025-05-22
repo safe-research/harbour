@@ -1,10 +1,11 @@
 import { switchToChain } from "@/lib/chains";
+
+import { configSearchSchema } from "@/lib/validators";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { type BrowserProvider, ethers, isAddress } from "ethers";
 import type { JsonRpcApiProvider } from "ethers";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
@@ -12,7 +13,6 @@ import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "../lib/harbour";
 import { signSafeTransaction } from "../lib/safe";
 import type { ChainId, FullSafeTransaction } from "../lib/types";
-import { chainIdSchema, safeAddressSchema } from "../lib/validators";
 
 interface EnqueueContentProps {
 	/** The Ethers BrowserProvider from the connected wallet. */
@@ -270,14 +270,6 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 		</div>
 	);
 }
-
-/**
- * Zod schema for validating search parameters for the enqueue route.
- */
-const configSearchSchema = z.object({
-	safe: safeAddressSchema,
-	chainId: chainIdSchema,
-});
 
 /**
  * Route definition for the enqueue transaction page.

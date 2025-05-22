@@ -5,14 +5,13 @@ import type { JsonRpcApiProvider } from "ethers";
 
 import { PlusCircle, ScrollText } from "lucide-react";
 
-import { z } from "zod";
 import ActionCard from "../components/ActionCard";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
-import { safeAddressSchema } from "../lib/validators";
+import { configSearchSchema } from "../lib/validators";
 
 interface DashboardContentProps {
 	/** Ethers JSON RPC API provider instance. */
@@ -76,15 +75,6 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 		</div>
 	);
 }
-
-/**
- * Zod schema for validating the search parameters for the dashboard route.
- * Ensures 'safe' is a valid Ethereum address and 'chainId' is a positive number.
- */
-const configSearchSchema = z.object({
-	safe: safeAddressSchema,
-	chainId: z.number().gt(0),
-});
 
 /**
  * Page component for the Safe dashboard.

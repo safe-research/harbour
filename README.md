@@ -14,7 +14,7 @@ Harbour is a monorepo containing the following packages:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/cc0x-research/harbour.git
+git clone https://github.com/safe-research/harbour.git
 ```
 
 2. Navigate to the project directory:

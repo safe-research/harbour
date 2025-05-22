@@ -5,7 +5,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
-import { z } from "zod";
+
 import ActionCard from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
@@ -17,15 +17,7 @@ import { HARBOUR_CHAIN_ID, type NonceGroup, enqueueSafeTransaction } from "../li
 import { signSafeTransaction } from "../lib/safe";
 import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
-import { chainIdSchema, safeAddressSchema } from "../lib/validators";
-
-/**
- * Zod schema for validating search parameters for the queue route.
- */
-const configSearchSchema = z.object({
-	safe: safeAddressSchema,
-	chainId: chainIdSchema,
-});
+import { configSearchSchema } from "../lib/validators";
 
 // Define the route before the component so Route is in scope
 /**
