@@ -1,21 +1,32 @@
 import { Link } from "@tanstack/react-router";
+import type { ToPathOption } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react"; // For precise icon typing
 import { ArrowUpRight } from "lucide-react";
 
-export default function ActionCard({
-	title,
-	description,
-	icon: Icon,
-	ctaText,
-	to,
-	search,
-}: {
+/**
+ * Props for the ActionCard component.
+ */
+interface ActionCardProps {
+	/** The title of the action card. */
 	title: string;
+	/** A short description of the action. */
 	description: string;
-	icon: React.ComponentType<{ className?: string }>;
+	/** The Lucide icon component to display. */
+	icon: LucideIcon;
+	/** The text for the call-to-action button/link. */
 	ctaText: string;
-	to: string;
-	search: { safe: string; chainId: number };
-}) {
+	/** The path to link to. Should be a registered route. */
+	to: ToPathOption;
+	/** Search parameters for the link. Currently expects 'safe' and 'chainId'. */
+	search: { safe: string; chainId: number }; // Consider making this generic if used for other routes
+}
+
+/**
+ * A card component to display an action with a title, description, icon, and a call-to-action link.
+ * @param {ActionCardProps} props - The component props.
+ * @returns JSX element representing the action card.
+ */
+export default function ActionCard({ title, description, icon: Icon, ctaText, to, search }: ActionCardProps) {
 	return (
 		<div className="p-6 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow">
 			<div className="flex items-center gap-3 mb-4">

@@ -2,27 +2,55 @@ import { useState } from "react";
 import { ETHEREUM_ADDRESS_REGEX } from "../lib/validators";
 
 interface SafeAddressFormProps {
+	/**
+	 * Callback function invoked when the form is submitted with a valid Safe address and chain ID.
+	 * @param {string} safeAddress - The validated Safe address.
+	 * @param {number} chainId - The validated chain ID.
+	 */
 	onSubmit: (safeAddress: string, chainId: number) => void;
 }
 
+/**
+ * A form component for inputting a Safe address and chain ID.
+ * It includes validation for both fields.
+ * @param {SafeAddressFormProps} props - The component props.
+ * @returns JSX element representing the form.
+ */
 export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 	const [safeAddress, setSafeAddress] = useState("");
-	const [chainId, setChainId] = useState<number>();
+	const [chainIdInput, setChainIdInput] = useState<string>(); // Store input as string
 	const [errors, setErrors] = useState<{ safeAddress?: string; chainId?: string }>({});
 
+	/**
+	 * Validates the current form inputs.
+	 * @returns True if the form is valid, false otherwise.
+	 */
 	const validate = () => {
 		const errs: { safeAddress?: string; chainId?: string } = {};
 		const addr = safeAddress.trim();
-		if (!ETHEREUM_ADDRESS_REGEX.test(addr)) errs.safeAddress = "Invalid Safe address";
-		if (!chainId || chainId <= 0) errs.chainId = "Chain ID must be a positive number";
+		const parsedChainId = Number.parseInt(chainIdInput ?? "0", 10);
+
+		if (!ETHEREUM_ADDRESS_REGEX.test(addr)) {
+			errs.safeAddress = "Invalid Safe address (must be an Ethereum address)";
+		}
+		if (Number.isNaN(parsedChainId) || parsedChainId <= 0) {
+			errs.chainId = "Chain ID must be a positive number";
+		}
 		setErrors(errs);
 		return Object.keys(errs).length === 0;
 	};
 
+	/**
+	 * Handles the form submission event.
+	 * Prevents default form submission, validates inputs, and calls the onSubmit prop.
+	 * @param {React.FormEvent} e - The form submission event.
+	 */
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!validate()) return;
-		onSubmit(safeAddress.trim(), chainId || 1);
+		const finalChainId = Number.parseInt(chainIdInput ?? "0", 10);
+		// Validation ensures finalChainId is a valid number here
+		onSubmit(safeAddress.trim(), finalChainId);
 	};
 
 	return (
@@ -48,9 +76,9 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 				</label>
 				<input
 					id="chainId"
-					type="number"
-					value={chainId}
-					onChange={(e) => setChainId(Number(e.target.value))}
+					type="number" // Keep type=number for browser behavior, but parse from string state
+					value={chainIdInput} // Use string state for input value
+					onChange={(e) => setChainIdInput(e.target.value)} // Update string state
 					placeholder="1"
 					min="1"
 					step="1"

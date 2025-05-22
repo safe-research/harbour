@@ -28,9 +28,15 @@ const WalletIllustration = () => (
 const WalletContext = createContext<BrowserProvider | null>(null);
 
 interface RequireWalletProps {
+	/** The child components to render once a wallet is connected and provider is available. */
 	children: React.ReactNode;
 }
 
+/**
+ * Custom hook to get the Ethers BrowserProvider from the connected wallet.
+ * It memoizes the provider instance.
+ * @returns The BrowserProvider instance, or undefined if no wallet is connected.
+ */
 function useBrowserProvider(): BrowserProvider | undefined {
 	const [{ wallet }] = useConnectWallet();
 
@@ -40,6 +46,14 @@ function useBrowserProvider(): BrowserProvider | undefined {
 	}, [wallet]);
 }
 
+/**
+ * A component that requires a wallet connection to render its children.
+ * If no wallet is connected, it displays a connection prompt.
+ * If a wallet is connected but the provider is not yet initialized, it shows a loading state.
+ * Once connected and provider is ready, it makes the Ethers BrowserProvider available via context.
+ * @param {RequireWalletProps} props - The component props.
+ * @returns JSX element, either a connection prompt, loading indicator, or children wrapped in WalletContext.Provider.
+ */
 export function RequireWallet({ children }: RequireWalletProps) {
 	const [{ wallet }, connect] = useConnectWallet();
 	const provider = useBrowserProvider();

@@ -17,4 +17,8 @@ export const ethereumAddressSchema = z.string().regex(ETHEREUM_ADDRESS_REGEX, "I
  */
 export const safeAddressSchema = ethereumAddressSchema;
 
+/**
+ * Zod schema for validating Chain IDs.
+ * Ensures the chain ID is an integer and a positive number.
+ */
 export const chainIdSchema = z.number().int().positive();

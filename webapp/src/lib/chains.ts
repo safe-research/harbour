@@ -4,8 +4,13 @@ import type { ChainId } from "./types";
 import { shuffle } from "./arrays";
 import chainsJson from "./chains.json" with { type: "json" };
 
+/** Type representing the standard for Etherscan-like explorers. */
 type EtherscanExplorerStandard = "EIP3091";
 
+/**
+ * Interface for entries in the chains.json file.
+ * Describes the structure of chain configuration data.
+ */
 interface ChainsJsonEntry {
 	name: string;
 	chain: string;
@@ -16,13 +21,20 @@ interface ChainsJsonEntry {
 		decimals: number;
 	};
 	infoURL: string;
-	// "& {}" is a workaround to keep the autocomplete for constant strings
+	/**
+	 * List of explorers for the chain.
+	 * The "& {}" is a workaround for string literal type autocomplete.
+	 */
 	explorers: { name: string; url: string; standard: EtherscanExplorerStandard | (string & {}) }[];
+	/** List of RPC endpoints for the chain. */
 	rpc: { url: string }[];
 }
 
+/**
+ * Interface for parameters used with the `wallet_addEthereumChain` RPC method.
+ */
 interface WalletAddEthereumChainParams {
-	chainId: string;
+	chainId: string; // Hexadecimal string
 	chainName: string;
 	nativeCurrency: {
 		name: string;

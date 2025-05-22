@@ -2,11 +2,14 @@ import type { JsonRpcApiProvider, JsonRpcSigner } from "ethers";
 import { Contract, Interface } from "ethers";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
-import type { FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
+import type { ChainId, FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
 
+/** The chain ID where the Harbour contract is deployed. */
 const HARBOUR_CHAIN_ID = 100;
+/** The address of the Harbour contract. */
 const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 
+/** ABI for the Harbour contract. */
 const HARBOUR_ABI = [
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
 	"function retrieveSignatures(address signerAddress, address safeAddress, uint256 chainId, uint256 nonce, uint256 start, uint256 count) external view returns (tuple(bytes32 r, bytes32 vs, bytes32 txHash)[] page, uint256 totalCount)",
@@ -42,30 +45,57 @@ async function enqueueSafeTransaction(signer: JsonRpcSigner, transaction: FullSa
 	return tx.wait();
 }
 
+/**
+ * Represents a Safe transaction along with its collected signatures and unique transaction hash.
+ */
 export interface TransactionWithSignatures {
+	/** The details of the Safe transaction. */
 	details: HarbourTransactionDetails;
+	/** An array of signatures collected for the transaction. */
 	signatures: HarbourSignature[];
+	/** The unique transaction hash (SafeTxHash). */
 	safeTxHash: string;
 }
 
+/**
+ * Groups transactions by their Safe nonce.
+ */
 export interface NonceGroup {
+	/** The nonce value as a string. */
 	nonce: string;
+	/** An array of transactions associated with this nonce. */
 	transactions: TransactionWithSignatures[];
 }
 
+/**
+ * Parameters for the fetchSafeQueue function.
+ */
 interface FetchSafeQueueParams {
+	/** Ethers.js JSON RPC API provider for the Harbour chain. */
 	provider: JsonRpcApiProvider;
+	/** The address of the Safe contract. */
 	safeAddress: string;
+	/** Partial Safe configuration, specifically needing nonce and owners. */
 	safeConfig: Pick<SafeConfiguration, "nonce" | "owners">;
-	chainId: number;
+	/** The chain ID of the Safe contract (not Harbour's chain ID). */
+	safeChainId: ChainId;
+	/** Optional maximum number of nonces to fetch ahead of the current Safe nonce (default: 5). */
 	maxNoncesToFetch?: number;
 }
 
+/**
+ * Fetches the queue of transactions for a given Safe from the Harbour contract.
+ * It retrieves transactions for multiple nonces starting from the Safe's current nonce,
+ * collects their signatures, and groups them.
+ *
+ * @param {FetchSafeQueueParams} params - Parameters for fetching the queue.
+ * @returns {Promise<NonceGroup[]>} A promise that resolves to an array of nonce groups, each containing transactions and their signatures.
+ */
 async function fetchSafeQueue({
 	provider,
 	safeAddress,
 	safeConfig,
-	chainId,
+	safeChainId,
 	maxNoncesToFetch = 5,
 }: FetchSafeQueueParams): Promise<NonceGroup[]> {
 	const iface = new Interface(HARBOUR_ABI);
@@ -83,7 +113,7 @@ async function fetchSafeQueue({
 			sigCalls.push({
 				target: HARBOUR_ADDRESS,
 				allowFailure: false,
-				callData: iface.encodeFunctionData("retrieveSignatures", [owner, safeAddress, chainId, nonce, 0, 100]),
+				callData: iface.encodeFunctionData("retrieveSignatures", [owner, safeAddress, safeChainId, nonce, 0, 100]),
 			});
 			sigMeta.push({ owner, nonce: nonce.toString() });
 		}

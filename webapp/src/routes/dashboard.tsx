@@ -9,17 +9,25 @@ import { z } from "zod";
 import ActionCard from "../components/ActionCard";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
-import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
+import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
 import { safeAddressSchema } from "../lib/validators";
 
 interface DashboardContentProps {
+	/** Ethers JSON RPC API provider instance. */
 	provider: JsonRpcApiProvider;
+	/** The address of the Safe. */
 	safeAddress: string;
+	/** The chain ID where the Safe is deployed. */
 	chainId: number;
 }
 
+/**
+ * Displays the main content of the Safe dashboard, including actions and configuration.
+ * @param {DashboardContentProps} props - The component props.
+ * @returns JSX element representing the dashboard content.
+ */
 function DashboardContent({ provider, safeAddress, chainId }: DashboardContentProps) {
 	const { data: config, isLoading, error } = useSafeConfiguration(provider, safeAddress);
 
@@ -69,16 +77,32 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 	);
 }
 
+/**
+ * Zod schema for validating the search parameters for the dashboard route.
+ * Ensures 'safe' is a valid Ethereum address and 'chainId' is a positive number.
+ */
 const configSearchSchema = z.object({
 	safe: safeAddressSchema,
 	chainId: z.number().gt(0),
 });
 
+/**
+ * Page component for the Safe dashboard.
+ * It retrieves validated search parameters (Safe address and chain ID)
+ * and wraps the main content with a wallet requirement check.
+ * @returns JSX element for the dashboard page.
+ */
 export const Route = createFileRoute("/dashboard")({
 	validateSearch: zodValidator(configSearchSchema),
 	component: DashboardPage,
 });
 
+/**
+ * Page component for the Safe dashboard.
+ * It retrieves validated search parameters (Safe address and chain ID)
+ * and wraps the main content with a wallet requirement check.
+ * @returns JSX element for the dashboard page.
+ */
 export function DashboardPage() {
 	const { safe: safeAddress, chainId } = Route.useSearch();
 	return (
@@ -88,6 +112,12 @@ export function DashboardPage() {
 	);
 }
 
+/**
+ * Inner component for the dashboard page, rendered if a wallet is connected.
+ * It acquires a JSON RPC provider for the given chain ID and then renders the main dashboard content.
+ * @param {{ safeAddress: string; chainId: number }} props - Props containing the Safe address and chain ID.
+ * @returns JSX element, either a loading/error state or the DashboardContent.
+ */
 function DashboardPageInner({ safeAddress, chainId }: { safeAddress: string; chainId: number }) {
 	const { provider, error, isLoading } = useChainlistRpcProvider(chainId);
 

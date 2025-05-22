@@ -1,9 +1,16 @@
 import type { SafeConfiguration } from "@/lib/safe";
 
 interface SafeConfigDisplayProps {
+	/** The Safe configuration object to display. */
 	config: SafeConfiguration;
 }
 
+/**
+ * A component to display the details of a Gnosis Safe configuration.
+ * It shows owners, threshold, nonce, modules, and other relevant information.
+ * @param {SafeConfigDisplayProps} props - The component props.
+ * @returns JSX element representing the Safe configuration display.
+ */
 export default function SafeConfigDisplay({ config }: SafeConfigDisplayProps) {
 	const { owners, threshold, fallbackHandler, nonce, modules, guard, singleton } = config;
 	return (
@@ -17,11 +24,11 @@ export default function SafeConfigDisplay({ config }: SafeConfigDisplayProps) {
 					</div>
 					<div>
 						<dt className="font-medium text-gray-700">Threshold</dt>
-						<dd className="mt-1 text-gray-900">{threshold.toString()}</dd>
+						<dd className="mt-1 text-gray-900">{threshold}</dd>
 					</div>
 					<div>
 						<dt className="font-medium text-gray-700">Nonce</dt>
-						<dd className="mt-1 text-gray-900">{nonce.toString()}</dd>
+						<dd className="mt-1 text-gray-900">{nonce}</dd>
 					</div>
 					<div className="sm:col-span-2">
 						<dt className="font-medium text-gray-700">Fallback Handler</dt>

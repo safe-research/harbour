@@ -19,31 +19,51 @@ import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
 import { chainIdSchema, safeAddressSchema } from "../lib/validators";
 
+/**
+ * Zod schema for validating search parameters for the queue route.
+ */
+const configSearchSchema = z.object({
+	safe: safeAddressSchema,
+	chainId: chainIdSchema,
+});
+
 // Define the route before the component so Route is in scope
+/**
+ * Route definition for the transaction queue page.
+ * Validates search parameters (safe address, chainId).
+ */
 export const Route = createFileRoute("/queue")({
-	validateSearch: zodValidator(
-		z.object({
-			safe: safeAddressSchema,
-			chainId: chainIdSchema,
-		}),
-	),
+	validateSearch: zodValidator(configSearchSchema),
 	component: QueuePage,
 });
 
+/**
+ * Props for the QueueContent component.
+ */
 interface QueueContentProps {
+	/** Ethers BrowserProvider from the connected wallet. */
 	walletProvider: BrowserProvider;
+	/** Ethers JsonRpcApiProvider for the Harbour chain. */
 	harbourProvider: JsonRpcApiProvider;
+	/** The address of the Safe contract. */
 	safeAddress: string;
+	/** The configuration of the Safe contract. */
 	safeConfig: SafeConfiguration;
+	/** The chain ID of the Safe contract. */
 	chainId: ChainId;
 }
 
+/**
+ * Main content for the transaction queue page.
+ * Displays transactions grouped by nonce, allowing users to sign or execute them.
+ * @param {QueueContentProps} props - The component props.
+ */
 function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig, chainId }: QueueContentProps) {
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,
 		error: queueError,
-	} = useSafeQueue({ provider: harbourProvider, safeAddress, safeConfig, chainId });
+	} = useSafeQueue({ provider: harbourProvider, safeAddress, safeConfig, safeChainId: chainId });
 
 	// State for managing execution feedback for a specific transaction
 	const [executingTxHash, setExecutingTxHash] = useState<string | null>(null);
@@ -199,7 +219,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 														<strong>To:</strong> {txWithSigs.details.to}
 													</p>
 													<p>
-														<strong>Value:</strong> {txWithSigs.details.value.toString()} wei
+														<strong>Value:</strong> {txWithSigs.details.value} wei
 													</p>
 													<p>
 														<strong>Data:</strong>{" "}
@@ -328,6 +348,12 @@ export function QueuePage() {
 	);
 }
 
+/**
+ * Inner component for the queue page, rendered if a wallet is connected.
+ * Handles fetching of provider for the Safe's chain and the Harbour chain, and Safe configuration.
+ * @param {{ safeAddress: string; chainId: ChainId }} props - Props containing Safe address and chain ID.
+ * @returns JSX element for the queue page content or loading/error states.
+ */
 function QueuePageInner({
 	safeAddress,
 	chainId,
