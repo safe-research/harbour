@@ -87,3 +87,5 @@ For more details, see the code in the `src/` directory. Contributions and issues
 This app interacts with the [`SafeInternationalHarbour.sol`](../contracts/src/SafeInternationalHarbour.sol) contract, found in the [`@contracts`](../contracts) package of this monorepo.
 
 **Deployed contract address:** [`0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6`](https://gnosisscan.io/address/0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6) on [Gnosis Chain](https://gnosisscan.io/).
+
+**Note:** This application also depends on the [multicall3](https://github.com/mds1/multicall) contract to be available on the chains being used.
