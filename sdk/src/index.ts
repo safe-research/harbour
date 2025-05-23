@@ -1,5 +1,20 @@
-import { Contract, type Provider, type Signer, type TransactionResponse } from "ethers";
+import { Contract, type Provider, type Signer, type TransactionResponse, ethers } from "ethers";
+import { aggregateMulticall } from "./lib/multicall";
 import type { ChainId, SDKFullSafeTransaction, SDKHarbourSignature, SDKTransactionDetails } from "./types";
+
+// Internal type for decoded retrieveTransaction result from Harbour
+type RetrieveTransactionResult = {
+	stored: boolean;
+	operation: number;
+	to: string;
+	value: bigint;
+	safeTxGas: bigint;
+	baseGas: bigint;
+	gasPrice: bigint;
+	gasToken: string;
+	refundReceiver: string;
+	data: string;
+};
 
 const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6" as const;
 
@@ -52,25 +67,24 @@ async function getTransactions(
 	nonce: number,
 ): Promise<TransactionWithSignatures[]> {
 	const harbourInstance = harbour(provider);
-
+	const iface = harbourInstance.interface;
 	const signaturesByTxHash = new Map<string, SDKHarbourSignature[]>();
 	const uniqueTxHashes = new Set<string>();
 
-	// Retrieve Signatures
-	for (const owner of owners) {
-		const ownerSignaturesResult = await harbourInstance.retrieveSignatures(
-			owner,
-			safeAddress,
-			safeChainId,
-			nonce,
-			0, // start
-			100, // count - assuming a max of 100 signatures per owner per nonce
-		);
-
-		// The result is an array where the first element is the page of signatures
-		const ownerSignatures = ownerSignaturesResult[0] as Array<[string, string, string]>;
-
-		for (const sigTuple of ownerSignatures) {
+	// Batch signature retrieval via multicall
+	const signatureCalls = owners.map((owner) => ({
+		target: HARBOUR_ADDRESS,
+		callData: iface.encodeFunctionData("retrieveSignatures", [owner, safeAddress, safeChainId, nonce, 0, 100]),
+	}));
+	const signatureResults = await aggregateMulticall(provider, signatureCalls);
+	signatureResults.forEach((result, idx) => {
+		if (!result.success) return;
+		const owner = owners[idx];
+		const [page] = iface.decodeFunctionResult("retrieveSignatures", result.returnData) as unknown as [
+			Array<[string, string, string]>,
+			bigint,
+		];
+		for (const sigTuple of page) {
 			const harbourSignature: SDKHarbourSignature = {
 				r: sigTuple[0],
 				vs: sigTuple[1],
@@ -78,21 +92,27 @@ async function getTransactions(
 				signer: owner,
 			};
 			uniqueTxHashes.add(harbourSignature.txHash);
-			const existingSignatures = signaturesByTxHash.get(harbourSignature.txHash) || [];
-			existingSignatures.push(harbourSignature);
-			signaturesByTxHash.set(harbourSignature.txHash, existingSignatures);
+			const existing = signaturesByTxHash.get(harbourSignature.txHash) || [];
+			existing.push(harbourSignature);
+			signaturesByTxHash.set(harbourSignature.txHash, existing);
 		}
-	}
+	});
 
-	// Retrieve Transaction Details
+	// Batch transaction detail retrieval via multicall
+	const txHashes = Array.from(uniqueTxHashes);
+	const txCalls = txHashes.map((txHash) => ({
+		target: HARBOUR_ADDRESS,
+		callData: iface.encodeFunctionData("retrieveTransaction", [txHash]),
+	}));
+	const txResults = await aggregateMulticall(provider, txCalls);
 	const transactionDetailsMap = new Map<string, SDKTransactionDetails>();
-	for (const txHash of Array.from(uniqueTxHashes)) {
-		const txParamsResult = await harbourInstance.retrieveTransaction(txHash);
-
-		// The result is an array where the first element is the txParams tuple
-		const txParams = txParamsResult[0];
-
-		if (txParams?.stored) {
+	txResults.forEach((result, idx) => {
+		if (!result.success) return;
+		const txHash = txHashes[idx];
+		const [txParams] = iface.decodeFunctionResult("retrieveTransaction", result.returnData) as unknown as [
+			RetrieveTransactionResult,
+		];
+		if (txParams.stored) {
 			transactionDetailsMap.set(txHash, {
 				to: txParams.to,
 				value: txParams.value.toString(),
@@ -106,7 +126,7 @@ async function getTransactions(
 				refundReceiver: txParams.refundReceiver,
 			});
 		}
-	}
+	});
 
 	// Assemble Results
 	const results: TransactionWithSignatures[] = [];
