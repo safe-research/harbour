@@ -4,13 +4,23 @@ import { bytes32ToAddress, compactSignatureToFullSignature } from "./encoding";
 import { aggregateMulticall } from "./multicall";
 import type { FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
 
+/**
+ * Interface representing the configuration of a Safe contract.
+ */
 interface SafeConfiguration {
+	/** List of owner addresses. */
 	owners: string[];
-	threshold: string;
+	/** The number of required confirmations (threshold) as a string. */
+	threshold: number;
+	/** The address of the fallback handler contract. */
 	fallbackHandler: string;
+	/** The current nonce of the Safe, as a string. */
 	nonce: string;
+	/** List of enabled module addresses. */
 	modules: string[];
+	/** The address of the guard contract, if any. */
 	guard: string;
+	/** The address of the Safe singleton (mastercopy) contract. */
 	singleton: string;
 }
 
@@ -74,7 +84,7 @@ async function getSafeConfiguration(
 	const results = await aggregateMulticall(provider, calls);
 	const configuration: SafeConfiguration = {
 		owners: SAFE_INTERFACE.decodeFunctionResult("getOwners", results[0].returnData)[0],
-		threshold: String(SAFE_INTERFACE.decodeFunctionResult("getThreshold", results[1].returnData)[0]),
+		threshold: Number(SAFE_INTERFACE.decodeFunctionResult("getThreshold", results[1].returnData)[0]),
 		fallbackHandler: bytes32ToAddress(SAFE_INTERFACE.decodeFunctionResult("getStorageAt", results[2].returnData)[0]),
 		nonce: String(SAFE_INTERFACE.decodeFunctionResult("nonce", results[3].returnData)[0]),
 		guard: bytes32ToAddress(SAFE_INTERFACE.decodeFunctionResult("getStorageAt", results[4].returnData)[0]),

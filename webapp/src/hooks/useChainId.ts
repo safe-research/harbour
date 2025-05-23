@@ -3,12 +3,11 @@ import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
 
 /**
- * React hook to retrieve the current chainId from a given ethers provider.
- * Uses TanStack Query for caching and async state management.
- * Returning string is preferred to avoid JSON serialization issues.
+ * React hook to retrieve the current chain ID from a given Ethers.js provider.
+ * Uses TanStack Query for caching, async state management, and periodic refetching.
  *
- * @param provider An ethers.js JsonRpcApiProvider instance
- * @returns UseQueryResult<ChainId, Error>
+ * @param {JsonRpcApiProvider | null} provider - An Ethers.js JsonRpcApiProvider instance. The query is disabled if null.
+ * @returns {UseQueryResult<ChainId, Error>} The result object from React Query, containing the chain ID, error, and loading states.
  */
 export function useChainId(provider: JsonRpcApiProvider | null): UseQueryResult<ChainId, Error> {
 	return useQuery<ChainId, Error>({

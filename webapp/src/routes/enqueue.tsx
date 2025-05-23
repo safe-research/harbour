@@ -1,9 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { switchToChain } from "@/lib/chains";
+
+import { configSearchSchema } from "@/lib/validators";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { type BrowserProvider, ethers, isAddress } from "ethers";
 import type { JsonRpcApiProvider } from "ethers";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
@@ -11,22 +13,30 @@ import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "../lib/harbour";
 import { signSafeTransaction } from "../lib/safe";
 import type { ChainId, FullSafeTransaction } from "../lib/types";
-import { chainIdSchema, safeAddressSchema } from "../lib/validators";
-import { switchToChain } from "@/lib/chains";
 
 interface EnqueueContentProps {
+	/** The Ethers BrowserProvider from the connected wallet. */
 	browserProvider: BrowserProvider;
+	/** The Ethers JsonRpcApiProvider for the Safe's chain. */
 	rpcProvider: JsonRpcApiProvider;
+	/** The address of the Safe contract. */
 	safeAddress: string;
+	/** The chain ID of the Safe contract. */
 	chainId: ChainId;
 }
 
+/**
+ * Content component for the enqueue transaction page.
+ * Handles form input, transaction signing, and submission to Harbour.
+ * @param {EnqueueContentProps} props - The component props.
+ */
 function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: EnqueueContentProps) {
 	const {
 		data: configResult,
 		isLoading: isLoadingConfig,
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
+	const navigate = useNavigate();
 
 	const [to, setTo] = useState("");
 	const [value, setValue] = useState("");
@@ -84,6 +94,8 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);
+			// Redirect to queue page after successful enqueue
+			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 			setError(message);
@@ -259,16 +271,20 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId }: 
 	);
 }
 
+/**
+ * Route definition for the enqueue transaction page.
+ * Validates search parameters (safe address, chainId).
+ */
 export const Route = createFileRoute("/enqueue")({
-	validateSearch: zodValidator(
-		z.object({
-			safe: safeAddressSchema,
-			chainId: chainIdSchema,
-		}),
-	),
+	validateSearch: zodValidator(configSearchSchema),
 	component: EnqueuePage,
 });
 
+/**
+ * Page component for enqueueing a new Safe transaction.
+ * Retrieves validated search params and wraps content with wallet and provider requirements.
+ * @returns JSX element for the enqueue page.
+ */
 export function EnqueuePage() {
 	const { safe: safeAddress, chainId } = Route.useSearch();
 	return (
@@ -278,6 +294,11 @@ export function EnqueuePage() {
 	);
 }
 
+/**
+ * Inner component for the enqueue page, rendered if wallet and providers are ready.
+ * @param {{ safeAddress: string; chainId: ChainId }} props - Props containing Safe address and chain ID.
+ * @returns JSX element for the enqueue form or loading/error states.
+ */
 function EnqueuePageInner({ safeAddress, chainId }: { safeAddress: string; chainId: number }) {
 	const browserProvider = useWalletProvider();
 	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(chainId);

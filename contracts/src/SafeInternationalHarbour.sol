@@ -36,8 +36,6 @@ contract SafeInternationalHarbour {
     /// Thrown if the S value of the signature is not from the lower half of the curve.
     error InvalidSignatureSValue();
 
-    /// Thrown when adding a signature for a transaction that is missing details
-    error MissingTxDetails();
 
     /// Thrown when a value doesn't fit in a uint128.
     error ValueDoesNotFitInUint128();
