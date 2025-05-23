@@ -245,7 +245,6 @@ contract SafeInternationalHarbour {
             refundReceiver
         );
 
-        // Recover signer and split signature into (r,vs)
         (address signer, bytes32 r, bytes32 vs) = _recoverSigner(
             safeTxHash,
             signature
@@ -299,7 +298,6 @@ contract SafeInternationalHarbour {
             );
         }
 
-        // Store the signature
         return
             _storeSignature(
                 signer,
@@ -341,19 +339,16 @@ contract SafeInternationalHarbour {
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
 
-        // Mark that this signer has now signed this specific transaction hash
         _hasSignerSignedTx[safeTxHash][signer] = true;
 
-        // Append the (r,vs) pair for this signer
         SignatureDataWithTxHashIndex[] storage list = _sigData[signer][
             safeAddress
         ][chainId][nonce];
+        listIndex = list.length;
+
         list.push(
             SignatureDataWithTxHashIndex({r: r, vs: vs, txHash: safeTxHash})
         );
-        unchecked {
-            listIndex = list.length - 1; // gas‑free length‑1 because of unchecked
-        }
 
         emit SignatureStored(
             signer,
