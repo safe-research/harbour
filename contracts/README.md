@@ -7,7 +7,6 @@ This package contains the smart contracts used by the Harbour project, including
 Custom contracts developed for the Harbour project, located under `src`:
 
 - **SafeInternationalHarbour.sol** – A singleton contract to enqueue transactions on any chain. [Learn more](docs/international-harbour.md)
-- **SafeModuleHarbour.sol** – A module contract that implements the queued transaction module. [Learn more](docs/module-queue.md)
 
 ## Official Deployments
 
@@ -34,7 +33,6 @@ npm run test
 
 For detailed information on each module, see the documentation in the `docs/` folder:
 
-- [Module Queue Documentation](docs/module-queue.md)
 - [International Harbour Documentation](docs/international-harbour.md)
 
 ## Deployment
