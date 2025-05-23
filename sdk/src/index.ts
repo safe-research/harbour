@@ -34,7 +34,8 @@ const HARBOUR_ABI = [
  *
  * @param providerOrSigner - ethers Provider or Signer.
  */
-const harbour = (providerOrSigner: Provider | Signer) => new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, providerOrSigner);
+const harbour = (providerOrSigner: Provider | Signer, harbourAddress: string = HARBOUR_ADDRESS) =>
+	new Contract(harbourAddress, HARBOUR_ABI, providerOrSigner);
 
 /**
  * Represents a Safe transaction along with its collected signatures and unique transaction hash.
@@ -57,6 +58,7 @@ interface TransactionWithSignatures {
  * @param safeChainId - The chain ID where the Safe contract is deployed.
  * @param owners - An array of owner addresses for the Safe.
  * @param nonce - The specific nonce to fetch transactions for.
+ * @param harbourAddress - The address of the Harbour contract (optional, defaults to HARBOUR_ADDRESS).
  * @returns A promise that resolves to an array of transactions with their signatures.
  */
 async function getTransactions(
@@ -65,15 +67,16 @@ async function getTransactions(
 	safeChainId: ChainId,
 	owners: string[],
 	nonce: number,
+	harbourAddress: string = HARBOUR_ADDRESS,
 ): Promise<TransactionWithSignatures[]> {
-	const harbourInstance = harbour(provider);
+	const harbourInstance = harbour(provider, harbourAddress);
 	const iface = harbourInstance.interface;
 	const signaturesByTxHash = new Map<string, SDKHarbourSignature[]>();
 	const uniqueTxHashes = new Set<string>();
 
 	// Batch signature retrieval via multicall
 	const signatureCalls = owners.map((owner) => ({
-		target: HARBOUR_ADDRESS,
+		target: harbourAddress,
 		callData: iface.encodeFunctionData("retrieveSignatures", [owner, safeAddress, safeChainId, nonce, 0, 100]),
 	}));
 	const signatureResults = await aggregateMulticall(provider, signatureCalls);
@@ -101,7 +104,7 @@ async function getTransactions(
 	// Batch transaction detail retrieval via multicall
 	const txHashes = Array.from(uniqueTxHashes);
 	const txCalls = txHashes.map((txHash) => ({
-		target: HARBOUR_ADDRESS,
+		target: harbourAddress,
 		callData: iface.encodeFunctionData("retrieveTransaction", [txHash]),
 	}));
 	const txResults = await aggregateMulticall(provider, txCalls);
@@ -151,6 +154,7 @@ async function getTransactions(
  * @param signer - An ethers.js Signer instance for signing the transaction.
  * @param transaction - The full details of the Safe transaction to enqueue.
  * @param signature - The EIP-712 signature for the transaction.
+ * @param harbourAddress - The address of the Harbour contract (optional, defaults to HARBOUR_ADDRESS).
  * @returns A promise that resolves to the transaction receipt once mined, or null if the transaction is replaced or dropped.
  * @throws If the signer is not connected to a provider.
  */
@@ -158,12 +162,13 @@ async function enqueueTransaction(
 	signer: Signer,
 	transaction: SDKFullSafeTransaction,
 	signature: string,
+	harbourAddress: string = HARBOUR_ADDRESS,
 ): Promise<TransactionResponse> {
 	if (!signer.provider) {
 		throw new Error("Signer must be connected to a provider.");
 	}
 
-	return harbour(signer).enqueueTransaction(
+	return harbour(signer, harbourAddress).enqueueTransaction(
 		transaction.safeAddress,
 		transaction.chainId,
 		transaction.nonce,
