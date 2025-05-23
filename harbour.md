@@ -29,3 +29,14 @@ A prominent security breach in early 2025 illustrated this vulnerability: malici
 While the on-chain multisig contract may be decentralized and robust, the reliance on a single off-chain coordination service reintroduces **centralization through the back door**. It creates a **single point of failure** — both technically and operationally — that undermines the goals of resilience and trustlessness.
 
 Until the ecosystem reconsiders how multisig coordination is handled, this overlooked layer will remain a silent bottleneck in systems that are otherwise designed to be trust-minimized.
+
+## The Safe International Harbour Solution
+
+The `SafeInternationalHarbour` project offers a robust alternative by moving the coordination layer entirely on-chain. It provides a dedicated on-chain registry where Safe transaction proposals and their corresponding signatures are stored directly on the blockchain.
+
+This approach directly tackles the vulnerabilities of off-chain coordination:
+
+*   **Enhanced Availability:** Since transaction details and signatures reside on-chain, there is no single off-chain server whose downtime could block transaction proposal or signing. As long as the underlying blockchain is operational, users can interact with the system.
+*   **Improved Security:** Storing transaction proposals and signatures on-chain significantly reduces the window for pre-consensus tampering. All data is publicly verifiable, and any attempt to alter a transaction or its signatures would be evident on the immutable ledger.
+
+To facilitate user interaction with this on-chain system, the `SafeInternationalHarbour` project includes a web application. This interface allows users to easily view pending transactions, append their signatures, and execute transactions once the requisite number of approvals is met, all while interacting directly with the on-chain registry.
