@@ -1,19 +1,7 @@
-import {
-	Contract,
-	Interface,
-	type Provider,
-	type Signer,
-	type TransactionReceipt,
-	type TransactionResponse,
-} from "ethers";
+import { Contract, type Provider, type Signer, type TransactionReceipt, type TransactionResponse } from "ethers";
 import type { ChainId, SDKFullSafeTransaction, SDKHarbourSignature, SDKTransactionDetails } from "./types";
 
-// Constants for Harbour contract
-// These constants are intended to be internal to the SDK module.
-// If they were needed by tests or other external modules, they would be moved to a constants.ts and exported.
-const HARBOUR_CHAIN_ID: ChainId = 100;
 const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
-
 const HARBOUR_ABI = [
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
 	"function retrieveSignatures(address signerAddress, address safeAddress, uint256 chainId, uint256 nonce, uint256 start, uint256 count) external view returns (tuple(bytes32 r, bytes32 vs, bytes32 txHash)[] page, uint256 totalCount)",
