@@ -5,6 +5,11 @@
   "directories": {
     "test": "test"
   },
+  "files": [
+    "src",
+    "deployments",
+    "typechain-types"
+  ],
   "dependencies": {
     "@safe-global/safe-contracts": "^1.4.1-2",
     "@safe-global/safe-singleton-factory": "^1.0.43",

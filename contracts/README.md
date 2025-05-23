@@ -10,7 +10,7 @@ Custom contracts developed for the Harbour project, located under `src`:
 
 ## Official Deployments
 
-- **Gnosis Chain**: [SafeInternationalHarbour Contract on Gnosis Chain](https://gnosisscan.io/address/0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6) (`0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6`)
+- **Gnosis Chain**: [SafeInternationalHarbour Contract on Gnosis Chain](https://gnosisscan.io/address/0x846EDD8718b79E9E91B0DD71924392239156ADBa) (`0x846EDD8718b79E9E91B0DD71924392239156ADBa`)
 
 > ⚠️ **Disclaimer:** These contracts have not been audited. Use at your own risk.
 
