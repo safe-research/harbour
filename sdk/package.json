@@ -7,7 +7,11 @@
   "scripts": {
     "test": "jest",
     "build": "tsc",
-    "docs": "typedoc --out docs src/index.ts"
+    "docs": "typedoc --out docs src/index.ts",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format",
+    "format:fix": "biome format --write ."
   },
   "keywords": [],
   "author": "",
@@ -19,7 +23,6 @@
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
     "ts-jest": "^29.3.4",
-    "typedoc": "^0.28.4",
-    "typescript": "^5.8.3"
+    "typedoc": "^0.28.4"
   }
 }

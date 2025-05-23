@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "contracts",
-    "webapp"
+    "webapp",
+    "sdk"
   ],
   "scripts": {
     "format": "biome format",
