@@ -1,24 +1,25 @@
-import type { TransactionReceipt } from "ethers";
+import type { Signer, TransactionReceipt } from "ethers";
 import { ethers } from "hardhat";
+import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {
-  if (!tx || !tx.gasUsed) {
-    console.warn(`⚠️  ${label.padEnd(12)} - Missing gasUsed info.`);
-    return;
-  }
+	if (!tx || !tx.gasUsed) {
+		console.warn(`⚠️  ${label.padEnd(12)} - Missing gasUsed info.`);
+		return;
+	}
 
-  const formattedLabel = label.padEnd(12);
-  const gasUsed = tx.gasUsed.toString(); // In case it's a BigNumber or similar
+	const formattedLabel = label.padEnd(12);
+	const gasUsed = tx.gasUsed.toString(); // In case it's a BigNumber or similar
 
-  console.log(`⛽ ${formattedLabel}: ${gasUsed}`);
+	console.log(`⛽ ${formattedLabel}: ${gasUsed}`);
 };
 
 describe("SafeInternationalHarbour [@bench]", () => {
 	async function deployFixture() {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
-		const Factory = await ethers.getContractFactory("SafeInternationalHarbour", deployer);
+		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const harbour = await Factory.deploy();
 
 		const safeAddress = await alice.getAddress();
@@ -65,7 +66,7 @@ describe("SafeInternationalHarbour [@bench]", () => {
 	});
 
 	it("Enqueuing a transaction with ERC20 transfer data (68 bytes)", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await deployFixture();
+		const { harbour, chainId, safeAddress } = await deployFixture();
 		const signerWallet = ethers.Wallet.createRandom();
 		const recipient = ethers.Wallet.createRandom().address;
 		const amount = 1n * 10n ** 18n;

@@ -4,13 +4,15 @@ import ReactDOM from "react-dom/client";
 
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 
-// Import the generated route tree
 import { routeTree } from "./routeTree.gen";
+import "./lib/onboard";
 
 import "./styles.css";
 import reportWebVitals from "./reportWebVitals.ts";
 
-// Create a new router instance
+/**
+ * TanStack Router instance configured with the generated route tree and TanStack Query context.
+ */
 const router = createRouter({
 	routeTree,
 	context: {
@@ -29,10 +31,13 @@ declare module "@tanstack/react-router" {
 	}
 }
 
-// Render the app
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement);
+	/**
+	 * Renders the main application component tree into the DOM.
+	 * It sets up StrictMode, the TanStack Query Provider, and the TanStack RouterProvider.
+	 */
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>

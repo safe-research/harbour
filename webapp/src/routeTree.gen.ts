@@ -11,20 +11,34 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as QueueImport } from './routes/queue'
+import { Route as EnqueueImport } from './routes/enqueue'
+import { Route as DashboardImport } from './routes/dashboard'
 import { Route as IndexImport } from './routes/index'
-import { Route as DemoTanstackQueryImport } from './routes/demo.tanstack-query'
 
 // Create/Update Routes
+
+const QueueRoute = QueueImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const EnqueueRoute = EnqueueImport.update({
+  id: '/enqueue',
+  path: '/enqueue',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const DashboardRoute = DashboardImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
-} as any)
-
-const DemoTanstackQueryRoute = DemoTanstackQueryImport.update({
-  id: '/demo/tanstack-query',
-  path: '/demo/tanstack-query',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -39,11 +53,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/demo/tanstack-query': {
-      id: '/demo/tanstack-query'
-      path: '/demo/tanstack-query'
-      fullPath: '/demo/tanstack-query'
-      preLoaderRoute: typeof DemoTanstackQueryImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardImport
+      parentRoute: typeof rootRoute
+    }
+    '/enqueue': {
+      id: '/enqueue'
+      path: '/enqueue'
+      fullPath: '/enqueue'
+      preLoaderRoute: typeof EnqueueImport
+      parentRoute: typeof rootRoute
+    }
+    '/queue': {
+      id: '/queue'
+      path: '/queue'
+      fullPath: '/queue'
+      preLoaderRoute: typeof QueueImport
       parentRoute: typeof rootRoute
     }
   }
@@ -53,37 +81,47 @@ declare module '@tanstack/react-router' {
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/dashboard': typeof DashboardRoute
+  '/enqueue': typeof EnqueueRoute
+  '/queue': typeof QueueRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/dashboard': typeof DashboardRoute
+  '/enqueue': typeof EnqueueRoute
+  '/queue': typeof QueueRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/dashboard': typeof DashboardRoute
+  '/enqueue': typeof EnqueueRoute
+  '/queue': typeof QueueRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/demo/tanstack-query'
+  fullPaths: '/' | '/dashboard' | '/enqueue' | '/queue'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/demo/tanstack-query'
-  id: '__root__' | '/' | '/demo/tanstack-query'
+  to: '/' | '/dashboard' | '/enqueue' | '/queue'
+  id: '__root__' | '/' | '/dashboard' | '/enqueue' | '/queue'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  DashboardRoute: typeof DashboardRoute
+  EnqueueRoute: typeof EnqueueRoute
+  QueueRoute: typeof QueueRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  DashboardRoute: DashboardRoute,
+  EnqueueRoute: EnqueueRoute,
+  QueueRoute: QueueRoute,
 }
 
 export const routeTree = rootRoute
@@ -97,14 +135,22 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/demo/tanstack-query"
+        "/dashboard",
+        "/enqueue",
+        "/queue"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
-    "/demo/tanstack-query": {
-      "filePath": "demo.tanstack-query.tsx"
+    "/dashboard": {
+      "filePath": "dashboard.tsx"
+    },
+    "/enqueue": {
+      "filePath": "enqueue.tsx"
+    },
+    "/queue": {
+      "filePath": "queue.tsx"
     }
   }
 }

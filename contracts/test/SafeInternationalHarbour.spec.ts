@@ -1,6 +1,8 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
+import type { Signer } from "ethers";
 import { ethers } from "hardhat";
+import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction, getSafeTransactionHash } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -8,7 +10,7 @@ describe("SafeInternationalHarbour", () => {
 	async function deployFixture() {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
-		const Factory = await ethers.getContractFactory("SafeInternationalHarbour", deployer);
+		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const harbour = await Factory.deploy();
 
 		const safeAddress = await alice.getAddress();
