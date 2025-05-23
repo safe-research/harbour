@@ -10,6 +10,8 @@ Many multisig wallets rely on an **off-chain coordination layer** — essentiall
 
 For a brief but crucial window, this off-chain system becomes the **source of truth** for pending transactions. The blockchain remains secure and decentralized, but transaction coordination is temporarily outsourced to a single, mutable platform.
 
+<img src="assets/lifecycle.png" alt="Transaction Lifecycle" />
+
 ## Availability Risks: Locked Funds During Downtime
 
 This setup creates a significant **availability risk**. If the off-chain coordination service goes offline — due to server issues, maintenance, or attack — users are unable to propose or sign new transactions. Even though the underlying blockchain contract is unaffected, access to funds becomes functionally frozen.
