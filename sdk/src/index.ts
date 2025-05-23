@@ -1,18 +1,31 @@
-import { Contract, type Provider, type Signer, type TransactionReceipt, type TransactionResponse } from "ethers";
+import { Contract, type Provider, type Signer, type TransactionResponse } from "ethers";
 import type { ChainId, SDKFullSafeTransaction, SDKHarbourSignature, SDKTransactionDetails } from "./types";
 
-const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
+const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6" as const;
+
+/**
+ * Minimal ABI for the Harbour methods we interact with.
+ * Keeping the ABI small speeds up contract instantiation and makes the file
+ * self‑contained.
+ */
 const HARBOUR_ABI = [
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
 	"function retrieveSignatures(address signerAddress, address safeAddress, uint256 chainId, uint256 nonce, uint256 start, uint256 count) external view returns (tuple(bytes32 r, bytes32 vs, bytes32 txHash)[] page, uint256 totalCount)",
 	"function retrieveTransaction(bytes32 safeTxHash) view returns (tuple(bool stored,uint8 operation,address to,uint128 value,uint128 safeTxGas,uint128 baseGas,uint128 gasPrice,address gasToken,address refundReceiver,bytes data) txParams)",
-];
+] as const;
+
+/**
+ * Internal helper returning a Harbour contract bound to **providerOrSigner**.
+ *
+ * @param providerOrSigner - ethers Provider or Signer.
+ */
+const harbour = (providerOrSigner: Provider | Signer) => new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, providerOrSigner);
 
 /**
  * Represents a Safe transaction along with its collected signatures and unique transaction hash.
  * This interface is specific to the output of the `getTransactions` function.
  */
-export interface TransactionWithSignatures {
+interface TransactionWithSignatures {
 	/** The details of the Safe transaction. */
 	details: SDKTransactionDetails;
 	/** An array of signatures collected for the transaction. */
@@ -31,21 +44,21 @@ export interface TransactionWithSignatures {
  * @param nonce - The specific nonce to fetch transactions for.
  * @returns A promise that resolves to an array of transactions with their signatures.
  */
-export async function getTransactions(
+async function getTransactions(
 	provider: Provider,
 	safeAddress: string,
 	safeChainId: ChainId,
 	owners: string[],
 	nonce: number,
 ): Promise<TransactionWithSignatures[]> {
-	const contract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, provider);
+	const harbourInstance = harbour(provider);
 
 	const signaturesByTxHash = new Map<string, SDKHarbourSignature[]>();
 	const uniqueTxHashes = new Set<string>();
 
 	// Retrieve Signatures
 	for (const owner of owners) {
-		const ownerSignaturesResult = await contract.retrieveSignatures(
+		const ownerSignaturesResult = await harbourInstance.retrieveSignatures(
 			owner,
 			safeAddress,
 			safeChainId,
@@ -74,7 +87,7 @@ export async function getTransactions(
 	// Retrieve Transaction Details
 	const transactionDetailsMap = new Map<string, SDKTransactionDetails>();
 	for (const txHash of Array.from(uniqueTxHashes)) {
-		const txParamsResult = await contract.retrieveTransaction(txHash);
+		const txParamsResult = await harbourInstance.retrieveTransaction(txHash);
 
 		// The result is an array where the first element is the txParams tuple
 		const txParams = txParamsResult[0];
@@ -121,19 +134,16 @@ export async function getTransactions(
  * @returns A promise that resolves to the transaction receipt once mined, or null if the transaction is replaced or dropped.
  * @throws If the signer is not connected to a provider.
  */
-export async function enqueueTransaction(
+async function enqueueTransaction(
 	signer: Signer,
 	transaction: SDKFullSafeTransaction,
 	signature: string,
-): Promise<TransactionReceipt | null> {
+): Promise<TransactionResponse> {
 	if (!signer.provider) {
 		throw new Error("Signer must be connected to a provider.");
 	}
 
-	// The contract needs to be connected to the signer to send a transaction
-	const contract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, signer);
-
-	const txResponse: TransactionResponse = await contract.enqueueTransaction(
+	return harbour(signer).enqueueTransaction(
 		transaction.safeAddress,
 		transaction.chainId,
 		transaction.nonce,
@@ -148,6 +158,7 @@ export async function enqueueTransaction(
 		transaction.refundReceiver,
 		signature,
 	);
-
-	return txResponse.wait();
 }
+
+export type { TransactionWithSignatures };
+export { HARBOUR_ADDRESS, HARBOUR_ABI, getTransactions, enqueueTransaction };
