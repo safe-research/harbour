@@ -40,3 +40,7 @@ This approach directly tackles the vulnerabilities of off-chain coordination:
 *   **Improved Security:** Storing transaction proposals and signatures on-chain significantly reduces the window for pre-consensus tampering. All data is publicly verifiable, and any attempt to alter a transaction or its signatures would be evident on the immutable ledger.
 
 The `SafeInternationalHarbour` project includes a web application to interact with this on-chain system. This interface allows users to view pending transactions easily, append their signatures, and execute transactions once the requisite approvals are met, all while interacting directly with the on-chain registry.
+
+Play with the app here: https://aboriginal-sort.surge.sh
+
+Check the docs how to run it locally: [webapp](./webapp)
