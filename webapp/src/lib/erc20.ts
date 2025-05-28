@@ -1,4 +1,5 @@
-import { Contract, type Provider as EthersProvider } from "ethers"; // Adjust Provider type as needed
+import { Interface, type Provider as EthersProvider } from "ethers";
+import { aggregateMulticall } from "./multicall";
 
 interface ERC20TokenDetails {
 	address: string;
@@ -23,111 +24,91 @@ const ERC20_ABI = [
  * @returns A promise that resolves to an ERC20TokenDetails object or null if an error occurs.
  */
 async function fetchERC20TokenDetails(
-	provider: EthersProvider, // Using the imported Provider type alias
-	tokenAddress: string,
-	ownerAddress: string,
+   provider: EthersProvider,
+   tokenAddress: string,
+   ownerAddress: string,
 ): Promise<ERC20TokenDetails | null> {
-	try {
-		// Basic validation for addresses
-		if (!tokenAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-			console.error(`Invalid token address format: ${tokenAddress}`);
-			return null;
-		}
-		if (!ownerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-			console.error(`Invalid owner address format: ${ownerAddress}`);
-			return null;
-		}
+	   const iface = new Interface(ERC20_ABI);
+	   // Prepare multicall calls
+	   const calls = [
+		   { target: tokenAddress, callData: iface.encodeFunctionData("name", []) },
+		   { target: tokenAddress, callData: iface.encodeFunctionData("symbol", []) },
+		   { target: tokenAddress, callData: iface.encodeFunctionData("decimals", []) },
+		   { target: tokenAddress, callData: iface.encodeFunctionData("balanceOf", [ownerAddress]) },
+	   ];
+	   const results = await aggregateMulticall(provider as any, calls);
+	   if (results.length !== 4) throw new Error("Unexpected multicall response length");
+	   const [nameRes, symbolRes, decRes, balRes] = results;
+	   if (!nameRes.success || !symbolRes.success || !decRes.success || !balRes.success) {
+		   console.error(`Multicall failure for token ${tokenAddress}`);
+		   return null;
+	   }
+	   // Decode results
+	   const name = iface.decodeFunctionResult("name", nameRes.returnData)[0] as string;
+	   const symbol = iface.decodeFunctionResult("symbol", symbolRes.returnData)[0] as string;
+	   const decimalsRaw = iface.decodeFunctionResult("decimals", decRes.returnData)[0] as bigint | number;
+	   const balance = iface.decodeFunctionResult("balanceOf", balRes.returnData)[0] as bigint;
 
-		const tokenContract = new Contract(tokenAddress, ERC20_ABI, provider);
+	   // Convert decimals
+	   const numericDecimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
+	   if (Number.isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
+		   console.error(`Invalid decimals value from ${tokenAddress}: ${decimalsRaw}`);
+		   return null;
+	   }
 
-		// Validate if the address is a contract
-		const code = await provider.getCode(tokenAddress);
-		if (code === "0x" || code === null) {
-			// code can also be null if network error or other issues
-			console.error(`Address ${tokenAddress} is not a contract or unable to fetch code.`);
-			return null;
-		}
+	   // Validate
+	   if (typeof name !== "string" || typeof symbol !== "string" || typeof balance !== "bigint") {
+		   console.error(`Invalid token data for ${tokenAddress}`);
+		   return null;
+	   }
 
-		// Using Promise.allSettled to get all results even if one fails, though individual call errors are caught by the outer try/catch here.
-		// For this specific case, Promise.all is fine because if one essential detail (like name or symbol) fails,
-		// the whole token detail object is likely invalid.
-		const [nameResult, symbolResult, decimalsResult, balanceResult] = await Promise.allSettled([
-			tokenContract.name(),
-			tokenContract.symbol(),
-			tokenContract.decimals(),
-			tokenContract.balanceOf(ownerAddress),
-		]);
-
-		// Check results from Promise.allSettled
-		if (nameResult.status === "rejected") {
-			console.error(`Error fetching name for token ${tokenAddress}:`, nameResult.reason);
-			return null;
-		}
-		if (symbolResult.status === "rejected") {
-			console.error(`Error fetching symbol for token ${tokenAddress}:`, symbolResult.reason);
-			return null;
-		}
-		if (decimalsResult.status === "rejected") {
-			console.error(`Error fetching decimals for token ${tokenAddress}:`, decimalsResult.reason);
-			return null;
-		}
-		if (balanceResult.status === "rejected") {
-			console.error(
-				`Error fetching balance for token ${tokenAddress} for owner ${ownerAddress}:`,
-				balanceResult.reason,
-			);
-			return null;
-		}
-
-		const name = nameResult.value;
-		const symbol = symbolResult.value;
-		const decimals = decimalsResult.value; // This will be BigInt from ethers v6 for uint8
-		const balance = balanceResult.value; // This will be BigInt
-
-		// Ensure decimals is a number before returning
-		// In ethers.js v6, uint8 (decimals) is returned as a BigInt.
-		// We need to convert it to a number.
-		let numericDecimals: number;
-		if (typeof decimals === "bigint") {
-			numericDecimals = Number(decimals);
-		} else if (typeof decimals === "number") {
-			// Should not happen with ethers v6 for uint8, but good for robustness
-			numericDecimals = decimals;
-		} else {
-			console.error(`Invalid decimals type received from ${tokenAddress}: ${typeof decimals}`);
-			return null;
-		}
-
-		if (Number.isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
-			// uint8 range
-			console.error(`Invalid decimals value received from ${tokenAddress}: ${decimals}`);
-			return null;
-		}
-
-		// Validate other values if necessary (e.g., name and symbol should be strings)
-		if (typeof name !== "string" || typeof symbol !== "string") {
-			console.error(`Invalid name or symbol received from ${tokenAddress}. Name: ${name}, Symbol: ${symbol}`);
-			return null;
-		}
-
-		// Ensure balance is a BigInt
-		if (typeof balance !== "bigint") {
-			console.error(`Invalid balance type received from ${tokenAddress}: ${typeof balance}`);
-			return null;
-		}
-
-		return {
-			address: tokenAddress,
-			name,
-			symbol,
-			decimals: numericDecimals,
-			balance,
-		};
-	} catch (error) {
-		// This catch block will handle errors like network issues, or if tokenAddress is not a valid address format for Contract constructor
-		console.error(`General error fetching details for token ${tokenAddress}:`, error);
-		return null;
-	}
+	   return { address: tokenAddress, name, symbol, decimals: numericDecimals, balance };
 }
 
-export { ERC20_ABI, fetchERC20TokenDetails, type ERC20TokenDetails };
+/**
+ * Batch fetch ERC20 token details for multiple tokens via Multicall3.
+ * @param provider Ethers provider
+ * @param tokenAddresses Array of token contract addresses
+ * @param ownerAddress Address whose balance to fetch
+ * @returns Array of ERC20TokenDetails|null for each token
+ */
+async function fetchBatchERC20TokenDetails(
+   provider: EthersProvider,
+   tokenAddresses: string[],
+   ownerAddress: string,
+): Promise<(ERC20TokenDetails | null)[]> {
+	   const iface = new Interface(ERC20_ABI);
+	   const calls = tokenAddresses.flatMap((token) => [
+		   { target: token, callData: iface.encodeFunctionData("name", []) },
+		   { target: token, callData: iface.encodeFunctionData("symbol", []) },
+		   { target: token, callData: iface.encodeFunctionData("decimals", []) },
+		   { target: token, callData: iface.encodeFunctionData("balanceOf", [ownerAddress]) },
+	   ]);
+	   const results = await aggregateMulticall(provider as any, calls);
+	   const details = tokenAddresses.map((token, i) => {
+		   const offset = i * 4;
+		   const [nRes, sRes, dRes, bRes] = results.slice(offset, offset + 4);
+		   if (!nRes.success || !sRes.success || !dRes.success || !bRes.success) {
+			   console.error(`Multicall failed for token ${token}`);
+			   return null;
+		   }
+		   try {
+			   const name = iface.decodeFunctionResult("name", nRes.returnData)[0] as string;
+			   const symbol = iface.decodeFunctionResult("symbol", sRes.returnData)[0] as string;
+			   const decimalsRaw = iface.decodeFunctionResult("decimals", dRes.returnData)[0] as bigint | number;
+			   const balance = iface.decodeFunctionResult("balanceOf", bRes.returnData)[0] as bigint;
+			   const decimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
+			   if (typeof name !== "string" || typeof symbol !== "string" || typeof balance !== "bigint") {
+				   throw new Error("Invalid decoded types");
+			   }
+			   return { address: token, name, symbol, decimals, balance };
+		   } catch (e) {
+			   console.error(`Decode error for token ${token}:`, e);
+			   return null;
+		   }
+	   });
+	   return details;
+   
+}
+
+export { ERC20_ABI, type ERC20TokenDetails, fetchBatchERC20TokenDetails, fetchERC20TokenDetails };
