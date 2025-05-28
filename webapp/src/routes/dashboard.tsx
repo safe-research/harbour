@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { ethers, type JsonRpcApiProvider } from "ethers"; // Added ethers
 import { PlusCircle, ScrollText, Trash2 } from "lucide-react"; // Added Trash2
-import { useState, useEffect, useCallback } from "react"; // Added React hooks
+import { useState, useEffect, useCallback, useMemo } from "react"; // Added React hooks
 
 import ActionCard from "../components/ActionCard";
 import { RequireWallet } from "../components/RequireWallet";
@@ -13,43 +13,9 @@ import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
 import { getERC20TokenAddresses, addERC20TokenAddress, removeERC20TokenAddress } from "@/lib/localStorage";
 import { fetchERC20TokenDetails, type ERC20TokenDetails } from "@/lib/erc20";
-// Assuming getChainDataByChainId is exported from chains.ts, or adjust path if needed
-// For this example, I will assume it's part of a default export or a named export.
-// Let's try to import it directly - if chains.ts has `export function getChainDataByChainId ...`
-// then this should work. If not, it might be part of a larger object.
-// Based on previous read_file, it's not exported directly.
-// For now, let's assume a utility function exists or needs to be added to chains.ts to get the symbol.
-// For the sake of this exercise, I will mock it locally if I can't import it.
-// Re-checking the previous read_files output for chains.ts: it does NOT export getChainDataByChainId
-// It exports getRpcUrlByChainId and switchToChain.
-// This means I need to either:
-// 1. Modify chains.ts to export getChainDataByChainId (outside scope of current subtask)
-// 2. Duplicate minimal logic here (not ideal)
-// 3. Use a placeholder or try to get it from another source (e.g. provider.getNetwork())
-
-// For now, I'll use provider.getNetwork() and then try to get the symbol from its name,
-// or default to a generic symbol if not found in a simple map.
-// A more robust solution would involve enhancing `chains.ts`.
+import { getNativeCurrencySymbolByChainId } from "@/lib/chains";
 
 import { configSearchSchema } from "../lib/validators";
-import chainsJson from "@/lib/chains.json"; // Direct import for native currency symbol
-
-interface ChainsJsonEntry {
-	name: string;
-	chain: string;
-	chainId: number;
-	nativeCurrency: {
-		name: string;
-		symbol: string;
-		decimals: number;
-	};
-}
-
-function getNativeCurrencySymbolFromStore(chainId: number): string {
-	const entry = (chainsJson as ChainsJsonEntry[]).find((e) => e.chainId === chainId);
-	return entry?.nativeCurrency?.symbol || "ETH"; // Default to ETH
-}
-
 
 interface DashboardContentProps {
 	/** Ethers JSON RPC API provider instance. */
@@ -69,7 +35,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 	const { data: config, isLoading: isLoadingConfig, error: errorConfig } = useSafeConfiguration(provider, safeAddress);
 
 	const [nativeBalance, setNativeBalance] = useState<string | null>(null);
-	const [nativeSymbol, setNativeSymbol] = useState<string>("ETH");
+	const nativeSymbol = useMemo(() => getNativeCurrencySymbolByChainId(chainId), [chainId]);
 	const [isLoadingNativeBalance, setIsLoadingNativeBalance] = useState<boolean>(false);
 	const [errorNativeBalance, setErrorNativeBalance] = useState<string | null>(null);
 
@@ -89,9 +55,6 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 			try {
 				const balance = await provider.getBalance(safeAddress);
 				setNativeBalance(ethers.formatEther(balance));
-				// Fetch native currency symbol
-				const symbol = getNativeCurrencySymbolFromStore(chainId);
-				setNativeSymbol(symbol);
 			} catch (err) {
 				console.error("Failed to fetch native balance:", err);
 				setErrorNativeBalance("Failed to fetch native balance.");

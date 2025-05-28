@@ -145,6 +145,20 @@ async function getRpcUrlByChainId(chainId: number, verify = true): Promise<strin
 }
 
 /**
+ * Retrieves the native currency symbol for a given chain ID.
+ *
+ * Looks up the `chainId` in `chains.json` and returns the corresponding native currency symbol.
+ * If no symbol is found, defaults to "ETH".
+ *
+ * @param chainId - The numeric chain ID to look up in the native currency symbol list.
+ * @returns The native currency symbol for the chain, or "ETH" if not found.
+ */
+function getNativeCurrencySymbolByChainId(chainId: number): string {
+	const entry = (chainsJson as ChainsJsonEntry[]).find((e) => e.chainId === chainId);
+	return entry?.nativeCurrency?.symbol || "ETH"; // Default to ETH
+}
+
+/**
  * Switches the connected wallet to the specified chain and adds it if missing.
  *
  * Attempts to switch the active network using `wallet_switchEthereumChain`. If the chain
@@ -177,4 +191,4 @@ async function switchToChain(provider: Eip1193Provider, chainId: ChainId): Promi
 	}
 }
 
-export { getRpcUrlByChainId, switchToChain };
+export { getRpcUrlByChainId, switchToChain, getNativeCurrencySymbolByChainId };
