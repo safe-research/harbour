@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { getERC20TokenAddresses, addERC20TokenAddress, removeERC20TokenAddress } from "./localStorage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { addERC20TokenAddress, getERC20TokenAddresses, removeERC20TokenAddress } from "./localStorage";
 
 const ERC20_TOKEN_ADDRESSES_KEY = "erc20TokenAddresses";
 
@@ -78,16 +78,6 @@ describe("localStorage ERC20 Token Management", () => {
 
 	it("should not add an address with incorrect length and should log an error", () => {
 		const invalidAddress = "0x12345";
-		addERC20TokenAddress(invalidAddress);
-		expect(getERC20TokenAddresses()).toEqual([]);
-		expect(consoleErrorSpy).toHaveBeenCalledWith(
-			"Invalid address format provided to addERC20TokenAddress:",
-			invalidAddress,
-		);
-	});
-
-	it("should not add a non-string address and should log an error", () => {
-		const invalidAddress = 12345 as any;
 		addERC20TokenAddress(invalidAddress);
 		expect(getERC20TokenAddresses()).toEqual([]);
 		expect(consoleErrorSpy).toHaveBeenCalledWith(

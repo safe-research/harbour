@@ -1,6 +1,6 @@
 import { Contract, type Provider as EthersProvider } from "ethers"; // Adjust Provider type as needed
 
-export interface ERC20TokenDetails {
+interface ERC20TokenDetails {
 	address: string;
 	name: string;
 	symbol: string;
@@ -8,7 +8,7 @@ export interface ERC20TokenDetails {
 	balance: bigint;
 }
 
-export const ERC20_ABI = [
+const ERC20_ABI = [
 	"function name() view returns (string)",
 	"function symbol() view returns (string)",
 	"function decimals() view returns (uint8)",
@@ -22,7 +22,7 @@ export const ERC20_ABI = [
  * @param ownerAddress The address of the owner for whom to fetch the balance.
  * @returns A promise that resolves to an ERC20TokenDetails object or null if an error occurs.
  */
-export async function fetchERC20TokenDetails(
+async function fetchERC20TokenDetails(
 	provider: EthersProvider, // Using the imported Provider type alias
 	tokenAddress: string,
 	ownerAddress: string,
@@ -98,7 +98,7 @@ export async function fetchERC20TokenDetails(
 			return null;
 		}
 
-		if (isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
+		if (Number.isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
 			// uint8 range
 			console.error(`Invalid decimals value received from ${tokenAddress}: ${decimals}`);
 			return null;
@@ -129,3 +129,5 @@ export async function fetchERC20TokenDetails(
 		return null;
 	}
 }
+
+export { ERC20_ABI, fetchERC20TokenDetails, type ERC20TokenDetails };
