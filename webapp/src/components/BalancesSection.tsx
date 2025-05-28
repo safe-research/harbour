@@ -1,11 +1,11 @@
 import { type JsonRpcApiProvider, ethers } from "ethers";
 import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
+import { useERC20Tokens } from "@/hooks/useERC20Tokens";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { getNativeCurrencySymbolByChainId } from "@/lib/chains";
 import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
-import { addERC20TokenAddress, getERC20TokenAddresses, removeERC20TokenAddress } from "@/lib/localStorage";
 
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
@@ -21,92 +21,53 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		error: errorNativeBalance,
 	} = useNativeBalance(provider, safeAddress, chainId);
 
-	const [erc20Tokens, setErc20Tokens] = useState<ERC20TokenDetails[]>([]);
+	// ERC20 token addresses and details
 	const [newTokenAddress, setNewTokenAddress] = useState<string>("");
-	const [isLoadingTokens, setIsLoadingTokens] = useState<boolean>(false);
-	const [errorTokens, setErrorTokens] = useState<string | null>(null);
+	const [addError, setAddError] = useState<string | null>(null);
 	const [isAddingToken, setIsAddingToken] = useState<boolean>(false);
-
-	// Load and Fetch ERC20 Tokens
-	const loadAndFetchERC20Tokens = useCallback(async () => {
-		if (!provider || !safeAddress) return;
-		setIsLoadingTokens(true);
-		setErrorTokens(null);
-		try {
-			const storedAddresses = getERC20TokenAddresses();
-			if (storedAddresses.length === 0) {
-				setErc20Tokens([]);
-				setIsLoadingTokens(false);
-				return;
-			}
-			const tokenDetailsPromises = storedAddresses.map((addr) => fetchERC20TokenDetails(provider, addr, safeAddress));
-			const results = await Promise.allSettled(tokenDetailsPromises);
-			const fetchedTokens: ERC20TokenDetails[] = [];
-			for (const result of results) {
-				if (result.status === "fulfilled" && result.value) {
-					fetchedTokens.push(result.value);
-				} else if (result.status === "rejected") {
-					console.error("Failed to fetch token details:", result.reason);
-				}
-			}
-			setErc20Tokens(fetchedTokens);
-			if (fetchedTokens.length !== storedAddresses.length) {
-				setErrorTokens(
-					"Some ERC20 token details could not be fetched. They may have been removed or the contract address is invalid.",
-				);
-			}
-		} catch (err) {
-			console.error("Failed to load or fetch ERC20 tokens:", err);
-			setErrorTokens("Failed to load ERC20 tokens.");
-			setErc20Tokens([]);
-		} finally {
-			setIsLoadingTokens(false);
-		}
-	}, [provider, safeAddress]);
-
-	useEffect(() => {
-		loadAndFetchERC20Tokens();
-	}, [loadAndFetchERC20Tokens]);
+	const {
+		tokens: erc20Tokens,
+		isLoading: isLoadingTokens,
+		error: fetchError,
+		addAddress: addTokenAddress,
+		removeAddress: removeTokenAddress,
+	} = useERC20Tokens(provider, safeAddress);
 
 	const handleAddToken = async () => {
 		if (!provider || !safeAddress) {
-			setErrorTokens("Provider or Safe address not available.");
+			setAddError("Provider or Safe address not available.");
 			return;
 		}
 		if (!newTokenAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-			setErrorTokens("Invalid ERC20 token address format.");
+			setAddError("Invalid ERC20 token address format.");
 			return;
 		}
-		if (erc20Tokens.find((token) => token.address.toLowerCase() === newTokenAddress.toLowerCase())) {
-			setErrorTokens("Token already added.");
+		if (erc20Tokens.find((token: ERC20TokenDetails) => token.address.toLowerCase() === newTokenAddress.toLowerCase())) {
+			setAddError("Token already added.");
 			setNewTokenAddress("");
 			return;
 		}
 
 		setIsAddingToken(true);
-		setErrorTokens(null);
+		setAddError(null);
 		try {
 			const details = await fetchERC20TokenDetails(provider, newTokenAddress, safeAddress);
 			if (details) {
-				addERC20TokenAddress(newTokenAddress);
-				setErc20Tokens((prev) => [...prev, details]);
+				addTokenAddress(newTokenAddress);
 				setNewTokenAddress("");
 			} else {
-				setErrorTokens(
-					`Token details not found for ${newTokenAddress}. Ensure it's a valid ERC20 token on this network.`,
-				);
+				setAddError(`Token details not found for ${newTokenAddress}. Ensure it's a valid ERC20 token on this network.`);
 			}
 		} catch (err) {
 			console.error("Failed to add token:", err);
-			setErrorTokens("Failed to add token. Please check the address and network.");
+			setAddError("Failed to add token. Please check the address and network.");
 		} finally {
 			setIsAddingToken(false);
 		}
 	};
 
 	const handleRemoveToken = (tokenAddress: string) => {
-		removeERC20TokenAddress(tokenAddress);
-		setErc20Tokens((prev) => prev.filter((token) => token.address !== tokenAddress));
+		removeTokenAddress(tokenAddress);
 	};
 
 	return (
@@ -149,15 +110,16 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 						</button>
 					</div>
 
+					{addError && <p className="text-sm text-red-500">{addError}</p>}
 					{isLoadingTokens && <p className="text-sm text-gray-500">Loading tokens...</p>}
-					{errorTokens && !isLoadingTokens && <p className="text-sm text-red-500">{errorTokens}</p>}
-					{!isLoadingTokens && erc20Tokens.length === 0 && !errorTokens && (
+					{fetchError && !isLoadingTokens && <p className="text-sm text-red-500">{fetchError}</p>}
+					{!isLoadingTokens && erc20Tokens.length === 0 && !fetchError && (
 						<p className="text-sm text-gray-500">No ERC20 tokens added yet.</p>
 					)}
 
 					{erc20Tokens.length > 0 && (
 						<ul className="space-y-3">
-							{erc20Tokens.map((token) => (
+							{erc20Tokens.map((token: ERC20TokenDetails) => (
 								<li
 									key={token.address}
 									className="p-3 bg-gray-50 border border-gray-200 rounded-md flex justify-between items-center hover:bg-gray-100 transition-colors"
