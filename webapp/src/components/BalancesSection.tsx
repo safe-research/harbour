@@ -19,7 +19,7 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		data: nativeBalance,
 		isLoading: isLoadingNativeBalance,
 		error: errorNativeBalance,
-	} = useNativeBalance(provider, safeAddress);
+	} = useNativeBalance(provider, safeAddress, chainId);
 
 	const [erc20Tokens, setErc20Tokens] = useState<ERC20TokenDetails[]>([]);
 	const [newTokenAddress, setNewTokenAddress] = useState<string>("");
