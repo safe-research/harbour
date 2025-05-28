@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { ethers, type JsonRpcApiProvider } from "ethers";
+import { type JsonRpcApiProvider, ethers } from "ethers";
 import { Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getERC20TokenAddresses, addERC20TokenAddress, removeERC20TokenAddress } from "@/lib/localStorage";
-import { fetchERC20TokenDetails, type ERC20TokenDetails } from "@/lib/erc20";
+import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { getNativeCurrencySymbolByChainId } from "@/lib/chains";
+import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
+import { addERC20TokenAddress, getERC20TokenAddresses, removeERC20TokenAddress } from "@/lib/localStorage";
 
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
@@ -13,36 +14,18 @@ interface BalancesSectionProps {
 }
 
 export default function BalancesSection({ provider, safeAddress, chainId }: BalancesSectionProps) {
-	const [nativeBalance, setNativeBalance] = useState<string | null>(null);
 	const nativeSymbol = useMemo(() => getNativeCurrencySymbolByChainId(chainId), [chainId]);
-	const [isLoadingNativeBalance, setIsLoadingNativeBalance] = useState<boolean>(false);
-	const [errorNativeBalance, setErrorNativeBalance] = useState<string | null>(null);
+	const {
+		data: nativeBalance,
+		isLoading: isLoadingNativeBalance,
+		error: errorNativeBalance,
+	} = useNativeBalance(provider, safeAddress);
 
 	const [erc20Tokens, setErc20Tokens] = useState<ERC20TokenDetails[]>([]);
 	const [newTokenAddress, setNewTokenAddress] = useState<string>("");
 	const [isLoadingTokens, setIsLoadingTokens] = useState<boolean>(false);
 	const [errorTokens, setErrorTokens] = useState<string | null>(null);
 	const [isAddingToken, setIsAddingToken] = useState<boolean>(false);
-
-	// Fetch Native Balance
-	useEffect(() => {
-		const fetchNativeBalance = async () => {
-			if (!provider || !safeAddress) return;
-			setIsLoadingNativeBalance(true);
-			setErrorNativeBalance(null);
-			try {
-				const balance = await provider.getBalance(safeAddress);
-				setNativeBalance(ethers.formatEther(balance));
-			} catch (err) {
-				console.error("Failed to fetch native balance:", err);
-				setErrorNativeBalance("Failed to fetch native balance.");
-				setNativeBalance(null);
-			} finally {
-				setIsLoadingNativeBalance(false);
-			}
-		};
-		fetchNativeBalance();
-	}, [provider, safeAddress]);
 
 	// Load and Fetch ERC20 Tokens
 	const loadAndFetchERC20Tokens = useCallback(async () => {
@@ -134,10 +117,10 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 				<div>
 					<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
 					{isLoadingNativeBalance && <p className="text-sm text-gray-500">Loading native balance...</p>}
-					{errorNativeBalance && <p className="text-sm text-red-500">{errorNativeBalance}</p>}
-					{nativeBalance !== null && !isLoadingNativeBalance && !errorNativeBalance && (
+					{errorNativeBalance && <p className="text-sm text-red-500">{errorNativeBalance.message}</p>}
+					{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
 						<p className="text-lg text-gray-700">
-							{nativeBalance} {nativeSymbol}
+							{ethers.formatEther(nativeBalance)} {nativeSymbol}
 						</p>
 					)}
 				</div>
