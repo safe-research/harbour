@@ -13,17 +13,17 @@
   "dependencies": {
     "@safe-global/safe-contracts": "^1.4.1-2",
     "@safe-global/safe-singleton-factory": "^1.0.43",
-    "yargs": "^17.7.2"
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@nomicfoundation/hardhat-verify": "^2.0.13",
+    "@nomicfoundation/hardhat-verify": "^2.0.14",
     "@safe-global/safe-deployments": "^1.37.32",
     "@safe-global/safe-modules-deployments": "^2.2.8",
     "@types/yargs": "^17.0.33",
     "dotenv": "^16.5.0",
-    "ethers": "^6.14.1",
-    "hardhat": "^2.24.0",
+    "ethers": "^6.14.3",
+    "hardhat": "^2.24.1",
     "hardhat-deploy": "^1.0.2",
     "hardhat-gas-reporter": "^2.2.3",
     "prettier": "^3.5.3",
@@ -48,7 +48,7 @@
   "description": "",
   "overrides": {
     "@safe-global/safe-contracts": {
-      "ethers": "^6.14.1"
+      "ethers": "^6.14.3"
     }
   }
 }
