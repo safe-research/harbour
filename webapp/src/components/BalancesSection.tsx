@@ -31,7 +31,7 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		error: fetchError,
 		addAddress: addTokenAddress,
 		removeAddress: removeTokenAddress,
-	} = useERC20Tokens(provider, safeAddress);
+	} = useERC20Tokens(provider, safeAddress, chainId);
 
 	const handleAddToken = async () => {
 		if (!provider || !safeAddress) {
