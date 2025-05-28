@@ -219,15 +219,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 							/>
 						</div>
 
-						<div className="mt-10">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>
-							<div className="bg-white p-6 border border-gray-200 rounded-lg">
-								<SafeConfigDisplay config={config} />
-							</div>
-						</div>
-
-						{/* Balances Section */}
-						<div className="mt-10">
+												{/* Balances Section */}
+												<div className="mt-10">
 							<h2 className="text-xl font-semibold text-gray-900 mb-4">Token Balances</h2>
 							<div className="bg-white p-6 border border-gray-200 rounded-lg space-y-6">
 								{/* Native Balance */}
@@ -294,6 +287,14 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								</div>
 							</div>
 						</div>
+
+						<div className="mt-10">
+							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>
+							<div className="bg-white p-6 border border-gray-200 rounded-lg">
+								<SafeConfigDisplay config={config} />
+							</div>
+						</div>
+
 					</>
 				)}
 			</div>
