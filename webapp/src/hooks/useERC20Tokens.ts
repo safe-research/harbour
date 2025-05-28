@@ -1,4 +1,4 @@
-import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
+import { type ERC20TokenDetails, fetchBatchERC20TokenDetails } from "@/lib/erc20";
 import type { JsonRpcApiProvider } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { useERC20TokenAddresses } from "./useERC20TokenAddresses";
@@ -19,26 +19,20 @@ function useERC20Tokens(provider?: JsonRpcApiProvider, safeAddress?: string) {
 		setIsLoading(true);
 		setError(null);
 		try {
-			if (addresses.length === 0) {
-				setTokens([]);
-				return;
-			}
-			const promises = addresses.map((addr) => fetchERC20TokenDetails(provider, addr, safeAddress));
-			const results = await Promise.allSettled(promises);
-			const fetched: ERC20TokenDetails[] = [];
-			for (const r of results) {
-				if (r.status === "fulfilled" && r.value) {
-					fetched.push(r.value);
-				} else if (r.status === "rejected") {
-					console.error("Failed to fetch token details:", r.reason);
-				}
-			}
-			setTokens(fetched);
-			if (fetched.length !== addresses.length) {
-				setError(
-					"Some ERC20 token details could not be fetched. They may have been removed or the contract address is invalid.",
-				);
-			}
+		   if (addresses.length === 0) {
+			   setTokens([]);
+			   return;
+		   }
+		   // Batch fetch via multicall
+		   const results = await fetchBatchERC20TokenDetails(provider, addresses, safeAddress);
+		   // Filter out nulls
+		   const fetched = results.filter((r): r is ERC20TokenDetails => r !== null);
+		   setTokens(fetched);
+		   if (fetched.length !== addresses.length) {
+			   setError(
+				   "Some ERC20 token details could not be fetched. They may have been removed or the contract address is invalid.",
+			   );
+		   }
 		} catch (err) {
 			console.error("Error fetching ERC20 tokens", err);
 			setError("Failed to load ERC20 tokens.");
