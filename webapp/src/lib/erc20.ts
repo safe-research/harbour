@@ -1,4 +1,4 @@
-import { Interface, type Provider as EthersProvider } from "ethers";
+import { Interface, type JsonRpcApiProvider } from "ethers";
 import { aggregateMulticall } from "./multicall";
 
 interface ERC20TokenDetails {
@@ -24,7 +24,7 @@ const ERC20_ABI = [
  * @returns A promise that resolves to an ERC20TokenDetails object or null if an error occurs.
  */
 async function fetchERC20TokenDetails(
-	provider: EthersProvider,
+	provider: JsonRpcApiProvider,
 	tokenAddress: string,
 	ownerAddress: string,
 ): Promise<ERC20TokenDetails | null> {
@@ -33,10 +33,16 @@ async function fetchERC20TokenDetails(
 	const calls = [
 		{ target: tokenAddress, callData: iface.encodeFunctionData("name", []) },
 		{ target: tokenAddress, callData: iface.encodeFunctionData("symbol", []) },
-		{ target: tokenAddress, callData: iface.encodeFunctionData("decimals", []) },
-		{ target: tokenAddress, callData: iface.encodeFunctionData("balanceOf", [ownerAddress]) },
+		{
+			target: tokenAddress,
+			callData: iface.encodeFunctionData("decimals", []),
+		},
+		{
+			target: tokenAddress,
+			callData: iface.encodeFunctionData("balanceOf", [ownerAddress]),
+		},
 	];
-	const results = await aggregateMulticall(provider as any, calls);
+	const results = await aggregateMulticall(provider, calls);
 	if (results.length !== 4) throw new Error("Unexpected multicall response length");
 	const [nameRes, symbolRes, decRes, balRes] = results;
 	if (!nameRes.success || !symbolRes.success || !decRes.success || !balRes.success) {
@@ -62,7 +68,13 @@ async function fetchERC20TokenDetails(
 		return null;
 	}
 
-	return { address: tokenAddress, name, symbol, decimals: numericDecimals, balance };
+	return {
+		address: tokenAddress,
+		name,
+		symbol,
+		decimals: numericDecimals,
+		balance,
+	};
 }
 
 /**
@@ -73,7 +85,7 @@ async function fetchERC20TokenDetails(
  * @returns Array of ERC20TokenDetails|null for each token
  */
 async function fetchBatchERC20TokenDetails(
-	provider: EthersProvider,
+	provider: JsonRpcApiProvider,
 	tokenAddresses: string[],
 	ownerAddress: string,
 ): Promise<(ERC20TokenDetails | null)[]> {
@@ -82,9 +94,12 @@ async function fetchBatchERC20TokenDetails(
 		{ target: token, callData: iface.encodeFunctionData("name", []) },
 		{ target: token, callData: iface.encodeFunctionData("symbol", []) },
 		{ target: token, callData: iface.encodeFunctionData("decimals", []) },
-		{ target: token, callData: iface.encodeFunctionData("balanceOf", [ownerAddress]) },
+		{
+			target: token,
+			callData: iface.encodeFunctionData("balanceOf", [ownerAddress]),
+		},
 	]);
-	const results = await aggregateMulticall(provider as any, calls);
+	const results = await aggregateMulticall(provider, calls);
 	const details = tokenAddresses.map((token, i) => {
 		const offset = i * 4;
 		const [nRes, sRes, dRes, bRes] = results.slice(offset, offset + 4);
