@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 
 import { useERC20Tokens } from "@/hooks/useERC20Tokens";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
-import { getNativeCurrencySymbolByChainId } from "@/lib/chains";
+import { getNativeCurrencyByChainId } from "@/lib/chains";
 import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
+import { ethereumAddressSchema } from "@/lib/validators";
 
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
@@ -14,7 +15,7 @@ interface BalancesSectionProps {
 }
 
 export default function BalancesSection({ provider, safeAddress, chainId }: BalancesSectionProps) {
-	const nativeSymbol = useMemo(() => getNativeCurrencySymbolByChainId(chainId), [chainId]);
+	const nativeCurrency = useMemo(() => getNativeCurrencyByChainId(chainId), [chainId]);
 	const {
 		data: nativeBalance,
 		isLoading: isLoadingNativeBalance,
@@ -34,14 +35,12 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 	} = useERC20Tokens(provider, safeAddress, chainId);
 
 	const handleAddToken = async () => {
-		if (!provider || !safeAddress) {
-			setAddError("Provider or Safe address not available.");
-			return;
-		}
-		if (!newTokenAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+		const validationResult = ethereumAddressSchema.safeParse(newTokenAddress);
+		if (!validationResult.success) {
 			setAddError("Invalid ERC20 token address format.");
 			return;
 		}
+
 		if (erc20Tokens.find((token: ERC20TokenDetails) => token.address.toLowerCase() === newTokenAddress.toLowerCase())) {
 			setAddError("Token already added.");
 			setNewTokenAddress("");
@@ -81,7 +80,7 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 					{errorNativeBalance && <p className="text-sm text-red-500">{errorNativeBalance.message}</p>}
 					{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
 						<p className="text-lg text-gray-700">
-							{ethers.formatEther(nativeBalance)} {nativeSymbol}
+							{ethers.formatUnits(nativeBalance, nativeCurrency.decimals)} {nativeCurrency.symbol}
 						</p>
 					)}
 				</div>
@@ -119,7 +118,7 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 
 					{erc20Tokens.length > 0 && (
 						<ul className="space-y-3">
-							{erc20Tokens.map((token: ERC20TokenDetails) => (
+							{erc20Tokens.map((token) => (
 								<li
 									key={token.address}
 									className="p-3 bg-gray-50 border border-gray-200 rounded-md flex justify-between items-center hover:bg-gray-100 transition-colors"

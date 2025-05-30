@@ -145,17 +145,23 @@ async function getRpcUrlByChainId(chainId: number, verify = true): Promise<strin
 }
 
 /**
- * Retrieves the native currency symbol for a given chain ID.
+ * Retrieves the native currency detials for a given chain ID.
  *
- * Looks up the `chainId` in `chains.json` and returns the corresponding native currency symbol.
- * If no symbol is found, defaults to "ETH".
+ * Looks up the `chainId` in `chains.json` and returns the corresponding native currency details.
+ * If no details are found, defaults to Ether values.
  *
- * @param chainId - The numeric chain ID to look up in the native currency symbol list.
- * @returns The native currency symbol for the chain, or "ETH" if not found.
+ * @param chainId - The numeric chain ID to look up in the native currency details list.
+ * @returns The native currency details for the chain, or the Ether details if not found.
  */
-function getNativeCurrencySymbolByChainId(chainId: number): string {
-	const entry = (chainsJson as ChainsJsonEntry[]).find((e) => e.chainId === chainId);
-	return entry?.nativeCurrency?.symbol || "ETH"; // Default to ETH
+function getNativeCurrencyByChainId(chainId: number): ChainsJsonEntry["nativeCurrency"] {
+	const entry = getChainDataByChainId(chainId);
+	return (
+		entry?.nativeCurrency || {
+			name: "Ether",
+			symbol: "ETH",
+			decimals: 18,
+		}
+	);
 }
 
 /**
@@ -191,4 +197,4 @@ async function switchToChain(provider: Eip1193Provider, chainId: ChainId): Promi
 	}
 }
 
-export { getRpcUrlByChainId, switchToChain, getNativeCurrencySymbolByChainId };
+export { getRpcUrlByChainId, switchToChain, getNativeCurrencyByChainId };
