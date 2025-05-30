@@ -29,7 +29,7 @@ async function fetchERC20TokenDetails(
 	ownerAddress: string,
 ): Promise<ERC20TokenDetails | null> {
 	const iface = new Interface(ERC20_ABI);
-	// Prepare multicall calls
+
 	const calls = [
 		{ target: tokenAddress, callData: iface.encodeFunctionData("name", []) },
 		{ target: tokenAddress, callData: iface.encodeFunctionData("symbol", []) },
@@ -49,22 +49,15 @@ async function fetchERC20TokenDetails(
 		console.error(`Multicall failure for token ${tokenAddress}`);
 		return null;
 	}
-	// Decode results
+
 	const name = iface.decodeFunctionResult("name", nameRes.returnData)[0] as string;
 	const symbol = iface.decodeFunctionResult("symbol", symbolRes.returnData)[0] as string;
 	const decimalsRaw = iface.decodeFunctionResult("decimals", decRes.returnData)[0] as bigint | number;
 	const balance = iface.decodeFunctionResult("balanceOf", balRes.returnData)[0] as bigint;
 
-	// Convert decimals
 	const numericDecimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
 	if (Number.isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
 		console.error(`Invalid decimals value from ${tokenAddress}: ${decimalsRaw}`);
-		return null;
-	}
-
-	// Validate
-	if (typeof name !== "string" || typeof symbol !== "string" || typeof balance !== "bigint") {
-		console.error(`Invalid token data for ${tokenAddress}`);
 		return null;
 	}
 
@@ -113,9 +106,7 @@ async function fetchBatchERC20TokenDetails(
 			const decimalsRaw = iface.decodeFunctionResult("decimals", dRes.returnData)[0] as bigint | number;
 			const balance = iface.decodeFunctionResult("balanceOf", bRes.returnData)[0] as bigint;
 			const decimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
-			if (typeof name !== "string" || typeof symbol !== "string" || typeof balance !== "bigint") {
-				throw new Error("Invalid decoded types");
-			}
+
 			return { address: token, name, symbol, decimals, balance };
 		} catch (e) {
 			console.error(`Decode error for token ${token}:`, e);

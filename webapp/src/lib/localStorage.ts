@@ -1,7 +1,12 @@
+import { ethereumAddressSchema } from "./validators";
+
 const ERC20_TOKEN_ADDRESSES_KEY = "erc20TokenAddresses";
 
 /**
  * Retrieves the list of saved ERC20 token addresses from local storage.
+ *
+ * @throws Will log an error if parsing fails and return an empty array.
+ *
  * @returns An array of token addresses.
  */
 export function getERC20TokenAddresses(): string[] {
@@ -9,7 +14,10 @@ export function getERC20TokenAddresses(): string[] {
 	if (storedAddresses) {
 		try {
 			const parsedAddresses = JSON.parse(storedAddresses);
-			if (Array.isArray(parsedAddresses) && parsedAddresses.every((addr) => typeof addr === "string")) {
+			if (
+				Array.isArray(parsedAddresses) &&
+				parsedAddresses.every((addr) => Boolean(ethereumAddressSchema.parse(addr)))
+			) {
 				return parsedAddresses;
 			}
 		} catch (error) {
@@ -27,10 +35,6 @@ export function getERC20TokenAddresses(): string[] {
  * @param address The ERC20 token address to add.
  */
 export function addERC20TokenAddress(address: string): void {
-	if (typeof address !== "string" || !address.match(/^0x[a-fA-F0-9]{40}$/)) {
-		console.error("Invalid address format provided to addERC20TokenAddress:", address);
-		return;
-	}
 	const currentAddresses = getERC20TokenAddresses();
 	if (!currentAddresses.includes(address)) {
 		const newAddresses = [...currentAddresses, address];
