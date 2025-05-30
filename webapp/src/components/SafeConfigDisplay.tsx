@@ -6,7 +6,7 @@ interface SafeConfigDisplayProps {
 }
 
 /**
- * A component to display the details of a Gnosis Safe configuration.
+ * A component to display the details of a Safe configuration.
  * It shows owners, threshold, nonce, modules, and other relevant information.
  * @param {SafeConfigDisplayProps} props - The component props.
  * @returns JSX element representing the Safe configuration display.
