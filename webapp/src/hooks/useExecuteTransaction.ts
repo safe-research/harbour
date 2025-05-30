@@ -32,7 +32,7 @@ interface UseExecuteTransactionProps {
 }
 
 /**
- * Custom React Query hook to execute a Gnosis Safe transaction.
+ * Custom React Query hook to execute a Safe transaction.
  * Handles chain switching and uses `useMutation` for the asynchronous operation.
  *
  * @param {UseExecuteTransactionProps} props - Configuration for the hook.

@@ -2,12 +2,12 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-
 import { PlusCircle, ScrollText } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
+import BalancesSection from "../components/BalancesSection";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
@@ -28,7 +28,7 @@ interface DashboardContentProps {
  * @returns JSX element representing the dashboard content.
  */
 function DashboardContent({ provider, safeAddress, chainId }: DashboardContentProps) {
-	const { data: config, isLoading, error } = useSafeConfiguration(provider, safeAddress);
+	const { data: config, isLoading: isLoadingConfig, error: errorConfig } = useSafeConfiguration(provider, safeAddress);
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -39,8 +39,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 					<p className="text-gray-600">Manage your Safe and execute transactions</p>
 				</div>
 
-				{isLoading && <p className="text-gray-600">Loading configuration…</p>}
-				{error && <p className="text-red-600">Error: {error.message}</p>}
+				{isLoadingConfig && <p className="text-gray-600">Loading configuration…</p>}
+				{errorConfig && <p className="text-red-600">Error: {errorConfig.message}</p>}
 
 				{config && (
 					<>
@@ -62,6 +62,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								search={{ safe: safeAddress, chainId }}
 							/>
 						</div>
+
+						<BalancesSection provider={provider} safeAddress={safeAddress} chainId={chainId} />
 
 						<div className="mt-10">
 							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>
@@ -108,7 +110,13 @@ export function DashboardPage() {
  * @param {{ safeAddress: string; chainId: number }} props - Props containing the Safe address and chain ID.
  * @returns JSX element, either a loading/error state or the DashboardContent.
  */
-function DashboardPageInner({ safeAddress, chainId }: { safeAddress: string; chainId: number }) {
+function DashboardPageInner({
+	safeAddress,
+	chainId,
+}: {
+	safeAddress: string;
+	chainId: number;
+}) {
 	const { provider, error, isLoading } = useChainlistRpcProvider(chainId);
 
 	if (error) return <p className="text-red-600">Error: {error.message}</p>;
