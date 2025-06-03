@@ -145,6 +145,26 @@ async function getRpcUrlByChainId(chainId: number, verify = true): Promise<strin
 }
 
 /**
+ * Retrieves the native currency detials for a given chain ID.
+ *
+ * Looks up the `chainId` in `chains.json` and returns the corresponding native currency details.
+ * If no details are found, defaults to Ether values.
+ *
+ * @param chainId - The numeric chain ID to look up in the native currency details list.
+ * @returns The native currency details for the chain, or the Ether details if not found.
+ */
+function getNativeCurrencyByChainId(chainId: number): ChainsJsonEntry["nativeCurrency"] {
+	const entry = getChainDataByChainId(chainId);
+	return (
+		entry?.nativeCurrency || {
+			name: "Ether",
+			symbol: "ETH",
+			decimals: 18,
+		}
+	);
+}
+
+/**
  * Switches the connected wallet to the specified chain and adds it if missing.
  *
  * Attempts to switch the active network using `wallet_switchEthereumChain`. If the chain
@@ -177,4 +197,4 @@ async function switchToChain(provider: Eip1193Provider, chainId: ChainId): Promi
 	}
 }
 
-export { getRpcUrlByChainId, switchToChain };
+export { getRpcUrlByChainId, switchToChain, getNativeCurrencyByChainId };
