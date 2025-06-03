@@ -90,20 +90,20 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 				{/* ERC20 Tokens */}
 				<div>
 					<h3 className="text-lg font-medium text-gray-800 mb-2">ERC20 Tokens</h3>
-					<div className="flex items-center space-x-2 mb-4">
+					<div className="flex items-center space-x-4 mb-4">
 						<input
 							type="text"
 							value={newTokenAddress}
 							onChange={(e) => setNewTokenAddress(e.target.value)}
 							placeholder="Enter ERC20 token address (0x...)"
-							className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 w-full sm:text-sm"
+							className="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 flex-1 max-w-md sm:text-sm"
 							disabled={isAddingToken}
 						/>
 						<button
 							type="button"
 							onClick={handleAddToken}
 							disabled={isAddingToken || !newTokenAddress}
-							className="px-4 py-2 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 sm:text-sm"
+							className="px-4 py-2 bg-black text-white rounded-md shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 sm:text-sm flex-shrink-0"
 						>
 							{isAddingToken ? "Adding..." : "Add Token"}
 						</button>
