@@ -29,5 +29,4 @@ export const chainIdSchema = z.number().int().positive();
 export const configSearchSchema = z.object({
 	safe: safeAddressSchema,
 	chainId: chainIdSchema,
-	flow: z.enum(["native", "erc20", "raw"]).optional(),
 });

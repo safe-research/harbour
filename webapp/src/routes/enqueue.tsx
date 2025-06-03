@@ -3,6 +3,7 @@ import { configSearchSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
+import z from "zod";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { ERC20TransferForm } from "../components/transaction-forms/ERC20TransferForm";
@@ -91,12 +92,17 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 	);
 }
 
+const flowSchema = z.enum(["native", "erc20", "raw"]).optional().default("raw");
+const enqueueSchema = configSearchSchema.extend({
+	flow: flowSchema,
+});
+
 /**
  * Route definition for the enqueue transaction page.
  * Validates search parameters (safe address, chainId, and optional flow).
  */
 export const Route = createFileRoute("/enqueue")({
-	validateSearch: zodValidator(configSearchSchema), // configSearchSchema now includes 'flow'
+	validateSearch: zodValidator(enqueueSchema), // configSearchSchema now includes 'flow'
 	component: EnqueuePage,
 });
 
@@ -113,10 +119,12 @@ export function EnqueuePage() {
 	);
 }
 
+type TransactionFlow = z.infer<typeof flowSchema>;
+
 interface EnqueuePageInnerProps {
 	safeAddress: string;
 	chainId: ChainId;
-	flow?: "native" | "erc20" | "raw";
+	flow?: TransactionFlow;
 }
 /**
  * Inner component for the enqueue page, rendered if wallet and providers are ready.
