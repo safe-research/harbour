@@ -145,7 +145,7 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 									<div className="flex items-center space-x-2">
 										<Link
 											to="/enqueue"
-											search={{ safe: safeAddress, chainId, flow: "erc20" }}
+											search={{ safe: safeAddress, chainId, flow: "erc20", tokenAddress: token.address }}
 											className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
 										>
 											<Send size={16} className="mr-1.5" />

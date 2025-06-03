@@ -1,4 +1,3 @@
-import type { CommonTransactionFormProps } from "@/components/transaction-forms/types";
 import { configSearchSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -19,33 +18,37 @@ interface EnqueueContentProps {
 	safeAddress: string;
 	chainId: ChainId;
 	flow?: "native" | "erc20" | "raw";
+	tokenAddress?: string;
 }
 
 /**
  * Content component for the enqueue transaction page.
  * Dynamically renders the correct form based on the 'flow' search parameter.
  */
-function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, flow }: EnqueueContentProps) {
+function EnqueueContent({
+	browserProvider,
+	rpcProvider,
+	safeAddress,
+	chainId,
+	flow,
+	tokenAddress,
+}: EnqueueContentProps) {
 	const {
 		data: config, // Renamed from configResult to config for clarity
 		isLoading: isLoadingConfig,
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
 
-	let FormComponent: React.ComponentType<CommonTransactionFormProps>;
 	let pageTitle = "Enqueue Transaction";
 
 	switch (flow) {
 		case "native":
-			FormComponent = NativeTransferForm;
 			pageTitle = "Enqueue Native ETH Transfer";
 			break;
 		case "erc20":
-			FormComponent = ERC20TransferForm;
 			pageTitle = "Enqueue ERC20 Token Transfer";
 			break;
 		default:
-			FormComponent = RawTransactionForm;
 			pageTitle = "Enqueue Raw Transaction";
 			break;
 	}
@@ -77,15 +80,33 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 						<p className="text-center mt-4 text-gray-600">Loading Safe configuration...</p>
 					</div>
 				) : (
-					config && (
-						<FormComponent
+					config &&
+					(flow === "erc20" ? (
+						<ERC20TransferForm
+							safeAddress={safeAddress}
+							chainId={chainId}
+							browserProvider={browserProvider}
+							rpcProvider={rpcProvider}
+							config={config}
+							tokenAddress={tokenAddress}
+						/>
+					) : flow === "native" ? (
+						<NativeTransferForm
 							safeAddress={safeAddress}
 							chainId={chainId}
 							browserProvider={browserProvider}
 							rpcProvider={rpcProvider}
 							config={config}
 						/>
-					)
+					) : (
+						<RawTransactionForm
+							safeAddress={safeAddress}
+							chainId={chainId}
+							browserProvider={browserProvider}
+							rpcProvider={rpcProvider}
+							config={config}
+						/>
+					))
 				)}
 			</div>
 		</div>
@@ -95,6 +116,7 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 const flowSchema = z.enum(["native", "erc20", "raw"]).optional().default("raw");
 const enqueueSchema = configSearchSchema.extend({
 	flow: flowSchema,
+	tokenAddress: z.string().optional(),
 });
 
 /**
@@ -102,7 +124,7 @@ const enqueueSchema = configSearchSchema.extend({
  * Validates search parameters (safe address, chainId, and optional flow).
  */
 export const Route = createFileRoute("/enqueue")({
-	validateSearch: zodValidator(enqueueSchema), // configSearchSchema now includes 'flow'
+	validateSearch: zodValidator(enqueueSchema), // configSearchSchema now includes 'flow' and 'tokenAddress'
 	component: EnqueuePage,
 });
 
@@ -111,10 +133,10 @@ export const Route = createFileRoute("/enqueue")({
  * Retrieves validated search params (including flow) and wraps content with wallet and provider requirements.
  */
 export function EnqueuePage() {
-	const { safe: safeAddress, chainId, flow } = Route.useSearch();
+	const { safe: safeAddress, chainId, flow, tokenAddress } = Route.useSearch();
 	return (
 		<RequireWallet>
-			<EnqueuePageInner safeAddress={safeAddress} chainId={Number(chainId)} flow={flow} />
+			<EnqueuePageInner safeAddress={safeAddress} chainId={Number(chainId)} flow={flow} tokenAddress={tokenAddress} />
 		</RequireWallet>
 	);
 }
@@ -125,11 +147,12 @@ interface EnqueuePageInnerProps {
 	safeAddress: string;
 	chainId: ChainId;
 	flow?: TransactionFlow;
+	tokenAddress?: string;
 }
 /**
  * Inner component for the enqueue page, rendered if wallet and providers are ready.
  */
-function EnqueuePageInner({ safeAddress, chainId, flow }: EnqueuePageInnerProps) {
+function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress }: EnqueuePageInnerProps) {
 	const browserProvider = useWalletProvider();
 	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(chainId);
 
@@ -148,6 +171,7 @@ function EnqueuePageInner({ safeAddress, chainId, flow }: EnqueuePageInnerProps)
 			safeAddress={safeAddress}
 			chainId={chainId}
 			flow={flow}
+			tokenAddress={tokenAddress}
 		/>
 	);
 }

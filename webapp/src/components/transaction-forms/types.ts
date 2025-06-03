@@ -16,4 +16,9 @@ interface CommonTransactionFormProps {
 	config: SafeConfiguration;
 }
 
-export type { CommonTransactionFormProps };
+interface ERC20TransferFormProps extends CommonTransactionFormProps {
+	/** Optional pre-filled token address for the ERC20 transfer form. */
+	tokenAddress?: string;
+}
+
+export type { CommonTransactionFormProps, ERC20TransferFormProps };

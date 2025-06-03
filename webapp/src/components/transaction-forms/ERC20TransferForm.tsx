@@ -7,7 +7,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
 import { useEffect, useState } from "react";
-import type { CommonTransactionFormProps } from "./types";
+import type { ERC20TransferFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
@@ -20,10 +20,11 @@ export function ERC20TransferForm({
 	browserProvider,
 	rpcProvider,
 	config,
-}: CommonTransactionFormProps) {
+	tokenAddress: initialTokenAddress,
+}: ERC20TransferFormProps) {
 	const navigate = useNavigate();
 
-	const [tokenAddress, setTokenAddress] = useState("");
+	const [tokenAddress, setTokenAddress] = useState(initialTokenAddress || "");
 	const [recipient, setRecipient] = useState("");
 	const [amount, setAmount] = useState("");
 	const [decimals, setDecimals] = useState<number | null>(null);
