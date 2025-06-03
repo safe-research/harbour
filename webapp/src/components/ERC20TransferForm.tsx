@@ -70,21 +70,29 @@ export function ERC20TransferForm({
 				setFetchDecimalsError(undefined);
 				setDecimals(null);
 				try {
-					const details = await fetchERC20TokenDetails(tokenAddress, rpcProvider);
-					setDecimals(details.decimals);
+					// Corrected argument order and added safeAddress as ownerAddress
+					const details = await fetchERC20TokenDetails(rpcProvider, tokenAddress, safeAddress);
+					if (details === null) {
+						setDecimals(null);
+						setFetchDecimalsError("Could not fetch token details. Please check the address and network.");
+					} else {
+						setDecimals(details.decimals);
+						setFetchDecimalsError(undefined); // Clear any previous error
+					}
 				} catch (err) {
 					setDecimals(null);
-					setFetchDecimalsError(err instanceof Error ? err.message : "Failed to fetch token details.");
+					// General error message, specific null check above handles details === null
+					setFetchDecimalsError(err instanceof Error ? err.message : "An unexpected error occurred while fetching token details.");
 				} finally {
 					setIsFetchingDecimals(false);
 				}
 			} else {
 				setDecimals(null);
-				setFetchDecimalsError(undefined);
+				setFetchDecimalsError(undefined); // Clear error if tokenAddress is not valid or empty
 			}
 		};
 		void fetchDecimals();
-	}, [tokenAddress, rpcProvider]);
+	}, [tokenAddress, rpcProvider, safeAddress]); // Added safeAddress to dependency array
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
