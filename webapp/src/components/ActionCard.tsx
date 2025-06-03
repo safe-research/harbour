@@ -17,8 +17,8 @@ interface ActionCardProps {
 	ctaText: string;
 	/** The path to link to. Should be a registered route. */
 	to: ToPathOption;
-	/** Search parameters for the link. Currently expects 'safe' and 'chainId'. */
-	search: { safe: string; chainId: number }; // Consider making this generic if used for other routes
+	/** Search parameters for the link. Must include 'safe' and 'chainId', and can optionally include 'flow'. */
+	search: { safe: string; chainId: number; flow?: "native" | "erc20" | "raw" };
 }
 
 /**

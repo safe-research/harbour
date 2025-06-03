@@ -2,7 +2,7 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { PlusCircle, ScrollText } from "lucide-react";
+import { ArrowRightLeft, Coins, FileCode, ScrollText } from "lucide-react"; // Added ArrowRightLeft, Coins, FileCode. PlusCircle removed as FileCode is used.
 
 import ActionCard from "../components/ActionCard";
 import { RequireWallet } from "../components/RequireWallet";
@@ -48,18 +48,34 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 							<ActionCard
 								title="Transaction Queue"
 								description="View and execute pending transactions that are ready to be executed."
-								icon={ScrollText}
+								icon={ScrollText} // Kept ScrollText
 								ctaText="View Queue"
 								to="/queue"
 								search={{ safe: safeAddress, chainId }}
 							/>
 							<ActionCard
-								title="New Transaction"
-								description="Create and enqueue a new transaction for your Safe."
-								icon={PlusCircle}
-								ctaText="Create Transaction"
+								title="New Raw Transaction"
+								description="Define all transaction parameters manually for full control."
+								icon={FileCode} // Changed icon
+								ctaText="Create Raw Tx"
 								to="/enqueue"
-								search={{ safe: safeAddress, chainId }}
+								search={{ safe: safeAddress, chainId, flow: "raw" }} // Added flow: "raw"
+							/>
+							<ActionCard
+								title="New ETH Transfer"
+								description="Send native currency (e.g., ETH) from your Safe."
+								icon={ArrowRightLeft} // New icon
+								ctaText="Send ETH"
+								to="/enqueue"
+								search={{ safe: safeAddress, chainId, flow: "native" }}
+							/>
+							<ActionCard
+								title="New ERC20 Transfer"
+								description="Send ERC20 tokens (e.g., USDC, DAI) from your Safe."
+								icon={Coins} // New icon
+								ctaText="Send Token"
+								to="/enqueue"
+								search={{ safe: safeAddress, chainId, flow: "erc20" }}
 							/>
 						</div>
 
