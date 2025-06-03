@@ -2,12 +2,12 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { ArrowRightLeft, Coins, FileCode, ScrollText } from "lucide-react"; // Added ArrowRightLeft, Coins, FileCode. PlusCircle removed as FileCode is used.
+import { FileCode, ScrollText } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
+import BalancesSection from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
-import BalancesSection from "../components/BalancesSection";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
@@ -48,7 +48,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 							<ActionCard
 								title="Transaction Queue"
 								description="View and execute pending transactions that are ready to be executed."
-								icon={ScrollText} // Kept ScrollText
+								icon={ScrollText}
 								ctaText="View Queue"
 								to="/queue"
 								search={{ safe: safeAddress, chainId }}
@@ -56,26 +56,10 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 							<ActionCard
 								title="New Raw Transaction"
 								description="Define all transaction parameters manually for full control."
-								icon={FileCode} // Changed icon
+								icon={FileCode}
 								ctaText="Create Raw Tx"
 								to="/enqueue"
-								search={{ safe: safeAddress, chainId, flow: "raw" }} // Added flow: "raw"
-							/>
-							<ActionCard
-								title="New ETH Transfer"
-								description="Send native currency (e.g., ETH) from your Safe."
-								icon={ArrowRightLeft} // New icon
-								ctaText="Send ETH"
-								to="/enqueue"
-								search={{ safe: safeAddress, chainId, flow: "native" }}
-							/>
-							<ActionCard
-								title="New ERC20 Transfer"
-								description="Send ERC20 tokens (e.g., USDC, DAI) from your Safe."
-								icon={Coins} // New icon
-								ctaText="Send Token"
-								to="/enqueue"
-								search={{ safe: safeAddress, chainId, flow: "erc20" }}
+								search={{ safe: safeAddress, chainId, flow: "raw" }}
 							/>
 						</div>
 

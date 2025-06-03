@@ -1,5 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import { type JsonRpcApiProvider, ethers } from "ethers";
-import { Trash2 } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useERC20Tokens } from "@/hooks/useERC20Tokens";
@@ -75,7 +76,19 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 			<div className="bg-white p-6 border border-gray-200 rounded-lg space-y-6">
 				{/* Native Balance */}
 				<div>
-					<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
+					<div className="flex justify-between items-center mb-2">
+						<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
+						{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
+							<Link
+								to="/enqueue"
+								search={{ safe: safeAddress, chainId, flow: "native" }}
+								className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+							>
+								<Send size={16} className="mr-1.5" />
+								Send
+							</Link>
+						)}
+					</div>
 					{isLoadingNativeBalance && <p className="text-sm text-gray-500">Loading native balance...</p>}
 					{errorNativeBalance && <p className="text-sm text-red-500">{errorNativeBalance.message}</p>}
 					{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
@@ -129,14 +142,24 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 										</p>
 										<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
 									</div>
-									<button
-										type="button"
-										onClick={() => handleRemoveToken(token.address)}
-										className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-										aria-label={`Remove ${token.name} token`}
-									>
-										<Trash2 size={18} />
-									</button>
+									<div className="flex items-center space-x-2">
+										<Link
+											to="/enqueue"
+											search={{ safe: safeAddress, chainId, flow: "erc20" }}
+											className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+										>
+											<Send size={16} className="mr-1.5" />
+											Send
+										</Link>
+										<button
+											type="button"
+											onClick={() => handleRemoveToken(token.address)}
+											className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+											aria-label={`Remove ${token.name} token`}
+										>
+											<Trash2 size={18} />
+										</button>
+									</div>
 								</li>
 							))}
 						</ul>
