@@ -1,44 +1,19 @@
 import { switchToChain } from "@/lib/chains";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
-import type { SafeConfiguration } from "@/lib/safe";
 import { signSafeTransaction } from "@/lib/safe";
-import type { ChainId, FullSafeTransaction } from "@/lib/types";
+import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
-import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { ethers, isAddress } from "ethers";
-import React, { useEffect, useState } from "react";
-
-/**
- * Props for the NativeTransferForm component.
- */
-interface NativeTransferFormProps {
-	/** The address of the Safe contract. */
-	safeAddress: string;
-	/** The chain ID where the Safe contract is deployed. */
-	chainId: ChainId;
-	/** An Ethers BrowserProvider instance from the connected wallet. */
-	browserProvider: BrowserProvider;
-	/**
-	 * An Ethers JsonRpcApiProvider instance for the Safe's chain.
-	 * Note: Currently not directly used in this form but included for future enhancements (e.g., gas estimation).
-	 */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	rpcProvider: JsonRpcApiProvider;
-	/** The configuration of the Safe, including the current nonce. */
-	config: SafeConfiguration;
-}
+import type React from "react";
+import { useEffect, useState } from "react";
+import type { CommonTransactionFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing a native currency (ETH) transfer transaction
  * for a Gnosis Safe. It handles input validation, transaction signing, and submission
  * to the Harbour service.
  */
-export function NativeTransferForm({
-	safeAddress,
-	chainId,
-	browserProvider,
-	config,
-}: NativeTransferFormProps) {
+export function NativeTransferForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 
 	const [recipient, setRecipient] = useState("");
@@ -49,8 +24,9 @@ export function NativeTransferForm({
 	const [error, setError] = useState<string>();
 
 	const isRecipientValid = recipient === "" || isAddress(recipient);
-	const isAmountValid = amount === "" || !Number.isNaN(Number(amount)) && Number(amount) > 0;
-	const isNonceValid = nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
+	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
+	const isNonceValid =
+		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
 	useEffect(() => {
 		if (config) {
@@ -71,7 +47,7 @@ export function NativeTransferForm({
 			setError("Invalid amount. Must be a positive number.");
 			return;
 		}
-        const currentNonce = nonce !== "" ? BigInt(nonce) : config.nonce;
+		const currentNonce = nonce !== "" ? BigInt(nonce) : config.nonce;
 		if (Number.isNaN(currentNonce) || BigInt(currentNonce) < 0) {
 			setError("Invalid nonce. Must be a non-negative integer.");
 			return;
@@ -174,8 +150,8 @@ export function NativeTransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this to
-						use current Safe nonce.
+						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
+						to use current Safe nonce.
 					</p>
 					{!isNonceValid && nonce !== "" && (
 						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>

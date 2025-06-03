@@ -1,29 +1,13 @@
 import { switchToChain } from "@/lib/chains";
 import { ERC20_ABI, fetchERC20TokenDetails } from "@/lib/erc20";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
-import type { SafeConfiguration } from "@/lib/safe";
 import { signSafeTransaction } from "@/lib/safe";
-import type { ChainId, FullSafeTransaction } from "@/lib/types";
+import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
-import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { ethers, isAddress } from "ethers";
-import React, { useEffect, useState } from "react";
-
-/**
- * Props for the ERC20TransferForm component.
- */
-interface ERC20TransferFormProps {
-	/** The address of the Safe contract. */
-	safeAddress: string;
-	/** The chain ID where the Safe contract is deployed. */
-	chainId: ChainId;
-	/** An Ethers BrowserProvider instance from the connected wallet. */
-	browserProvider: BrowserProvider;
-	/** An Ethers JsonRpcApiProvider instance for the Safe's chain, used for fetching token details. */
-	rpcProvider: JsonRpcApiProvider;
-	/** The configuration of the Safe, including the current nonce. */
-	config: SafeConfiguration;
-}
+import type React from "react";
+import { useEffect, useState } from "react";
+import type { CommonTransactionFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
@@ -36,7 +20,7 @@ export function ERC20TransferForm({
 	browserProvider,
 	rpcProvider,
 	config,
-}: ERC20TransferFormProps) {
+}: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 
 	const [tokenAddress, setTokenAddress] = useState("");
@@ -55,7 +39,8 @@ export function ERC20TransferForm({
 	const isTokenAddressValid = tokenAddress === "" || isAddress(tokenAddress);
 	const isRecipientValid = recipient === "" || isAddress(recipient);
 	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
-	const isNonceValid = nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
+	const isNonceValid =
+		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
 	useEffect(() => {
 		if (config) {
@@ -82,7 +67,9 @@ export function ERC20TransferForm({
 				} catch (err) {
 					setDecimals(null);
 					// General error message, specific null check above handles details === null
-					setFetchDecimalsError(err instanceof Error ? err.message : "An unexpected error occurred while fetching token details.");
+					setFetchDecimalsError(
+						err instanceof Error ? err.message : "An unexpected error occurred while fetching token details.",
+					);
 				} finally {
 					setIsFetchingDecimals(false);
 				}
@@ -126,10 +113,7 @@ export function ERC20TransferForm({
 
 			const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
 			const erc20Interface = new ethers.Interface(ERC20_ABI);
-			const encodedTransferData = erc20Interface.encodeFunctionData("transfer", [
-				recipient,
-				amountInSmallestUnit,
-			]);
+			const encodedTransferData = erc20Interface.encodeFunctionData("transfer", [recipient, amountInSmallestUnit]);
 
 			const transaction: FullSafeTransaction = {
 				to: tokenAddress,
@@ -190,9 +174,7 @@ export function ERC20TransferForm({
 					)}
 					{isFetchingDecimals && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
 					{fetchDecimalsError && <p className="mt-1 text-sm text-red-600">{fetchDecimalsError}</p>}
-					{decimals !== null && (
-						<p className="mt-1 text-sm text-green-600">Token Decimals: {decimals}</p>
-					)}
+					{decimals !== null && <p className="mt-1 text-sm text-green-600">Token Decimals: {decimals}</p>}
 				</div>
 
 				<div>
@@ -249,8 +231,8 @@ export function ERC20TransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this to
-						use current Safe nonce.
+						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
+						to use current Safe nonce.
 					</p>
 					{!isNonceValid && nonce !== "" && (
 						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>

@@ -1,44 +1,19 @@
 import { switchToChain } from "@/lib/chains";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
-import type { SafeConfiguration } from "@/lib/safe";
 import { signSafeTransaction } from "@/lib/safe";
-import type { ChainId, FullSafeTransaction } from "@/lib/types";
+import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
-import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { ethers, isAddress } from "ethers";
-import React, { useEffect, useState } from "react";
-
-/**
- * Props for the RawTransactionForm component.
- */
-export interface RawTransactionFormProps {
-	/** The address of the Safe contract. */
-	safeAddress: string;
-	/** The chain ID where the Safe contract is deployed. */
-	chainId: ChainId;
-	/** An Ethers BrowserProvider instance from the connected wallet. */
-	browserProvider: BrowserProvider;
-	/**
-	 * An Ethers JsonRpcApiProvider instance for the Safe's chain.
-	 * Note: Currently not directly used in this form but included for future enhancements.
-	 */
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	rpcProvider: JsonRpcApiProvider;
-	/** The configuration of the Safe, including the current nonce. */
-	config: SafeConfiguration;
-}
+import type React from "react";
+import { useEffect, useState } from "react";
+import type { CommonTransactionFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing a raw, custom transaction for a Gnosis Safe.
  * Users can specify the recipient address, ETH value, data payload, and nonce.
  * It handles input validation, transaction signing, and submission to the Harbour service.
  */
-export function RawTransactionForm({
-	safeAddress,
-	chainId,
-	browserProvider,
-	config,
-}: RawTransactionFormProps) {
+export function RawTransactionForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 
 	const [to, setTo] = useState("");
@@ -54,8 +29,8 @@ export function RawTransactionForm({
 	const isToValid = to === "" ? false : isAddress(to); // Allow empty initially, but require for submission
 	const isValueValid = value === "" || !Number.isNaN(Number(value)); // ETH value, can be 0
 	const isDataValid = dataInput === "" || ethers.isHexString(dataInput); // Data, can be "0x" or empty
-	const isNonceValid = nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
-
+	const isNonceValid =
+		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
 	useEffect(() => {
 		if (config) {
@@ -161,9 +136,7 @@ export function RawTransactionForm({
 						placeholder="0.0"
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{!isValueValid && value !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid number.</p>
-					)}
+					{!isValueValid && value !== "" && <p className="mt-1 text-sm text-red-600">Please enter a valid number.</p>}
 				</div>
 
 				<div>
@@ -197,8 +170,8 @@ export function RawTransactionForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this to
-						use current Safe nonce.
+						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
+						to use current Safe nonce.
 					</p>
 					{!isNonceValid && nonce !== "" && (
 						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>

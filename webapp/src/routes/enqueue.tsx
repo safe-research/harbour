@@ -1,12 +1,13 @@
+import type { CommonTransactionFormProps } from "@/components/transaction-forms/types";
 import { configSearchSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { BackToDashboardButton } from "../components/BackButton";
-import { ERC20TransferForm } from "../components/ERC20TransferForm";
-import { NativeTransferForm } from "../components/NativeTransferForm";
-import { RawTransactionForm } from "../components/RawTransactionForm";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
+import { ERC20TransferForm } from "../components/transaction-forms/ERC20TransferForm";
+import { NativeTransferForm } from "../components/transaction-forms/NativeTransferForm";
+import { RawTransactionForm } from "../components/transaction-forms/RawTransactionForm";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
@@ -30,7 +31,7 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
 
-	let FormComponent;
+	let FormComponent: React.ComponentType<CommonTransactionFormProps>;
 	let pageTitle = "Enqueue Transaction";
 
 	switch (flow) {
@@ -42,7 +43,6 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 			FormComponent = ERC20TransferForm;
 			pageTitle = "Enqueue ERC20 Token Transfer";
 			break;
-		case "raw":
 		default:
 			FormComponent = RawTransactionForm;
 			pageTitle = "Enqueue Raw Transaction";
@@ -76,7 +76,7 @@ function EnqueueContent({ browserProvider, rpcProvider, safeAddress, chainId, fl
 						<p className="text-center mt-4 text-gray-600">Loading Safe configuration...</p>
 					</div>
 				) : (
-					config && ( // Ensure config is loaded before rendering the form
+					config && (
 						<FormComponent
 							safeAddress={safeAddress}
 							chainId={chainId}

@@ -1,0 +1,19 @@
+import type { SafeConfiguration } from "@/lib/safe";
+import type { ChainId } from "@/lib/types";
+import type { JsonRpcApiProvider } from "ethers";
+import type { BrowserProvider } from "ethers";
+
+interface CommonTransactionFormProps {
+	/** The address of the Safe contract. */
+	safeAddress: string;
+	/** The chain ID where the Safe contract is deployed. */
+	chainId: ChainId;
+	/** An Ethers BrowserProvider instance from the connected wallet. */
+	browserProvider: BrowserProvider;
+	/** An Ethers JsonRpcApiProvider instance for the Safe's chain, used for fetching token details. */
+	rpcProvider: JsonRpcApiProvider;
+	/** The configuration of the Safe, including the current nonce. */
+	config: SafeConfiguration;
+}
+
+export type { CommonTransactionFormProps };
