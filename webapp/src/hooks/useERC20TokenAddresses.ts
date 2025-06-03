@@ -8,15 +8,21 @@ import { useCallback, useState } from "react";
 function useERC20TokenAddresses(chainId: number) {
 	const [addresses, setAddresses] = useState<string[]>(() => getERC20TokenAddresses(chainId));
 
-	const addAddress = useCallback((address: string) => {
-		addERC20TokenAddress(address, chainId);
-		setAddresses(getERC20TokenAddresses(chainId));
-	}, [chainId]);
+	const addAddress = useCallback(
+		(address: string) => {
+			addERC20TokenAddress(address, chainId);
+			setAddresses(getERC20TokenAddresses(chainId));
+		},
+		[chainId],
+	);
 
-	const removeAddress = useCallback((address: string) => {
-		removeERC20TokenAddress(address, chainId);
-		setAddresses(getERC20TokenAddresses(chainId));
-	}, [chainId]);
+	const removeAddress = useCallback(
+		(address: string) => {
+			removeERC20TokenAddress(address, chainId);
+			setAddresses(getERC20TokenAddresses(chainId));
+		},
+		[chainId],
+	);
 
 	// Update addresses when chainId changes
 	const refreshAddresses = useCallback(() => {
