@@ -10,15 +10,15 @@ import type { CommonTransactionFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing a native currency (ETH) transfer transaction
- * for a Gnosis Safe. It handles input validation, transaction signing, and submission
- * to the Harbour service.
+ * for a Safe. It handles input validation, transaction signing, and submission
+ * to the Harbour contract.
  */
 export function NativeTransferForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 
 	const [recipient, setRecipient] = useState("");
 	const [amount, setAmount] = useState("");
-	const [nonce, setNonce] = useState("");
+	const [nonce, setNonce] = useState(config.nonce.toString());
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
@@ -27,12 +27,6 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
 	const isNonceValid =
 		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
-
-	useEffect(() => {
-		if (config) {
-			setNonce(config.nonce.toString());
-		}
-	}, [config]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -73,7 +67,9 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 
 			// Switch to Safe's chain for signing
 			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				{
+					request: async ({ params, method }) => await browserProvider.send(method, params || []),
+				},
 				chainId,
 			);
 			const signer = await browserProvider.getSigner();
@@ -81,7 +77,9 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 
 			// Switch to Harbour chain for enqueuing
 			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				{
+					request: async ({ params, method }) => await browserProvider.send(method, params || []),
+				},
 				HARBOUR_CHAIN_ID,
 			);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);

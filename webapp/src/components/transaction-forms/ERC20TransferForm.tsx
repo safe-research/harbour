@@ -1,18 +1,19 @@
 import { switchToChain } from "@/lib/chains";
-import { ERC20_ABI, fetchERC20TokenDetails } from "@/lib/erc20";
+import { ERC20_ABI } from "@/lib/erc20";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
 import { signSafeTransaction } from "@/lib/safe";
 import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import type { ERC20TransferFormProps } from "./types";
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
- * for a Gnosis Safe. It handles fetching token decimals, input validation,
- * transaction encoding, signing, and submission to the Harbour service.
+ * for a Safe. It handles fetching token decimals, input validation,
+ * transaction encoding, signing, and submission to the Harbour contract.
  */
 export function ERC20TransferForm({
 	safeAddress,
@@ -27,11 +28,8 @@ export function ERC20TransferForm({
 	const [tokenAddress, setTokenAddress] = useState(initialTokenAddress || "");
 	const [recipient, setRecipient] = useState("");
 	const [amount, setAmount] = useState("");
-	const [decimals, setDecimals] = useState<number | null>(null);
-	const [nonce, setNonce] = useState("");
 
-	const [isFetchingDecimals, setIsFetchingDecimals] = useState(false);
-	const [fetchDecimalsError, setFetchDecimalsError] = useState<string>();
+	const [nonce, setNonce] = useState(config.nonce.toString());
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
@@ -43,44 +41,12 @@ export function ERC20TransferForm({
 	const isNonceValid =
 		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
-	useEffect(() => {
-		if (config) {
-			setNonce(config.nonce.toString());
-		}
-	}, [config]);
-
-	useEffect(() => {
-		const fetchDecimals = async () => {
-			if (isAddress(tokenAddress)) {
-				setIsFetchingDecimals(true);
-				setFetchDecimalsError(undefined);
-				setDecimals(null);
-				try {
-					// Corrected argument order and added safeAddress as ownerAddress
-					const details = await fetchERC20TokenDetails(rpcProvider, tokenAddress, safeAddress);
-					if (details === null) {
-						setDecimals(null);
-						setFetchDecimalsError("Could not fetch token details. Please check the address and network.");
-					} else {
-						setDecimals(details.decimals);
-						setFetchDecimalsError(undefined); // Clear any previous error
-					}
-				} catch (err) {
-					setDecimals(null);
-					// General error message, specific null check above handles details === null
-					setFetchDecimalsError(
-						err instanceof Error ? err.message : "An unexpected error occurred while fetching token details.",
-					);
-				} finally {
-					setIsFetchingDecimals(false);
-				}
-			} else {
-				setDecimals(null);
-				setFetchDecimalsError(undefined); // Clear error if tokenAddress is not valid or empty
-			}
-		};
-		void fetchDecimals();
-	}, [tokenAddress, rpcProvider, safeAddress]); // Added safeAddress to dependency array
+	const {
+		data: tokenDetails,
+		isLoading: isFetchingDetails,
+		error: fetchDetailsError,
+	} = useERC20TokenDetails(rpcProvider, tokenAddress, safeAddress, chainId);
+	const decimals = tokenDetails?.decimals ?? null;
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -132,14 +98,18 @@ export function ERC20TransferForm({
 			};
 
 			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				{
+					request: async ({ params, method }) => await browserProvider.send(method, params || []),
+				},
 				chainId,
 			);
 			const signer = await browserProvider.getSigner();
 			const signature = await signSafeTransaction(signer, transaction);
 
 			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
+				{
+					request: async ({ params, method }) => await browserProvider.send(method, params || []),
+				},
 				HARBOUR_CHAIN_ID,
 			);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
@@ -173,8 +143,12 @@ export function ERC20TransferForm({
 					{!isTokenAddressValid && tokenAddress !== "" && (
 						<p className="mt-1 text-sm text-red-600">Please enter a valid Ethereum address.</p>
 					)}
-					{isFetchingDecimals && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
-					{fetchDecimalsError && <p className="mt-1 text-sm text-red-600">{fetchDecimalsError}</p>}
+					{isFetchingDetails && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
+					{fetchDetailsError && (
+						<p className="mt-1 text-sm text-red-600">
+							{fetchDetailsError instanceof Error ? fetchDetailsError.message : String(fetchDetailsError)}
+						</p>
+					)}
 					{decimals !== null && <p className="mt-1 text-sm text-green-600">Token Decimals: {decimals}</p>}
 				</div>
 
@@ -213,7 +187,7 @@ export function ERC20TransferForm({
 					{!isAmountValid && amount !== "" && (
 						<p className="mt-1 text-sm text-red-600">Please enter a valid positive number.</p>
 					)}
-					{decimals === null && isAddress(tokenAddress) && !isFetchingDecimals && !fetchDecimalsError && (
+					{decimals === null && isAddress(tokenAddress) && !isFetchingDetails && !fetchDetailsError && (
 						<p className="mt-1 text-sm text-yellow-600">Enter a valid token address to enable amount input.</p>
 					)}
 				</div>
@@ -252,8 +226,8 @@ export function ERC20TransferForm({
 							!isAmountValid ||
 							!amount ||
 							decimals === null || // Crucial: ensure decimals are fetched
-							isFetchingDecimals ||
-							!!fetchDecimalsError ||
+							isFetchingDetails ||
+							Boolean(fetchDetailsError) ||
 							!isNonceValid
 						}
 						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
