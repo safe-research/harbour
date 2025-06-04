@@ -1,4 +1,4 @@
-import { configSearchSchema } from "@/lib/validators";
+import { safeIdSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
@@ -114,7 +114,7 @@ function EnqueueContent({
 }
 
 const flowSchema = z.enum(["native", "erc20", "raw"]).optional().default("raw");
-const enqueueSchema = configSearchSchema.extend({
+const enqueueSchema = safeIdSchema.extend({
 	flow: flowSchema,
 	tokenAddress: z.string().optional(),
 });
@@ -124,7 +124,7 @@ const enqueueSchema = configSearchSchema.extend({
  * Validates search parameters (safe address, chainId, and optional flow).
  */
 export const Route = createFileRoute("/enqueue")({
-	validateSearch: zodValidator(enqueueSchema), // configSearchSchema now includes 'flow' and 'tokenAddress'
+	validateSearch: zodValidator(enqueueSchema),
 	component: EnqueuePage,
 });
 

@@ -11,7 +11,7 @@ import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
-import { configSearchSchema } from "../lib/validators";
+import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {
 	/** Ethers JSON RPC API provider instance. */
@@ -59,7 +59,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								icon={FileCode}
 								ctaText="Create Raw Tx"
 								to="/enqueue"
-								search={{ safe: safeAddress, chainId, flow: "raw" }}
+								search={{ safe: safeAddress, chainId }}
 							/>
 						</div>
 
@@ -85,7 +85,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
  * @returns JSX element for the dashboard page.
  */
 export const Route = createFileRoute("/dashboard")({
-	validateSearch: zodValidator(configSearchSchema),
+	validateSearch: zodValidator(safeIdSchema),
 	component: DashboardPage,
 });
 

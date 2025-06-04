@@ -26,7 +26,9 @@ export const chainIdSchema = z.number().int().positive();
 /**
  * Zod schema for validating search parameters for routes that require Safe address and chain ID.
  */
-export const configSearchSchema = z.object({
+export const safeIdSchema = z.object({
 	safe: safeAddressSchema,
 	chainId: chainIdSchema,
 });
+
+export type SafeId = z.infer<typeof safeIdSchema>;

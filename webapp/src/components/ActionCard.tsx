@@ -1,3 +1,4 @@
+import type { SafeId } from "@/lib/validators";
 import { Link } from "@tanstack/react-router";
 import type { ToPathOption } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react"; // For precise icon typing
@@ -17,8 +18,8 @@ interface ActionCardProps {
 	ctaText: string;
 	/** The path to link to. Should be a registered route. */
 	to: ToPathOption;
-	/** Search parameters for the link. Must include 'safe' and 'chainId', and can optionally include 'flow'. */
-	search: { safe: string; chainId: number; flow?: "native" | "erc20" | "raw" };
+	/** Search parameters for the link. Must include 'safe' and 'chainId'. */
+	search: SafeId;
 }
 
 /**

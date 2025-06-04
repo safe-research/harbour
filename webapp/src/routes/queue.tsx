@@ -17,7 +17,7 @@ import { HARBOUR_CHAIN_ID, type NonceGroup, enqueueSafeTransaction } from "../li
 import { signSafeTransaction } from "../lib/safe";
 import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
-import { configSearchSchema } from "../lib/validators";
+import { safeIdSchema } from "../lib/validators";
 
 // Define the route before the component so Route is in scope
 /**
@@ -25,7 +25,7 @@ import { configSearchSchema } from "../lib/validators";
  * Validates search parameters (safe address, chainId).
  */
 export const Route = createFileRoute("/queue")({
-	validateSearch: zodValidator(configSearchSchema),
+	validateSearch: zodValidator(safeIdSchema),
 	component: QueuePage,
 });
 
