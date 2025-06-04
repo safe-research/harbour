@@ -1,5 +1,5 @@
 import { BackButton } from "@/components/BackButton";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, ScrollText } from "lucide-react";
@@ -29,6 +29,21 @@ interface DashboardContentProps {
  */
 function DashboardContent({ provider, safeAddress, chainId }: DashboardContentProps) {
 	const { data: config, isLoading: isLoadingConfig, error: errorConfig } = useSafeConfiguration(provider, safeAddress);
+	const navigate = useNavigate();
+
+	const handleSendNative = () => {
+		navigate({
+			to: "/enqueue",
+			search: { safe: safeAddress, chainId, flow: "native" },
+		});
+	};
+
+	const handleSendToken = (tokenAddress: string) => {
+		navigate({
+			to: "/enqueue",
+			search: { safe: safeAddress, chainId, flow: "erc20", tokenAddress },
+		});
+	};
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -63,7 +78,13 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 							/>
 						</div>
 
-						<BalancesSection provider={provider} safeAddress={safeAddress} chainId={chainId} />
+						<BalancesSection
+							provider={provider}
+							safeAddress={safeAddress}
+							chainId={chainId}
+							onSendNative={handleSendNative}
+							onSendToken={handleSendToken}
+						/>
 
 						<div className="mt-10">
 							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>

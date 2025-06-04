@@ -55,20 +55,28 @@ export function ERC20TransferForm({
 	// Memoized form validation state for better readability
 	const isFormValid = useMemo(() => {
 		return (
-			isTokenAddressValid && tokenAddress &&
-			isRecipientValid && recipient &&
-			isAmountValid && amount &&
+			isTokenAddressValid &&
+			tokenAddress &&
+			isRecipientValid &&
+			recipient &&
+			isAmountValid &&
+			amount &&
 			decimals !== null &&
 			!isFetchingDetails &&
 			!fetchDetailsError &&
 			isNonceValid
 		);
 	}, [
-		isTokenAddressValid, tokenAddress,
-		isRecipientValid, recipient,
-		isAmountValid, amount,
-		decimals, isFetchingDetails, fetchDetailsError,
-		isNonceValid
+		isTokenAddressValid,
+		tokenAddress,
+		isRecipientValid,
+		recipient,
+		isAmountValid,
+		amount,
+		decimals,
+		isFetchingDetails,
+		fetchDetailsError,
+		isNonceValid,
 	]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -84,7 +92,7 @@ export function ERC20TransferForm({
 			setError("Invalid Recipient Address.");
 			return;
 		}
-		
+
 		const numericAmount = Number(amount);
 		if (Number.isNaN(numericAmount) || numericAmount <= 0 || !Number.isFinite(numericAmount)) {
 			setError("Invalid Amount. Must be a positive number.");
@@ -92,7 +100,7 @@ export function ERC20TransferForm({
 		}
 
 		// Check for reasonable decimal places
-		const decimalPlaces = amount.split('.')[1]?.length || 0;
+		const decimalPlaces = amount.split(".")[1]?.length || 0;
 		if (decimals !== null && decimalPlaces > decimals) {
 			setError(`Amount has too many decimal places. Maximum ${decimals} allowed.`);
 			return;
@@ -180,8 +188,8 @@ export function ERC20TransferForm({
 					{isFetchingDetails && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
 					{fetchDetailsError && (
 						<p className="mt-1 text-sm text-red-600">
-							{fetchDetailsError instanceof Error 
-								? `Unable to fetch token details: ${fetchDetailsError.message}` 
+							{fetchDetailsError instanceof Error
+								? `Unable to fetch token details: ${fetchDetailsError.message}`
 								: "Unable to fetch token details. Please verify the address and network."}
 						</p>
 					)}

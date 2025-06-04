@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { type JsonRpcApiProvider, ethers } from "ethers";
 import { Send, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -13,9 +12,17 @@ interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
 	safeAddress: string;
 	chainId: number;
+	onSendNative: () => void;
+	onSendToken: (tokenAddress: string) => void;
 }
 
-export default function BalancesSection({ provider, safeAddress, chainId }: BalancesSectionProps) {
+export default function BalancesSection({
+	provider,
+	safeAddress,
+	chainId,
+	onSendNative,
+	onSendToken,
+}: BalancesSectionProps) {
 	const nativeCurrency = useMemo(() => getNativeCurrencyByChainId(chainId), [chainId]);
 	const {
 		data: nativeBalance,
@@ -69,6 +76,14 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		removeTokenAddress(tokenAddress);
 	};
 
+	const handleSendNative = () => {
+		onSendNative();
+	};
+
+	const handleSendToken = (tokenAddress: string) => {
+		onSendToken(tokenAddress);
+	};
+
 	return (
 		<div className="mt-10">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4">Token Balances</h2>
@@ -78,19 +93,19 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 					<div className="flex justify-between items-center mb-2">
 						<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
 						{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
-							<Link
-								to="/enqueue"
-								search={{ safe: safeAddress, chainId, flow: "native" }}
+							<button
+								type="button"
+								onClick={handleSendNative}
+								disabled={nativeBalance === 0n}
 								className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-									nativeBalance > 0n 
-										? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500" 
+									nativeBalance > 0n
+										? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500"
 										: "bg-gray-300 text-gray-500 cursor-not-allowed"
 								}`}
-								style={nativeBalance === 0n ? { pointerEvents: 'none' } : {}}
 							>
 								<Send size={16} className="mr-1.5" />
 								Send
-							</Link>
+							</button>
 						)}
 					</div>
 					{isLoadingNativeBalance && <p className="text-sm text-gray-500">Loading native balance...</p>}
@@ -147,19 +162,19 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 										<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
 									</div>
 									<div className="flex items-center space-x-2">
-										<Link
-											to="/enqueue"
-											search={{ safe: safeAddress, chainId, flow: "erc20", tokenAddress: token.address }}
+										<button
+											type="button"
+											onClick={() => handleSendToken(token.address)}
+											disabled={token.balance === 0n}
 											className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-												token.balance > 0n 
-													? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500" 
+												token.balance > 0n
+													? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500"
 													: "bg-gray-300 text-gray-500 cursor-not-allowed"
 											}`}
-											style={token.balance === 0n ? { pointerEvents: 'none' } : {}}
 										>
 											<Send size={16} className="mr-1.5" />
 											Send
-										</Link>
+										</button>
 										<button
 											type="button"
 											onClick={() => handleRemoveToken(token.address)}
