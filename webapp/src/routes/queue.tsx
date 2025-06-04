@@ -90,7 +90,6 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 		setSignSuccessTxHash(null);
 		setSignError(null);
 		try {
-			// Build full transaction object for signing
 			const fullTx: FullSafeTransaction = {
 				to: txWithSigs.details.to,
 				value: txWithSigs.details.value,
