@@ -1,5 +1,5 @@
 import { switchToChain } from "@/lib/chains";
-import { ERC20_ABI } from "@/lib/erc20";
+import { encodeERC20Transfer } from "@/lib/erc20";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
 import { signSafeTransaction } from "@/lib/safe";
 import type { FullSafeTransaction } from "@/lib/types";
@@ -79,8 +79,7 @@ export function ERC20TransferForm({
 			setIsSubmitting(true);
 
 			const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
-			const erc20Interface = new ethers.Interface(ERC20_ABI);
-			const encodedTransferData = erc20Interface.encodeFunctionData("transfer", [recipient, amountInSmallestUnit]);
+			const encodedTransferData = encodeERC20Transfer(recipient, amountInSmallestUnit);
 
 			const transaction: FullSafeTransaction = {
 				to: tokenAddress,
@@ -97,21 +96,11 @@ export function ERC20TransferForm({
 				refundReceiver: ethers.ZeroAddress,
 			};
 
-			await switchToChain(
-				{
-					request: async ({ params, method }) => await browserProvider.send(method, params || []),
-				},
-				chainId,
-			);
+			await switchToChain(browserProvider, chainId);
 			const signer = await browserProvider.getSigner();
 			const signature = await signSafeTransaction(signer, transaction);
 
-			await switchToChain(
-				{
-					request: async ({ params, method }) => await browserProvider.send(method, params || []),
-				},
-				HARBOUR_CHAIN_ID,
-			);
+			await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);

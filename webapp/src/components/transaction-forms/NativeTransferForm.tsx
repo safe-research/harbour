@@ -5,7 +5,7 @@ import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { CommonTransactionFormProps } from "./types";
 
 /**
@@ -66,22 +66,12 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 			};
 
 			// Switch to Safe's chain for signing
-			await switchToChain(
-				{
-					request: async ({ params, method }) => await browserProvider.send(method, params || []),
-				},
-				chainId,
-			);
+			await switchToChain(browserProvider, chainId);
 			const signer = await browserProvider.getSigner();
 			const signature = await signSafeTransaction(signer, transaction);
 
 			// Switch to Harbour chain for enqueuing
-			await switchToChain(
-				{
-					request: async ({ params, method }) => await browserProvider.send(method, params || []),
-				},
-				HARBOUR_CHAIN_ID,
-			);
+			await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);

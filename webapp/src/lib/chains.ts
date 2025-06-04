@@ -1,8 +1,9 @@
-import type { Eip1193Provider } from "ethers";
+import type { JsonRpcApiProvider } from "ethers";
 import type { ChainId } from "./types";
 
 import { shuffle } from "./arrays";
 import chainsJson from "./chains.json" with { type: "json" };
+import { getEIP1193ProviderFromRPCProvider } from "./providers";
 
 /** Type representing the standard for Etherscan-like explorers. */
 type EtherscanExplorerStandard = "EIP3091";
@@ -171,22 +172,24 @@ function getNativeCurrencyByChainId(chainId: number): ChainsJsonEntry["nativeCur
  * is not added (error code 4902), it uses `wallet_addEthereumChain` with parameters from
  * the local `chains.json` configuration.
  *
- * @param provider - The wallet provider supporting the EIP-1193 request API.
+ * @param provider - Ethers BrowserProvider instance to interact with the wallet.
  * @param chainId - The chain identifier to switch to, in hex string format (e.g., '0x1').
  * @returns A Promise that resolves once the network switch or addition completes.
  * @throws Will rethrow the original error if switching fails for reasons other than
  *        a missing chain (error code 4902).
  */
-async function switchToChain(provider: Eip1193Provider, chainId: ChainId): Promise<void> {
+async function switchToChain(provider: JsonRpcApiProvider, chainId: ChainId): Promise<void> {
+	const eip1193Provider = getEIP1193ProviderFromRPCProvider(provider);
+
 	try {
-		await provider.request({
+		await eip1193Provider.request({
 			method: "wallet_switchEthereumChain",
 			params: [{ chainId: `0x${chainId.toString(16)}` }],
 		});
 	} catch (error: unknown) {
 		const chainData = mapChainDataToWalletAddEthereumChainParams(getChainDataByChainId(chainId));
 		if ((error as { code?: number }).code === 4902) {
-			await provider.request({
+			await eip1193Provider.request({
 				method: "wallet_addEthereumChain",
 				params: [chainData],
 			});

@@ -106,17 +106,11 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 				chainId,
 			};
 			// Sign with EIP-712 on the Safe chain
-			await switchToChain(
-				{ request: async ({ method, params }) => walletProvider.send(method, params || []) },
-				chainId,
-			);
+			await switchToChain(walletProvider, chainId);
 			const signer = await walletProvider.getSigner();
 			const signature = await signSafeTransaction(signer, fullTx);
 			// Enqueue signature on Harbour chain
-			await switchToChain(
-				{ request: async ({ method, params }) => walletProvider.send(method, params || []) },
-				HARBOUR_CHAIN_ID,
-			);
+			await switchToChain(walletProvider, HARBOUR_CHAIN_ID);
 			await enqueueSafeTransaction(signer, fullTx, signature);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {

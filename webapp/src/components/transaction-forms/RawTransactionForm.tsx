@@ -80,17 +80,11 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 				refundReceiver: ethers.ZeroAddress,
 			};
 
-			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
-				chainId,
-			);
+			await switchToChain(browserProvider, chainId);
 			const signer = await browserProvider.getSigner();
 			const signature = await signSafeTransaction(signer, transaction);
 
-			await switchToChain(
-				{ request: async ({ params, method }) => await browserProvider.send(method, params || []) },
-				HARBOUR_CHAIN_ID,
-			);
+			await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
 			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 			setTxHash(receipt.transactionHash);

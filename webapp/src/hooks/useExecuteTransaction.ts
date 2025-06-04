@@ -47,7 +47,7 @@ export function useExecuteTransaction({
 }: UseExecuteTransactionProps): UseMutationResult<TransactionResponse, Error, ExecuteTransactionVariables> {
 	return useMutation<TransactionResponse, Error, ExecuteTransactionVariables>({
 		mutationFn: async ({ transaction }: ExecuteTransactionVariables) => {
-			await switchToChain({ request: async ({ method, params }) => provider.send(method, params || []) }, chainId);
+			await switchToChain(provider, chainId);
 			const signer = await provider.getSigner();
 
 			return executeTransaction(signer, safeAddress, transaction);
