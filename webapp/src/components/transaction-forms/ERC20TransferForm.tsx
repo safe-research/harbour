@@ -6,7 +6,7 @@ import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import type { ERC20TransferFormProps } from "./types";
 
@@ -37,7 +37,11 @@ export function ERC20TransferForm({
 
 	const isTokenAddressValid = tokenAddress === "" || isAddress(tokenAddress);
 	const isRecipientValid = recipient === "" || isAddress(recipient);
-	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
+	const isAmountValid = useMemo(() => {
+		if (amount === "") return true;
+		const numericAmount = Number(amount);
+		return !Number.isNaN(numericAmount) && numericAmount > 0 && Number.isFinite(numericAmount);
+	}, [amount]);
 	const isNonceValid =
 		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
@@ -47,6 +51,25 @@ export function ERC20TransferForm({
 		error: fetchDetailsError,
 	} = useERC20TokenDetails(rpcProvider, tokenAddress, safeAddress, chainId);
 	const decimals = tokenDetails?.decimals ?? null;
+
+	// Memoized form validation state for better readability
+	const isFormValid = useMemo(() => {
+		return (
+			isTokenAddressValid && tokenAddress &&
+			isRecipientValid && recipient &&
+			isAmountValid && amount &&
+			decimals !== null &&
+			!isFetchingDetails &&
+			!fetchDetailsError &&
+			isNonceValid
+		);
+	}, [
+		isTokenAddressValid, tokenAddress,
+		isRecipientValid, recipient,
+		isAmountValid, amount,
+		decimals, isFetchingDetails, fetchDetailsError,
+		isNonceValid
+	]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -61,18 +84,40 @@ export function ERC20TransferForm({
 			setError("Invalid Recipient Address.");
 			return;
 		}
-		if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+		
+		const numericAmount = Number(amount);
+		if (Number.isNaN(numericAmount) || numericAmount <= 0 || !Number.isFinite(numericAmount)) {
 			setError("Invalid Amount. Must be a positive number.");
 			return;
 		}
+
+		// Check for reasonable decimal places
+		const decimalPlaces = amount.split('.')[1]?.length || 0;
+		if (decimals !== null && decimalPlaces > decimals) {
+			setError(`Amount has too many decimal places. Maximum ${decimals} allowed.`);
+			return;
+		}
+
 		if (decimals === null) {
 			setError("Token decimals could not be determined. Please check the token address and network.");
 			return;
 		}
-		const currentNonce = nonce !== "" ? BigInt(nonce) : config.nonce;
-		if (Number.isNaN(currentNonce) || BigInt(currentNonce) < 0) {
-			setError("Invalid nonce. Must be a non-negative integer.");
-			return;
+
+		let currentNonce: bigint;
+		if (nonce !== "") {
+			try {
+				const nonceValue = BigInt(nonce);
+				if (nonceValue < 0) {
+					setError("Invalid nonce. Must be a non-negative integer.");
+					return;
+				}
+				currentNonce = nonceValue;
+			} catch {
+				setError("Invalid nonce. Must be a valid integer.");
+				return;
+			}
+		} else {
+			currentNonce = BigInt(config.nonce);
 		}
 
 		try {
@@ -135,7 +180,9 @@ export function ERC20TransferForm({
 					{isFetchingDetails && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
 					{fetchDetailsError && (
 						<p className="mt-1 text-sm text-red-600">
-							{fetchDetailsError instanceof Error ? fetchDetailsError.message : String(fetchDetailsError)}
+							{fetchDetailsError instanceof Error 
+								? `Unable to fetch token details: ${fetchDetailsError.message}` 
+								: "Unable to fetch token details. Please verify the address and network."}
 						</p>
 					)}
 					{decimals !== null && <p className="mt-1 text-sm text-green-600">Token Decimals: {decimals}</p>}
@@ -165,7 +212,9 @@ export function ERC20TransferForm({
 					</label>
 					<input
 						id="amount"
-						type="text"
+						type="number"
+						step="any"
+						min="0"
 						value={amount}
 						onChange={(e) => setAmount(e.target.value)}
 						placeholder="e.g., 100"
@@ -206,19 +255,7 @@ export function ERC20TransferForm({
 				<div className="pt-4">
 					<button
 						type="submit"
-						disabled={
-							isSubmitting ||
-							!isTokenAddressValid ||
-							!tokenAddress ||
-							!isRecipientValid ||
-							!recipient ||
-							!isAmountValid ||
-							!amount ||
-							decimals === null || // Crucial: ensure decimals are fetched
-							isFetchingDetails ||
-							Boolean(fetchDetailsError) ||
-							!isNonceValid
-						}
+						disabled={isSubmitting || !isFormValid}
 						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (

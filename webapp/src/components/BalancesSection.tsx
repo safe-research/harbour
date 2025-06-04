@@ -81,7 +81,12 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 							<Link
 								to="/enqueue"
 								search={{ safe: safeAddress, chainId, flow: "native" }}
-								className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+								className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+									nativeBalance > 0n 
+										? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500" 
+										: "bg-gray-300 text-gray-500 cursor-not-allowed"
+								}`}
+								style={nativeBalance === 0n ? { pointerEvents: 'none' } : {}}
 							>
 								<Send size={16} className="mr-1.5" />
 								Send
@@ -145,7 +150,12 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 										<Link
 											to="/enqueue"
 											search={{ safe: safeAddress, chainId, flow: "erc20", tokenAddress: token.address }}
-											className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+											className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+												token.balance > 0n 
+													? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500" 
+													: "bg-gray-300 text-gray-500 cursor-not-allowed"
+											}`}
+											style={token.balance === 0n ? { pointerEvents: 'none' } : {}}
 										>
 											<Send size={16} className="mr-1.5" />
 											Send
