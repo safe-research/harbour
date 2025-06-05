@@ -1,3 +1,4 @@
+import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { switchToChain } from "@/lib/chains";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
@@ -6,8 +7,7 @@ import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
-import { useState, useMemo } from "react";
-import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
+import { useMemo, useState } from "react";
 import type { ERC20TransferFormProps } from "./types";
 
 /**
@@ -193,7 +193,16 @@ export function ERC20TransferForm({
 								: "Unable to fetch token details. Please verify the address and network."}
 						</p>
 					)}
-					{decimals !== null && <p className="mt-1 text-sm text-green-600">Token Decimals: {decimals}</p>}
+					{decimals !== null && tokenDetails && (
+						<div className="mt-1 text-sm text-green-600 space-y-1">
+							<p>
+								<strong>Token:</strong> {tokenDetails.name} ({tokenDetails.symbol})
+							</p>
+							<p>
+								<strong>Decimals:</strong> {decimals}
+							</p>
+						</div>
+					)}
 				</div>
 
 				<div>
