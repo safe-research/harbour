@@ -84,7 +84,6 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 		},
 	});
 
-	// Handler to sign a pending Safe transaction and enqueue signature
 	const handleSignTransaction = async (txWithSigs: NonceGroup["transactions"][number], nonce: string) => {
 		setSigningTxHash(txWithSigs.safeTxHash);
 		setSignSuccessTxHash(null);
@@ -206,7 +205,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 													<p>
 														<strong>Value:</strong> {txWithSigs.details.value} wei
 													</p>
-													<p>
+													<p className="break-all">
 														<strong>Data:</strong>{" "}
 														{txWithSigs.details.data === "0x" || txWithSigs.details.data === ""
 															? "0x (No data)"
