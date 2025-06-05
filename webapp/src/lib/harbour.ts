@@ -1,7 +1,9 @@
 import type { JsonRpcApiProvider, JsonRpcSigner } from "ethers";
 import { Contract, Interface } from "ethers";
+import { switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
+import { signSafeTransaction } from "./safe";
 import type { ChainId, FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
 
 /** The chain ID where the Harbour contract is deployed. */
@@ -121,7 +123,6 @@ async function fetchSafeQueue({
 
 	const sigResults = await aggregateMulticall(provider, sigCalls);
 
-	// Organize signatures per nonce and txHash
 	const nonceMap = new Map<string, Map<string, HarbourSignature[]>>();
 	const uniqueTxHashes = new Set<string>();
 
@@ -149,17 +150,14 @@ async function fetchSafeQueue({
 		}
 	});
 
-	// Batch retrieveTransaction calls
 	const txHashes = Array.from(uniqueTxHashes);
 	const txCalls = txHashes.map((txHash) => ({
 		target: HARBOUR_ADDRESS,
 		allowFailure: false,
 		callData: iface.encodeFunctionData("retrieveTransaction", [txHash]),
 	}));
-
 	const txResults = await aggregateMulticall(provider, txCalls);
 
-	// Decode transaction details
 	const txDetailsMap = new Map<string, HarbourTransactionDetails>();
 
 	txResults.forEach((res, idx) => {
@@ -181,7 +179,6 @@ async function fetchSafeQueue({
 		});
 	});
 
-	// Assemble NonceGroup array
 	const result: NonceGroup[] = [];
 	nonceMap.forEach((txMap, nonce) => {
 		const group: NonceGroup = { nonce, transactions: [] };
@@ -197,4 +194,36 @@ async function fetchSafeQueue({
 	return result;
 }
 
-export { HARBOUR_CHAIN_ID, HARBOUR_ADDRESS, HARBOUR_ABI, enqueueSafeTransaction, fetchSafeQueue };
+/**
+ * Signs a Safe transaction and enqueues it to the Harbour contract.
+ * This function handles the complete flow:
+ * 1. Switches to the Safe's chain for signing
+ * 2. Signs the transaction
+ * 3. Switches to the Harbour chain for enqueuing
+ * 4. Enqueues the transaction
+ *
+ * @param browserProvider - The browser provider for chain switching and signing
+ * @param transaction - The complete Safe transaction to sign and enqueue
+ * @returns The transaction receipt from enqueuing
+ */
+async function signAndEnqueueSafeTransaction(browserProvider: JsonRpcApiProvider, transaction: FullSafeTransaction) {
+	// Switch to Safe's chain for signing
+	await switchToChain(browserProvider, transaction.chainId);
+	const signer = await browserProvider.getSigner();
+	const signature = await signSafeTransaction(signer, transaction);
+
+	// Switch to Harbour chain for enqueuing
+	await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
+	const receipt = await enqueueSafeTransaction(signer, transaction, signature);
+
+	return receipt;
+}
+
+export {
+	HARBOUR_CHAIN_ID,
+	HARBOUR_ADDRESS,
+	HARBOUR_ABI,
+	enqueueSafeTransaction,
+	fetchSafeQueue,
+	signAndEnqueueSafeTransaction,
+};

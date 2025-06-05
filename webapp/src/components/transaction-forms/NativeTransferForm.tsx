@@ -1,7 +1,5 @@
 import { useNativeBalance } from "@/hooks/useNativeBalance";
-import { switchToChain } from "@/lib/chains";
-import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
-import { signSafeTransaction } from "@/lib/safe";
+import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
@@ -78,14 +76,7 @@ export function NativeTransferForm({
 				refundReceiver: ethers.ZeroAddress,
 			};
 
-			// Switch to Safe's chain for signing
-			await switchToChain(browserProvider, chainId);
-			const signer = await browserProvider.getSigner();
-			const signature = await signSafeTransaction(signer, transaction);
-
-			// Switch to Harbour chain for enqueuing
-			await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
-			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
+			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 
 			setTxHash(receipt.transactionHash);
 			// Navigate to queue page after successful enqueue

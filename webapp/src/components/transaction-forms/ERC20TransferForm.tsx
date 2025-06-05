@@ -1,8 +1,6 @@
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
-import { switchToChain } from "@/lib/chains";
 import { encodeERC20Transfer } from "@/lib/erc20";
-import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
-import { signSafeTransaction } from "@/lib/safe";
+import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
@@ -149,12 +147,7 @@ export function ERC20TransferForm({
 				refundReceiver: ethers.ZeroAddress,
 			};
 
-			await switchToChain(browserProvider, chainId);
-			const signer = await browserProvider.getSigner();
-			const signature = await signSafeTransaction(signer, transaction);
-
-			await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
-			const receipt = await enqueueSafeTransaction(signer, transaction, signature);
+			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 
 			setTxHash(receipt.transactionHash);
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
