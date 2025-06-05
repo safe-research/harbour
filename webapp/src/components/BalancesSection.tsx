@@ -1,5 +1,5 @@
 import { type JsonRpcApiProvider, ethers } from "ethers";
-import { Send, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useERC20Tokens } from "@/hooks/useERC20Tokens";
@@ -7,6 +7,7 @@ import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { getNativeCurrencyByChainId } from "@/lib/chains";
 import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
 import { ethereumAddressSchema } from "@/lib/validators";
+import { SendButton } from "./SendButton";
 
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
@@ -16,13 +17,7 @@ interface BalancesSectionProps {
 	onSendToken: (tokenAddress: string) => void;
 }
 
-export default function BalancesSection({
-	provider,
-	safeAddress,
-	chainId,
-	onSendNative,
-	onSendToken,
-}: BalancesSectionProps) {
+export function BalancesSection({ provider, safeAddress, chainId, onSendNative, onSendToken }: BalancesSectionProps) {
 	const nativeCurrency = useMemo(() => getNativeCurrencyByChainId(chainId), [chainId]);
 	const {
 		data: nativeBalance,
@@ -93,19 +88,7 @@ export default function BalancesSection({
 					<div className="flex justify-between items-center mb-2">
 						<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
 						{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
-							<button
-								type="button"
-								onClick={handleSendNative}
-								disabled={nativeBalance === 0n}
-								className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-									nativeBalance > 0n
-										? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500"
-										: "bg-gray-300 text-gray-500 cursor-not-allowed"
-								}`}
-							>
-								<Send size={16} className="mr-1.5" />
-								Send
-							</button>
+							<SendButton onClick={handleSendNative} disabled={nativeBalance === 0n} />
 						)}
 					</div>
 					{isLoadingNativeBalance && <p className="text-sm text-gray-500">Loading native balance...</p>}
@@ -162,19 +145,7 @@ export default function BalancesSection({
 										<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
 									</div>
 									<div className="flex items-center space-x-2">
-										<button
-											type="button"
-											onClick={() => handleSendToken(token.address)}
-											disabled={token.balance === 0n}
-											className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-												token.balance > 0n
-													? "bg-black text-white hover:bg-gray-800 focus:ring-gray-500"
-													: "bg-gray-300 text-gray-500 cursor-not-allowed"
-											}`}
-										>
-											<Send size={16} className="mr-1.5" />
-											Send
-										</button>
+										<SendButton onClick={() => handleSendToken(token.address)} disabled={token.balance === 0n} />
 										<button
 											type="button"
 											onClick={() => handleRemoveToken(token.address)}

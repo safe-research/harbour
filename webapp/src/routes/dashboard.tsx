@@ -5,7 +5,7 @@ import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, ScrollText } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
-import BalancesSection from "../components/BalancesSection";
+import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
