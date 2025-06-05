@@ -227,6 +227,11 @@ export function ERC20TransferForm({
 					<label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
 						Amount (in tokens)
 					</label>
+					{decimals !== null && tokenDetails && (
+						<p className="mt-1 text-sm text-gray-500">
+							Balance: {ethers.formatUnits(tokenDetails.balance, decimals)} {tokenDetails.symbol}
+						</p>
+					)}
 					<input
 						id="amount"
 						type="number"
