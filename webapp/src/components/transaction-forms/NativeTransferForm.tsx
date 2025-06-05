@@ -1,3 +1,4 @@
+import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { switchToChain } from "@/lib/chains";
 import { HARBOUR_CHAIN_ID, enqueueSafeTransaction } from "@/lib/harbour";
 import { signSafeTransaction } from "@/lib/safe";
@@ -13,7 +14,13 @@ import type { CommonTransactionFormProps } from "./types";
  * for a Safe. It handles input validation, transaction signing, and submission
  * to the Harbour contract.
  */
-export function NativeTransferForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
+export function NativeTransferForm({
+	safeAddress,
+	chainId,
+	browserProvider,
+	rpcProvider,
+	config,
+}: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 
 	const [recipient, setRecipient] = useState("");
@@ -22,6 +29,12 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
+
+	const {
+		data: balance,
+		isLoading: isLoadingBalance,
+		error: balanceError,
+	} = useNativeBalance(rpcProvider, safeAddress, chainId);
 
 	const isRecipientValid = recipient === "" || isAddress(recipient);
 	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
@@ -110,6 +123,11 @@ export function NativeTransferForm({ safeAddress, chainId, browserProvider, conf
 					<label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
 						Amount (ETH)
 					</label>
+					{balance !== undefined && (
+						<p className="mt-1 text-sm text-gray-500">Balance: {ethers.formatEther(balance)} ETH</p>
+					)}
+					{isLoadingBalance && <p className="mt-1 text-sm text-gray-500">Loading balance...</p>}
+					{balanceError && <p className="mt-1 text-sm text-red-600">Error loading balance: {balanceError.message}</p>}
 					<input
 						id="amount"
 						type="text"
