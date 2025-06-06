@@ -1,12 +1,23 @@
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { nonceSchema } from "@/lib/validators";
+import { ethereumAddressSchema, ethValueSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
 import { useNavigate } from "@tanstack/react-router";
-import { ethers, isAddress } from "ethers";
-
-import type React from "react";
+import { ethers } from "ethers";
 import { useState } from "react";
 import type { CommonTransactionFormProps } from "./types";
+
+const createRawTransactionFormSchema = (currentSafeNonce: string) =>
+	z.object({
+		to: ethereumAddressSchema,
+		value: ethValueSchema,
+		data: hexDataSchema,
+		nonce: nonceSchema(currentSafeNonce),
+	});
+
+type RawTransactionFormData = z.infer<ReturnType<typeof createRawTransactionFormSchema>>;
 
 /**
  * A form component for creating and enqueuing a raw, custom transaction for a Gnosis Safe.
@@ -15,45 +26,28 @@ import type { CommonTransactionFormProps } from "./types";
  */
 export function RawTransactionForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
 	const navigate = useNavigate();
-
-	const [to, setTo] = useState("");
-	const [value, setValue] = useState(""); // ETH value string
-	const [dataInput, setDataInput] = useState(""); // Hex data string
-	const [nonce, setNonce] = useState(config.nonce.toString());
-
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+	} = useForm<RawTransactionFormData>({
+		resolver: zodResolver(createRawTransactionFormSchema(config.nonce.toString())),
+		defaultValues: {
+			nonce: config.nonce.toString(),
+			value: "0",
+			data: "",
+		},
+	});
+
+	const onSubmit = async (data: RawTransactionFormData) => {
 		setError(undefined);
 		setTxHash(undefined);
 
-		// Basic field validation
-		if (!isAddress(to)) {
-			setError("Invalid 'To' address.");
-			return;
-		}
-
-		if (Number.isNaN(Number(value))) {
-			setError("Invalid 'Value'. Must be a number (e.g., 0.1).");
-			return;
-		}
-
-		if (dataInput !== "" && !ethers.isHexString(dataInput)) {
-			setError("Invalid 'Data'. Must be a valid hex string (e.g., 0x123abc).");
-			return;
-		}
-
-		// Nonce validation with Zod
-		const nonceParse = nonceSchema(config.nonce.toString()).safeParse(nonce);
-		if (!nonceParse.success) {
-			setError(nonceParse.error.errors[0].message);
-			return;
-		}
-
-		const currentNonce = nonce === "" ? BigInt(config.nonce) : BigInt(nonce);
+		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -61,9 +55,9 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 			const transaction = getSafeTransaction({
 				chainId,
 				safeAddress,
-				to,
-				value: ethers.parseEther(value || "0").toString(),
-				data: dataInput || "0x",
+				to: data.to,
+				value: ethers.parseEther(data.value || "0").toString(),
+				data: data.data || "0x",
 				nonce: currentNonce.toString(),
 			});
 
@@ -81,7 +75,7 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
 					<label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">
 						To Address
@@ -89,12 +83,11 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 					<input
 						id="to"
 						type="text"
-						value={to}
-						onChange={(e) => setTo(e.target.value)}
+						{...register("to")}
 						placeholder="0x..."
-						className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
-						required
+						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
+					{errors.to && <p className="mt-1 text-sm text-red-600">{errors.to.message}</p>}
 				</div>
 
 				<div>
@@ -104,11 +97,11 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 					<input
 						id="value"
 						type="text"
-						value={value}
-						onChange={(e) => setValue(e.target.value)}
+						{...register("value")}
 						placeholder="0.0"
-						className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
+					{errors.value && <p className="mt-1 text-sm text-red-600">{errors.value.message}</p>}
 				</div>
 
 				<div>
@@ -118,11 +111,11 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 					<input
 						id="data"
 						type="text"
-						value={dataInput}
-						onChange={(e) => setDataInput(e.target.value)}
+						{...register("data")}
 						placeholder="0x..."
-						className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 font-mono text-sm"
+						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-mono text-sm"
 					/>
+					{errors.data && <p className="mt-1 text-sm text-red-600">{errors.data.message}</p>}
 				</div>
 
 				<div>
@@ -132,38 +125,63 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 					<input
 						id="nonce"
 						type="number"
-						value={nonce}
-						onChange={(e) => setNonce(e.target.value)}
+						{...register("nonce")}
 						min="0"
 						step="1"
-						className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
+						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
 						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span>
 					</p>
+					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>
 
 				<div className="pt-4">
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						className="w-full px-6 py-3 bg-gray-900 text-white rounded-md disabled:opacity-50"
+						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
-						{isSubmitting ? "Processing..." : "Sign & Enqueue Raw Transaction"}
+						{isSubmitting ? (
+							<>
+								<svg
+									className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+									xmlns="http://www.w3.org/2000/svg"
+									fill="none"
+									viewBox="0 0 24 24"
+								>
+									<title>Processing...</title>
+									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+									<path
+										className="opacity-75"
+										fill="currentColor"
+										d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+									/>
+								</svg>
+								Processing...
+							</>
+						) : (
+							"Sign & Enqueue Raw Transaction"
+						)}
 					</button>
 				</div>
 
 				{txHash && (
-					<div className="mt-6 p-4 bg-green-50 rounded-md">
-						<p className="text-sm text-green-700">
-							Transaction Submitted: <span className="font-mono break-all">{txHash}</span>
+					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
+						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
+						<p className="mt-1 text-sm text-green-700">
+							Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+						</p>
+						<p className="mt-1 text-sm text-green-700">
+							It will be enqueued on Harbour and then proposed to your Safe.
 						</p>
 					</div>
 				)}
 
 				{error && (
-					<div className="mt-6 p-4 bg-red-50 rounded-md">
-						<p className="text-sm text-red-700">{error}</p>
+					<div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
+						<h3 className="text-sm font-medium text-red-800">Error</h3>
+						<p className="mt-1 text-sm text-red-700">{error}</p>
 					</div>
 				)}
 			</form>

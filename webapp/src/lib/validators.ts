@@ -59,3 +59,46 @@ export function nonceSchema(currentSafeNonce: string) {
 		},
 	);
 }
+
+/**
+ * Schema for validating positive decimal amounts (e.g., "1.5", "0.1")
+ */
+export const positiveAmountSchema = z
+	.string()
+	.min(1, "Amount is required")
+	.refine(
+		(val) => {
+			const num = Number(val);
+			return !Number.isNaN(num) && num > 0 && Number.isFinite(num);
+		},
+		{
+			message: "Amount must be a positive number",
+		},
+	);
+
+/**
+ * Schema for validating ETH values (allows 0 and positive values)
+ */
+export const ethValueSchema = z.string().refine(
+	(val) => {
+		if (val === "" || val === "0") return true;
+		const num = Number(val);
+		return !Number.isNaN(num) && num >= 0 && Number.isFinite(num);
+	},
+	{
+		message: "Value must be a non-negative number",
+	},
+);
+
+/**
+ * Schema for validating hex data strings
+ */
+export const hexDataSchema = z.string().refine(
+	(val) => {
+		if (val === "") return true;
+		return /^0x[a-fA-F0-9]*$/.test(val);
+	},
+	{
+		message: "Data must be a valid hex string (e.g., 0x123abc)",
+	},
+);

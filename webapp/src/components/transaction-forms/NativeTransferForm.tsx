@@ -1,12 +1,23 @@
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { nonceSchema } from "@/lib/validators";
+import { ethereumAddressSchema, positiveAmountSchema, nonceSchema } from "@/lib/validators";
 import { useNavigate } from "@tanstack/react-router";
-import { ethers, isAddress } from "ethers";
-import type React from "react";
+import { ethers } from "ethers";
 import { useState } from "react";
 import type { CommonTransactionFormProps } from "./types";
+
+const createNativeTransferFormSchema = (currentSafeNonce: string) =>
+	z.object({
+		recipient: ethereumAddressSchema,
+		amount: positiveAmountSchema,
+		nonce: nonceSchema(currentSafeNonce),
+	});
+
+type NativeTransferFormData = z.infer<ReturnType<typeof createNativeTransferFormSchema>>;
 
 /**
  * A form component for creating and enqueuing a native currency (ETH) transfer transaction
@@ -21,13 +32,20 @@ export function NativeTransferForm({
 	config,
 }: CommonTransactionFormProps) {
 	const navigate = useNavigate();
-
-	const [recipient, setRecipient] = useState("");
-	const [amount, setAmount] = useState("");
-	const [nonce, setNonce] = useState(config.nonce.toString());
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
+
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+	} = useForm<NativeTransferFormData>({
+		resolver: zodResolver(createNativeTransferFormSchema(config.nonce.toString())),
+		defaultValues: {
+			nonce: config.nonce.toString(),
+		},
+	});
 
 	const {
 		data: balance,
@@ -35,25 +53,11 @@ export function NativeTransferForm({
 		error: balanceError,
 	} = useNativeBalance(rpcProvider, safeAddress, chainId);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const onSubmit = async (data: NativeTransferFormData) => {
 		setError(undefined);
 		setTxHash(undefined);
 
-		if (!isAddress(recipient)) {
-			setError("Invalid recipient address.");
-			return;
-		}
-		if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
-			setError("Invalid amount. Must be a positive number.");
-			return;
-		}
-		const nonceParse = nonceSchema(config.nonce.toString()).safeParse(nonce);
-		if (!nonceParse.success) {
-			setError(nonceParse.error.errors[0].message);
-			return;
-		}
-		const currentNonce = nonce === "" ? BigInt(config.nonce) : BigInt(nonce);
+		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -61,15 +65,14 @@ export function NativeTransferForm({
 			const transaction = getSafeTransaction({
 				chainId,
 				safeAddress,
-				to: recipient,
-				value: ethers.parseEther(amount).toString(),
+				to: data.recipient,
+				value: ethers.parseEther(data.amount).toString(),
 				nonce: currentNonce.toString(),
 			});
 
 			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 
 			setTxHash(receipt.transactionHash);
-			// Navigate to queue page after successful enqueue
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
@@ -81,7 +84,7 @@ export function NativeTransferForm({
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
 					<label htmlFor="recipient" className="block text-sm font-medium text-gray-700 mb-1">
 						Recipient Address
@@ -89,12 +92,11 @@ export function NativeTransferForm({
 					<input
 						id="recipient"
 						type="text"
-						value={recipient}
-						onChange={(e) => setRecipient(e.target.value)}
+						{...register("recipient")}
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-						required
 					/>
+					{errors.recipient && <p className="mt-1 text-sm text-red-600">{errors.recipient.message}</p>}
 				</div>
 
 				<div>
@@ -109,12 +111,11 @@ export function NativeTransferForm({
 					<input
 						id="amount"
 						type="text"
-						value={amount}
-						onChange={(e) => setAmount(e.target.value)}
+						{...register("amount")}
 						placeholder="0.0"
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-						required
 					/>
+					{errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}
 				</div>
 
 				<div>
@@ -124,8 +125,7 @@ export function NativeTransferForm({
 					<input
 						id="nonce"
 						type="number"
-						value={nonce}
-						onChange={(e) => setNonce(e.target.value)}
+						{...register("nonce")}
 						min="0"
 						step="1"
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
@@ -134,6 +134,7 @@ export function NativeTransferForm({
 						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
 						to use current Safe nonce.
 					</p>
+					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>
 
 				<div className="pt-4">
