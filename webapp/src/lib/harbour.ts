@@ -202,18 +202,18 @@ async function fetchSafeQueue({
  * 3. Switches to the Harbour chain for enqueuing
  * 4. Enqueues the transaction
  *
- * @param browserProvider - The browser provider for chain switching and signing
+ * @param walletProvider - The wallet provider for chain switching and signing
  * @param transaction - The complete Safe transaction to sign and enqueue
  * @returns The transaction receipt from enqueuing
  */
-async function signAndEnqueueSafeTransaction(browserProvider: JsonRpcApiProvider, transaction: FullSafeTransaction) {
+async function signAndEnqueueSafeTransaction(walletProvider: JsonRpcApiProvider, transaction: FullSafeTransaction) {
 	// Switch to Safe's chain for signing
-	await switchToChain(browserProvider, transaction.chainId);
-	const signer = await browserProvider.getSigner();
+	await switchToChain(walletProvider, transaction.chainId);
+	const signer = await walletProvider.getSigner();
 	const signature = await signSafeTransaction(signer, transaction);
 
 	// Switch to Harbour chain for enqueuing
-	await switchToChain(browserProvider, HARBOUR_CHAIN_ID);
+	await switchToChain(walletProvider, HARBOUR_CHAIN_ID);
 	const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
 	return receipt;
