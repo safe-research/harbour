@@ -3,6 +3,7 @@ import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
+import { nonceSchema } from "@/lib/validators";
 import type React from "react";
 import { useState } from "react";
 import type { CommonTransactionFormProps } from "./types";
@@ -36,8 +37,6 @@ export function NativeTransferForm({
 
 	const isRecipientValid = recipient === "" || isAddress(recipient);
 	const isAmountValid = amount === "" || (!Number.isNaN(Number(amount)) && Number(amount) > 0);
-	const isNonceValid =
-		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -52,11 +51,12 @@ export function NativeTransferForm({
 			setError("Invalid amount. Must be a positive number.");
 			return;
 		}
-		const currentNonce = nonce !== "" ? BigInt(nonce) : config.nonce;
-		if (Number.isNaN(currentNonce) || BigInt(currentNonce) < 0) {
-			setError("Invalid nonce. Must be a non-negative integer.");
+		const nonceParse = nonceSchema(config.nonce.toString()).safeParse(nonce);
+		if (!nonceParse.success) {
+			setError(nonceParse.error.errors[0].message);
 			return;
 		}
+		const currentNonce = nonce === "" ? BigInt(config.nonce) : BigInt(nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -150,15 +150,12 @@ export function NativeTransferForm({
 						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
 						to use current Safe nonce.
 					</p>
-					{!isNonceValid && nonce !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>
-					)}
 				</div>
 
 				<div className="pt-4">
 					<button
 						type="submit"
-						disabled={isSubmitting || !isRecipientValid || !recipient || !isAmountValid || !amount || !isNonceValid}
+						disabled={isSubmitting || !isRecipientValid || !recipient || !isAmountValid || !amount}
 						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (

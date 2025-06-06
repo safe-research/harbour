@@ -7,6 +7,7 @@ import { ethers, isAddress } from "ethers";
 import type React from "react";
 import { useMemo, useState } from "react";
 import type { ERC20TransferFormProps } from "./types";
+import { nonceSchema } from "@/lib/validators";
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
@@ -40,8 +41,6 @@ export function ERC20TransferForm({
 		const numericAmount = Number(amount);
 		return !Number.isNaN(numericAmount) && numericAmount > 0 && Number.isFinite(numericAmount);
 	}, [amount]);
-	const isNonceValid =
-		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
 
 	const {
 		data: tokenDetails,
@@ -61,8 +60,7 @@ export function ERC20TransferForm({
 			amount &&
 			decimals !== null &&
 			!isFetchingDetails &&
-			!fetchDetailsError &&
-			isNonceValid
+			!fetchDetailsError
 		);
 	}, [
 		isTokenAddressValid,
@@ -74,7 +72,6 @@ export function ERC20TransferForm({
 		decimals,
 		isFetchingDetails,
 		fetchDetailsError,
-		isNonceValid,
 	]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -109,22 +106,12 @@ export function ERC20TransferForm({
 			return;
 		}
 
-		let currentNonce: bigint;
-		if (nonce !== "") {
-			try {
-				const nonceValue = BigInt(nonce);
-				if (nonceValue < 0) {
-					setError("Invalid nonce. Must be a non-negative integer.");
-					return;
-				}
-				currentNonce = nonceValue;
-			} catch {
-				setError("Invalid nonce. Must be a valid integer.");
-				return;
-			}
-		} else {
-			currentNonce = BigInt(config.nonce);
+		const nonceParse = nonceSchema(config.nonce.toString()).safeParse(nonce);
+		if (!nonceParse.success) {
+			setError(nonceParse.error.errors[0].message);
+			return;
 		}
+		const currentNonce = nonce === "" ? BigInt(config.nonce) : BigInt(nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -262,9 +249,6 @@ export function ERC20TransferForm({
 						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
 						to use current Safe nonce.
 					</p>
-					{!isNonceValid && nonce !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>
-					)}
 				</div>
 
 				<div className="pt-4">

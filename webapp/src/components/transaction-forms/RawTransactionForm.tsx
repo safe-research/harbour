@@ -2,8 +2,10 @@ import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import type { FullSafeTransaction } from "@/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
+import { nonceSchema } from "@/lib/validators";
+
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { CommonTransactionFormProps } from "./types";
 
 /**
@@ -17,7 +19,7 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 	const [to, setTo] = useState("");
 	const [value, setValue] = useState(""); // ETH value string
 	const [dataInput, setDataInput] = useState(""); // Hex data string
-	const [nonce, setNonce] = useState(""); // Nonce string
+	const [nonce, setNonce] = useState(config.nonce.toString()); // Nonce string
 
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
@@ -27,14 +29,6 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 	const isToValid = to === "" ? false : isAddress(to); // Allow empty initially, but require for submission
 	const isValueValid = value === "" || !Number.isNaN(Number(value)); // ETH value, can be 0
 	const isDataValid = dataInput === "" || ethers.isHexString(dataInput); // Data, can be "0x" or empty
-	const isNonceValid =
-		nonce === "" || (!Number.isNaN(Number(nonce)) && Number.isInteger(Number(nonce)) && Number(nonce) >= 0);
-
-	useEffect(() => {
-		if (config) {
-			setNonce(config.nonce.toString());
-		}
-	}, [config]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -54,11 +48,12 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 			return;
 		}
 
-		const currentNonce = nonce !== "" ? BigInt(nonce) : config.nonce;
-		if (Number.isNaN(currentNonce) || BigInt(currentNonce) < 0) {
-			setError("Invalid nonce. Must be a non-negative integer.");
+		const nonceParse = nonceSchema(config.nonce.toString()).safeParse(nonce);
+		if (!nonceParse.success) {
+			setError(nonceParse.error.errors[0].message);
 			return;
 		}
+		const currentNonce = nonce === "" ? BigInt(config.nonce) : BigInt(nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -160,15 +155,12 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
 						to use current Safe nonce.
 					</p>
-					{!isNonceValid && nonce !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid non-negative integer.</p>
-					)}
 				</div>
 
 				<div className="pt-4">
 					<button
 						type="submit"
-						disabled={isSubmitting || !to || !isToValid || !isValueValid || !isDataValid || !isNonceValid}
+						disabled={isSubmitting || !to || !isToValid || !isValueValid || !isDataValid}
 						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (
