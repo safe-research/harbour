@@ -2,12 +2,12 @@ import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import type { FullSafeTransaction } from "@/lib/types";
+import { nonceSchema } from "@/lib/validators";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { ERC20TransferFormProps } from "./types";
-import { nonceSchema } from "@/lib/validators";
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
@@ -34,45 +34,12 @@ export function ERC20TransferForm({
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
 
-	const isTokenAddressValid = tokenAddress === "" || isAddress(tokenAddress);
-	const isRecipientValid = recipient === "" || isAddress(recipient);
-	const isAmountValid = useMemo(() => {
-		if (amount === "") return true;
-		const numericAmount = Number(amount);
-		return !Number.isNaN(numericAmount) && numericAmount > 0 && Number.isFinite(numericAmount);
-	}, [amount]);
-
 	const {
 		data: tokenDetails,
 		isLoading: isFetchingDetails,
 		error: fetchDetailsError,
 	} = useERC20TokenDetails(rpcProvider, tokenAddress, safeAddress, chainId);
 	const decimals = tokenDetails?.decimals ?? null;
-
-	// Memoized form validation state for better readability
-	const isFormValid = useMemo(() => {
-		return (
-			isTokenAddressValid &&
-			tokenAddress &&
-			isRecipientValid &&
-			recipient &&
-			isAmountValid &&
-			amount &&
-			decimals !== null &&
-			!isFetchingDetails &&
-			!fetchDetailsError
-		);
-	}, [
-		isTokenAddressValid,
-		tokenAddress,
-		isRecipientValid,
-		recipient,
-		isAmountValid,
-		amount,
-		decimals,
-		isFetchingDetails,
-		fetchDetailsError,
-	]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -162,9 +129,6 @@ export function ERC20TransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 						required
 					/>
-					{!isTokenAddressValid && tokenAddress !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid Ethereum address.</p>
-					)}
 					{isFetchingDetails && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
 					{fetchDetailsError && (
 						<p className="mt-1 text-sm text-red-600">
@@ -198,9 +162,6 @@ export function ERC20TransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 						required
 					/>
-					{!isRecipientValid && recipient !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid Ethereum address.</p>
-					)}
 				</div>
 
 				<div>
@@ -224,9 +185,6 @@ export function ERC20TransferForm({
 						required
 						disabled={decimals === null && isAddress(tokenAddress)}
 					/>
-					{!isAmountValid && amount !== "" && (
-						<p className="mt-1 text-sm text-red-600">Please enter a valid positive number.</p>
-					)}
 					{decimals === null && isAddress(tokenAddress) && !isFetchingDetails && !fetchDetailsError && (
 						<p className="mt-1 text-sm text-yellow-600">Enter a valid token address to enable amount input.</p>
 					)}
@@ -254,7 +212,7 @@ export function ERC20TransferForm({
 				<div className="pt-4">
 					<button
 						type="submit"
-						disabled={isSubmitting || !isFormValid}
+						disabled={isSubmitting}
 						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (
