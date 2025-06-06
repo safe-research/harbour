@@ -61,13 +61,6 @@ export function ERC20TransferForm({
 			return;
 		}
 
-		// Check for reasonable decimal places
-		const decimalPlaces = amount.split(".")[1]?.length || 0;
-		if (decimals !== null && decimalPlaces > decimals) {
-			setError(`Amount has too many decimal places. Maximum ${decimals} allowed.`);
-			return;
-		}
-
 		if (decimals === null) {
 			setError("Token decimals could not be determined. Please check the token address and network.");
 			return;
