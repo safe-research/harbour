@@ -83,12 +83,12 @@ export function BalancesSection({ provider, safeAddress, chainId, onSendNative, 
 	const {
 		register,
 		handleSubmit,
-		formState: { errors, isValid, isValidating },
+		formState: { errors, isValidating },
 		reset,
 		watch,
 	} = useForm<AddTokenFormData>({
 		resolver: zodResolver(addTokenFormSchema),
-		mode: "onChange",
+		mode: "onSubmit",
 	});
 
 	const tokenAddress = watch("tokenAddress", "");
@@ -146,7 +146,7 @@ export function BalancesSection({ provider, safeAddress, chainId, onSendNative, 
 							/>
 							<button
 								type="submit"
-								disabled={!isValid || !tokenAddress || isValidating}
+								disabled={!tokenAddress || isValidating}
 								className="px-4 py-2 bg-black text-white rounded-md shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 sm:text-sm flex-shrink-0"
 							>
 								Add Token
