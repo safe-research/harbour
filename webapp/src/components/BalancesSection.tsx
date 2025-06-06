@@ -7,14 +7,17 @@ import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { getNativeCurrencyByChainId } from "@/lib/chains";
 import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
 import { ethereumAddressSchema } from "@/lib/validators";
+import { SendButton } from "./SendButton";
 
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
 	safeAddress: string;
 	chainId: number;
+	onSendNative: () => void;
+	onSendToken: (tokenAddress: string) => void;
 }
 
-export default function BalancesSection({ provider, safeAddress, chainId }: BalancesSectionProps) {
+export function BalancesSection({ provider, safeAddress, chainId, onSendNative, onSendToken }: BalancesSectionProps) {
 	const nativeCurrency = useMemo(() => getNativeCurrencyByChainId(chainId), [chainId]);
 	const {
 		data: nativeBalance,
@@ -22,7 +25,6 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		error: errorNativeBalance,
 	} = useNativeBalance(provider, safeAddress, chainId);
 
-	// ERC20 token addresses and details
 	const [newTokenAddress, setNewTokenAddress] = useState<string>("");
 	const [addError, setAddError] = useState<string | null>(null);
 	const [isAddingToken, setIsAddingToken] = useState<boolean>(false);
@@ -69,13 +71,26 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 		removeTokenAddress(tokenAddress);
 	};
 
+	const handleSendNative = () => {
+		onSendNative();
+	};
+
+	const handleSendToken = (tokenAddress: string) => {
+		onSendToken(tokenAddress);
+	};
+
 	return (
 		<div className="mt-10">
 			<h2 className="text-xl font-semibold text-gray-900 mb-4">Token Balances</h2>
 			<div className="bg-white p-6 border border-gray-200 rounded-lg space-y-6">
 				{/* Native Balance */}
 				<div>
-					<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
+					<div className="flex justify-between items-center mb-2">
+						<h3 className="text-lg font-medium text-gray-800">Native Token</h3>
+						{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
+							<SendButton onClick={handleSendNative} disabled={nativeBalance === 0n} />
+						)}
+					</div>
 					{isLoadingNativeBalance && <p className="text-sm text-gray-500">Loading native balance...</p>}
 					{errorNativeBalance && <p className="text-sm text-red-500">{errorNativeBalance.message}</p>}
 					{nativeBalance !== undefined && !isLoadingNativeBalance && !errorNativeBalance && (
@@ -129,14 +144,17 @@ export default function BalancesSection({ provider, safeAddress, chainId }: Bala
 										</p>
 										<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
 									</div>
-									<button
-										type="button"
-										onClick={() => handleRemoveToken(token.address)}
-										className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-										aria-label={`Remove ${token.name} token`}
-									>
-										<Trash2 size={18} />
-									</button>
+									<div className="flex items-center space-x-2">
+										<SendButton onClick={() => handleSendToken(token.address)} disabled={token.balance === 0n} />
+										<button
+											type="button"
+											onClick={() => handleRemoveToken(token.address)}
+											className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+											aria-label={`Remove ${token.name} token`}
+										>
+											<Trash2 size={18} />
+										</button>
+									</div>
 								</li>
 							))}
 						</ul>

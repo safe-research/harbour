@@ -14,6 +14,7 @@ const ERC20_ABI = [
 	"function symbol() view returns (string)",
 	"function decimals() view returns (uint8)",
 	"function balanceOf(address account) view returns (uint256)",
+	"function transfer(address to, uint256 amount) returns (bool)",
 ];
 
 /**
@@ -116,4 +117,15 @@ async function fetchBatchERC20TokenDetails(
 	return details;
 }
 
-export { ERC20_ABI, type ERC20TokenDetails, fetchBatchERC20TokenDetails, fetchERC20TokenDetails };
+/**
+ * Encodes ERC20 transfer function call data.
+ * @param recipient The address to transfer tokens to.
+ * @param amount The amount of tokens to transfer (in smallest unit, e.g., wei for ETH).
+ * @returns The encoded function call data as a hex string.
+ */
+function encodeERC20Transfer(recipient: string, amount: bigint): string {
+	const iface = new Interface(ERC20_ABI);
+	return iface.encodeFunctionData("transfer", [recipient, amount]);
+}
+
+export { ERC20_ABI, type ERC20TokenDetails, encodeERC20Transfer, fetchBatchERC20TokenDetails, fetchERC20TokenDetails };

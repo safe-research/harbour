@@ -1,17 +1,17 @@
 import { BackButton } from "@/components/BackButton";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { PlusCircle, ScrollText } from "lucide-react";
+import { FileCode, ScrollText } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
+import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
-import BalancesSection from "../components/BalancesSection";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
-import { configSearchSchema } from "../lib/validators";
+import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {
 	/** Ethers JSON RPC API provider instance. */
@@ -29,6 +29,21 @@ interface DashboardContentProps {
  */
 function DashboardContent({ provider, safeAddress, chainId }: DashboardContentProps) {
 	const { data: config, isLoading: isLoadingConfig, error: errorConfig } = useSafeConfiguration(provider, safeAddress);
+	const navigate = useNavigate();
+
+	const handleSendNative = () => {
+		navigate({
+			to: "/enqueue",
+			search: { safe: safeAddress, chainId, flow: "native" },
+		});
+	};
+
+	const handleSendToken = (tokenAddress: string) => {
+		navigate({
+			to: "/enqueue",
+			search: { safe: safeAddress, chainId, flow: "erc20", tokenAddress },
+		});
+	};
 
 	return (
 		<div className="min-h-screen bg-gray-50">
@@ -54,16 +69,22 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								search={{ safe: safeAddress, chainId }}
 							/>
 							<ActionCard
-								title="New Transaction"
-								description="Create and enqueue a new transaction for your Safe."
-								icon={PlusCircle}
-								ctaText="Create Transaction"
+								title="New Raw Transaction"
+								description="Define all transaction parameters manually for full control."
+								icon={FileCode}
+								ctaText="Create Raw Tx"
 								to="/enqueue"
 								search={{ safe: safeAddress, chainId }}
 							/>
 						</div>
 
-						<BalancesSection provider={provider} safeAddress={safeAddress} chainId={chainId} />
+						<BalancesSection
+							provider={provider}
+							safeAddress={safeAddress}
+							chainId={chainId}
+							onSendNative={handleSendNative}
+							onSendToken={handleSendToken}
+						/>
 
 						<div className="mt-10">
 							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>
@@ -85,7 +106,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
  * @returns JSX element for the dashboard page.
  */
 export const Route = createFileRoute("/dashboard")({
-	validateSearch: zodValidator(configSearchSchema),
+	validateSearch: zodValidator(safeIdSchema),
 	component: DashboardPage,
 });
 
