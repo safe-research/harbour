@@ -1,6 +1,6 @@
 import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import type { FullSafeTransaction } from "@/lib/types";
+import { getSafeTransaction } from "@/lib/safe";
 import { nonceSchema } from "@/lib/validators";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
@@ -58,20 +58,13 @@ export function NativeTransferForm({
 		try {
 			setIsSubmitting(true);
 
-			const transaction: FullSafeTransaction = {
+			const transaction = getSafeTransaction({
+				chainId,
+				safeAddress,
 				to: recipient,
 				value: ethers.parseEther(amount).toString(),
-				data: "0x",
 				nonce: currentNonce.toString(),
-				safeAddress,
-				chainId,
-				operation: 0, // 0 for CALL
-				safeTxGas: "0",
-				baseGas: "0",
-				gasPrice: "0",
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
-			};
+			});
 
 			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 

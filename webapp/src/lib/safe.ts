@@ -180,6 +180,41 @@ async function signSafeTransaction(signer: JsonRpcSigner, transaction: FullSafeT
 	return signer.signTypedData(domain, types, message);
 }
 
-export { getSafeConfiguration, executeTransaction, signSafeTransaction };
+/**
+ * Creates a FullSafeTransaction with sensible defaults.
+ * @param params - Transaction parameters with required fields and optional overrides.
+ * @returns A FullSafeTransaction object.
+ */
+function getSafeTransaction(params: {
+	chainId: number;
+	safeAddress: string;
+	to: string;
+	value?: string;
+	data?: string;
+	nonce?: string;
+	operation?: number;
+	safeTxGas?: string;
+	baseGas?: string;
+	gasPrice?: string;
+	gasToken?: string;
+	refundReceiver?: string;
+}): FullSafeTransaction {
+	return {
+		chainId: params.chainId,
+		safeAddress: params.safeAddress,
+		to: params.to,
+		value: params.value ?? "0",
+		data: params.data ?? "0x",
+		nonce: params.nonce ?? "0",
+		operation: params.operation ?? 0, // CALL
+		safeTxGas: params.safeTxGas ?? "0",
+		baseGas: params.baseGas ?? "0",
+		gasPrice: params.gasPrice ?? "0",
+		gasToken: params.gasToken ?? ethers.ZeroAddress,
+		refundReceiver: params.refundReceiver ?? ethers.ZeroAddress,
+	};
+}
+
+export { getSafeConfiguration, executeTransaction, signSafeTransaction, getSafeTransaction };
 
 export type { SafeConfiguration };

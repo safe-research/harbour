@@ -1,7 +1,7 @@
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import type { FullSafeTransaction } from "@/lib/types";
+import { getSafeTransaction } from "@/lib/safe";
 import { nonceSchema } from "@/lib/validators";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers, isAddress } from "ethers";
@@ -86,20 +86,14 @@ export function ERC20TransferForm({
 			const amountInSmallestUnit = ethers.parseUnits(amount, decimals);
 			const encodedTransferData = encodeERC20Transfer(recipient, amountInSmallestUnit);
 
-			const transaction: FullSafeTransaction = {
+			const transaction = getSafeTransaction({
+				chainId,
+				safeAddress,
 				to: tokenAddress,
 				value: "0", // Value is 0 for token transfers
 				data: encodedTransferData,
 				nonce: currentNonce.toString(),
-				safeAddress,
-				chainId,
-				operation: 0, // 0 for CALL
-				safeTxGas: "0",
-				baseGas: "0",
-				gasPrice: "0",
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
-			};
+			});
 
 			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 
