@@ -1,5 +1,14 @@
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { chainIdSchema, safeAddressSchema } from "../lib/validators";
+
+const safeAddressFormSchema = z.object({
+	safeAddress: safeAddressSchema,
+	chainId: chainIdSchema,
+});
+
+type SafeAddressFormData = z.infer<typeof safeAddressFormSchema>;
 
 interface SafeAddressFormProps {
 	/**
@@ -12,55 +21,25 @@ interface SafeAddressFormProps {
 
 /**
  * A form component for inputting a Safe address and chain ID.
- * It includes validation for both fields.
+ * It includes validation for both fields using react-hook-form and zod.
  * @param {SafeAddressFormProps} props - The component props.
  * @returns JSX element representing the form.
  */
 export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
-	const [safeAddress, setSafeAddress] = useState("");
-	const [chainIdInput, setChainIdInput] = useState<string>(); // Store input as string
-	const [errors, setErrors] = useState<{ safeAddress?: string; chainId?: string }>({});
+	const {
+		register,
+		handleSubmit,
+		formState: { errors },
+	} = useForm<SafeAddressFormData>({
+		resolver: zodResolver(safeAddressFormSchema),
+	});
 
-	/**
-	 * Validates the current form inputs.
-	 * @returns True if the form is valid, false otherwise.
-	 */
-	const validate = () => {
-		const errs: { safeAddress?: string; chainId?: string } = {};
-		const addr = safeAddress.trim();
-		const parsedChainId = Number.parseInt(chainIdInput ?? "0", 10);
-
-		try {
-			safeAddressSchema.parse(addr);
-		} catch (error) {
-			errs.safeAddress = "Invalid Safe address (must be an Ethereum address)";
-		}
-
-		try {
-			chainIdSchema.parse(parsedChainId);
-		} catch (error) {
-			errs.chainId = "Chain ID must be a positive number";
-		}
-
-		setErrors(errs);
-		return Object.keys(errs).length === 0;
-	};
-
-	/**
-	 * Handles the form submission event.
-	 * Prevents default form submission, validates inputs, and calls the onSubmit prop.
-	 * @param {React.FormEvent} e - The form submission event.
-	 */
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!validate()) return;
-		const finalChainId = Number.parseInt(chainIdInput ?? "0", 10);
-		// Validation ensures finalChainId is a valid number here
-		onSubmit(safeAddress.trim(), finalChainId);
+	const onSubmitForm = (data: SafeAddressFormData) => {
+		onSubmit(data.safeAddress, data.chainId);
 	};
 
 	return (
-		<form onSubmit={handleSubmit} className="space-y-4">
+		<form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
 			<div>
 				<label htmlFor="safeAddress" className="block font-medium">
 					Safe Address
@@ -68,12 +47,11 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 				<input
 					id="safeAddress"
 					type="text"
-					value={safeAddress}
-					onChange={(e) => setSafeAddress(e.target.value)}
+					{...register("safeAddress")}
 					placeholder="0x..."
 					className="mt-1 block w-full border border-gray-200 bg-white text-black placeholder-gray-400 rounded-md px-3 py-2 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
 				/>
-				{errors.safeAddress && <p className="text-red-600">{errors.safeAddress}</p>}
+				{errors.safeAddress && <p className="text-red-600">{errors.safeAddress.message}</p>}
 			</div>
 
 			<div>
@@ -82,15 +60,14 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 				</label>
 				<input
 					id="chainId"
-					type="number" // Keep type=number for browser behavior, but parse from string state
-					value={chainIdInput} // Use string state for input value
-					onChange={(e) => setChainIdInput(e.target.value)} // Update string state
+					type="number"
+					{...register("chainId", { valueAsNumber: true })}
 					placeholder="1"
 					min="1"
 					step="1"
 					className="mt-1 block w-full border border-gray-200 bg-white text-black placeholder-gray-400 rounded-md px-3 py-2 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
 				/>
-				{errors.chainId && <p className="text-red-600">{errors.chainId}</p>}
+				{errors.chainId && <p className="text-red-600">{errors.chainId.message}</p>}
 			</div>
 
 			<button
