@@ -28,16 +28,21 @@ interface HarbourSignature {
 	signer: string;
 }
 
-/**
- * Interface representing the core parameters of a Safe transaction.
- */
-interface SafeTransaction {
-	/** The type of operation (call or delegatecall). */
-	operation: Operation;
+interface MetaTransaction {
 	/** The recipient address of the transaction. */
 	to: string;
 	/** The amount of ETH/native currency to send (in wei, as a string). */
 	value: string;
+	/** The transaction data (calldata). */
+	data: string;
+}
+
+/**
+ * Interface representing the core parameters of a Safe transaction.
+ */
+interface SafeTransaction extends MetaTransaction {
+	/** The type of operation (call or delegatecall). */
+	operation: Operation;
 	/** The amount of gas allocated for the Safe transaction execution. */
 	safeTxGas: string;
 	/** The base gas cost for the transaction (e.g., for data). */
@@ -48,8 +53,6 @@ interface SafeTransaction {
 	gasToken: string;
 	/** The address to receive any refund from gas payments. */
 	refundReceiver: string;
-	/** The transaction data (calldata). */
-	data: string;
 }
 
 /**
@@ -72,4 +75,4 @@ interface FullSafeTransaction extends SafeTransaction {
 	safeAddress: string;
 }
 
-export type { ChainId, HarbourSignature, HarbourTransactionDetails, FullSafeTransaction };
+export type { ChainId, HarbourSignature, HarbourTransactionDetails, MetaTransaction, FullSafeTransaction };
