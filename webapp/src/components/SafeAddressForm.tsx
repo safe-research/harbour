@@ -42,32 +42,25 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 		resolver: zodResolver(safeAddressFormSchema),
 	});
 
-	// Single source of truth for chain field value
 	const chainField = watch("chainIdOrName");
 
-	// Pure derivation of suggestions
 	const suggestions = useMemo(() => {
 		const fieldValue = chainField || "";
 		// Don't show suggestions for numeric input
 		if (/^\d+$/.test(fieldValue)) {
 			return [];
 		}
-		// Search for chain names if input is not numeric
 		return fieldValue.trim().length > 0 ? searchChainsByName(fieldValue) : [];
 	}, [chainField]);
 
-	// Focus state for dropdown visibility
 	const [isFocused, setFocus] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 
-	// Handle clicking outside
 	useOutsideClick([inputRef, listRef], () => setFocus(false));
 
-	// Keyboard navigation
 	const { index, onKey, reset } = useKeyNav(suggestions.length);
 
-	// Handle suggestion selection
 	const selectSuggestion = (suggestion: ChainSearchResult) => {
 		setValue("chainIdOrName", suggestion.chainId.toString(), { shouldValidate: true });
 		reset();
@@ -80,7 +73,6 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 	// Merge our ref with react-hook-form's ref
 	useImperativeHandle(chainInputRef, () => inputRef.current);
 
-	// Form submission
 	const onSubmitForm = ({ safeAddress, chainIdOrName }: SafeAddressFormData) => {
 		const chainId = resolveChainIdFromInput(chainIdOrName);
 		if (!chainId) {
@@ -129,7 +121,6 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 					autoComplete="off"
 				/>
 
-				{/* Suggestions dropdown - shown when focused and suggestions exist */}
 				{isFocused && suggestions.length > 0 && (
 					<div
 						ref={listRef}
