@@ -9,7 +9,17 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 export default defineConfig(({ mode }) => {
 	// Load environment variables and set base path for nested routes
 	const env = loadEnv(mode, process.cwd());
-	const basePath = env.VITE_BASE_PATH || "/harbour/";
+
+	// Normalize base path to ensure it always starts and ends with a slash
+	// This prevents routing issues and ensures consistent path handling across environments
+	let basePath = env.VITE_BASE_PATH || "/harbour/";
+	if (!basePath.startsWith("/")) {
+		basePath = "/" + basePath;
+	}
+	if (!basePath.endsWith("/")) {
+		basePath = basePath + "/";
+	}
+
 	return {
 		base: basePath,
 		plugins: [TanStackRouterVite({ autoCodeSplitting: true }), viteReact(), tailwindcss()],

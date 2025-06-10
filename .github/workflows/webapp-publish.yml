@@ -1,8 +1,4 @@
-# Sample workflow for building and deploying a Next.js site to GitHub Pages
-#
-# To get started with Next.js see: https://nextjs.org/docs/getting-started
-#
-name: Deploy Vite webapp to GitHub Pages
+name: Deploy Harbour Safe Dashboard to GitHub Pages
 
 on:
   # Runs on pushes targeting the default branch
