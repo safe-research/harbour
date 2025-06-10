@@ -1,17 +1,26 @@
 import { useBatch } from "@/contexts/BatchTransactionsContext";
-import { Link } from "@tanstack/react-router";
+import { safeIdSchema } from "@/lib/validators";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
+import { useMemo } from "react";
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
 	const address = primaryWallet?.accounts[0]?.address;
 	const chainId = primaryWallet?.chains[0]?.id;
 	const { totalCount } = useBatch();
-	const params = new URLSearchParams(window.location.search);
-	const safeParam = params.get("safe");
-	const chainIdParam = params.get("chainId");
-	const safeAddressParam = safeParam ?? undefined;
-	const chainIdParamNum = chainIdParam ? Number(chainIdParam) : undefined;
+	const location = useLocation();
+	const { safe: rawSafe, chainId: rawChainId } = location.search;
+	const { safeAddressParam, chainIdParamNum } = useMemo(() => {
+		const parseResult = safeIdSchema.safeParse({ safe: rawSafe, chainId: rawChainId });
+		if (!parseResult.success) {
+			return { safeAddressParam: undefined, chainIdParamNum: undefined };
+		}
+		return {
+			safeAddressParam: parseResult.data.safe,
+			chainIdParamNum: parseResult.data.chainId,
+		};
+	}, [rawSafe, rawChainId]);
 
 	const handleConnect = async () => {
 		await connect();

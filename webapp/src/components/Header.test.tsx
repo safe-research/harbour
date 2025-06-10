@@ -7,6 +7,8 @@ vi.mock("@tanstack/react-router", async () => {
 	return {
 		...actual,
 		Link: (props: { to: string; children: React.ReactNode }) => <a href={props.to}>{props.children}</a>,
+		// Mock useLocation to prevent missing Router context in tests
+		useLocation: () => ({ search: {} }),
 	};
 });
 
@@ -18,11 +20,16 @@ vi.mock("@web3-onboard/react", () => {
 	};
 });
 
+import { BatchProvider } from "@/contexts/BatchTransactionsContext";
 import Header from "./Header";
 
 describe("Header", () => {
 	it("renders navigation links and the connect button", () => {
-		render(<Header />);
+		render(
+			<BatchProvider>
+				<Header />
+			</BatchProvider>,
+		);
 		expect(screen.getByRole("link", { name: /Harbour/i })).toBeDefined();
 		expect(screen.getAllByText(/Connect Wallet/i)).toHaveLength(1);
 	});
