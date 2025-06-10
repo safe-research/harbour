@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
 		},
 		define: {
 			// Expose the normalized base path as a constant that can be used in client code
-			__BASE_PATH__: basePath,
+			__BASE_PATH__: JSON.stringify(basePath),
 		},
 	};
 });
