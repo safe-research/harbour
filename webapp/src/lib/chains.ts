@@ -17,6 +17,7 @@ interface ChainsJsonEntry {
 	name: string;
 	chain: string;
 	chainId: number;
+	shortName: string;
 	nativeCurrency: {
 		name: string;
 		symbol: string;
@@ -56,9 +57,9 @@ interface WalletAddEthereumChainParams {
 	blockExplorerUrls: string[];
 }
 
-// Initialize Fuse.js instance for chain search
+const keys: (keyof ChainsJsonEntry)[] = ["name", "chain", "shortName"];
 const chainsFuse = new Fuse(chainsJson as ChainsJsonEntry[], {
-	keys: ["name", "chain"],
+	keys,
 	threshold: 0.4, // Lower threshold for more strict matching
 	includeScore: true,
 	includeMatches: true,

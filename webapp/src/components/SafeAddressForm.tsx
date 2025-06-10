@@ -5,11 +5,11 @@ import { z } from "zod";
 import { useKeyNav } from "../hooks/useKeyNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
 import { type ChainSearchResult, resolveChainIdFromInput, searchChainsByName } from "../lib/chains";
-import { chainIdOrNameSchema, safeAddressSchema } from "../lib/validators";
+import { safeAddressSchema } from "../lib/validators";
 
 const safeAddressFormSchema = z.object({
 	safeAddress: safeAddressSchema,
-	chainIdOrName: chainIdOrNameSchema,
+	chainIdOrName: z.string().nonempty("Chain ID or chain name is required"),
 });
 
 type SafeAddressFormData = z.infer<typeof safeAddressFormSchema>;
@@ -36,6 +36,7 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 		handleSubmit,
 		watch,
 		setValue,
+		setError,
 		formState: { errors },
 	} = useForm<SafeAddressFormData>({
 		resolver: zodResolver(safeAddressFormSchema),
@@ -82,9 +83,11 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 	// Form submission
 	const onSubmitForm = ({ safeAddress, chainIdOrName }: SafeAddressFormData) => {
 		const chainId = resolveChainIdFromInput(chainIdOrName);
-		if (chainId) {
-			onSubmit(safeAddress, chainId);
+		if (!chainId) {
+			setError("chainIdOrName", { type: "manual", message: "Invalid chain ID or chain name" });
+			return;
 		}
+		onSubmit(safeAddress, chainId);
 	};
 
 	return (

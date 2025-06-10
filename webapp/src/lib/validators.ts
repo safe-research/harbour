@@ -1,5 +1,4 @@
 import { z } from "zod";
-import chainsJson from "./chains.json" with { type: "json" };
 
 /**
  * Regular expression for Ethereum address validation
@@ -28,35 +27,6 @@ export const chainIdSchema = z.number().int().positive();
  * Generic schema for validating numeric strings (reusable for any numeric input)
  */
 export const numericStringSchema = z.string().regex(/^\d+$/, "Must be a valid number");
-
-/**
- * Zod schema for validating Chain ID input that accepts both numeric chain IDs and chain names.
- * This schema accepts string input and validates that it's either:
- * 1. A valid numeric chain ID that exists in chains.json, or
- * 2. A valid chain name that exists in chains.json
- */
-export const chainIdOrNameSchema = z.string().refine(
-	(value) => {
-		if (!value.trim()) {
-			return false;
-		}
-
-		const chains = chainsJson as Array<{ name: string; chainId: number }>;
-
-		// Check if it's a numeric chain ID
-		if (/^\d+$/.test(value.trim())) {
-			const chainId = Number.parseInt(value.trim(), 10);
-			return chains.some((chain) => chain.chainId === chainId);
-		}
-
-		// Check if it's a valid chain name
-		const normalizedValue = value.toLowerCase().trim();
-		return chains.some((chain) => chain.name.toLowerCase() === normalizedValue);
-	},
-	{
-		message: "Invalid chain ID or chain name",
-	},
-);
 
 /**
  * Zod schema for validating search parameters for routes that require Safe address and chain ID.
