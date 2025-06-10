@@ -1,9 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { useKeyNav } from "../hooks/useKeyNav";
+import { useOutsideClick } from "../hooks/useOutsideClick";
 import { type ChainSearchResult, resolveChainIdFromInput, searchChainsByName } from "../lib/chains";
-import { chainIdOrNameSchema, numericStringSchema, safeAddressSchema } from "../lib/validators";
+import { chainIdOrNameSchema, safeAddressSchema } from "../lib/validators";
 
 const safeAddressFormSchema = z.object({
 	safeAddress: safeAddressSchema,
@@ -29,109 +31,53 @@ interface SafeAddressFormProps {
  * @returns JSX element representing the form.
  */
 export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
-	const [chainInput, setChainInput] = useState("");
-	const [suggestions, setSuggestions] = useState<ChainSearchResult[]>([]);
-	const [showSuggestions, setShowSuggestions] = useState(false);
-	const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-	const chainInputRef = useRef<HTMLInputElement>(null);
-	const suggestionsRef = useRef<HTMLDivElement>(null);
-
 	const {
 		register,
 		handleSubmit,
-		formState: { errors },
+		watch,
 		setValue,
-		trigger,
+		formState: { errors },
 	} = useForm<SafeAddressFormData>({
 		resolver: zodResolver(safeAddressFormSchema),
 	});
 
-	// Handle chain input changes and trigger search
-	useEffect(() => {
-		// Update the form value
-		setValue("chainIdOrName", chainInput);
+	// Single source of truth for chain field value
+	const chainField = watch("chainIdOrName");
 
+	// Pure derivation of suggestions
+	const suggestions = useMemo(() => {
+		const fieldValue = chainField || "";
 		// Don't show suggestions for numeric input
-		if (numericStringSchema.safeParse(chainInput).success) {
-			setSuggestions([]);
-			setShowSuggestions(false);
-			return;
+		if (/^\d+$/.test(fieldValue)) {
+			return [];
 		}
-
 		// Search for chain names if input is not numeric
-		if (chainInput.trim().length > 0) {
-			const results = searchChainsByName(chainInput);
-			setSuggestions(results);
-			setShowSuggestions(results.length > 0);
-			setSelectedSuggestionIndex(-1);
-		} else {
-			setSuggestions([]);
-			setShowSuggestions(false);
-		}
-	}, [chainInput, setValue]);
+		return fieldValue.trim().length > 0 ? searchChainsByName(fieldValue) : [];
+	}, [chainField]);
+
+	// Focus state for dropdown visibility
+	const [isFocused, setFocus] = useState(false);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const listRef = useRef<HTMLDivElement>(null);
+
+	// Handle clicking outside
+	useOutsideClick([inputRef, listRef], () => setFocus(false));
+
+	// Keyboard navigation
+	const { index, onKey, reset } = useKeyNav(suggestions.length);
 
 	// Handle suggestion selection
 	const selectSuggestion = (suggestion: ChainSearchResult) => {
-		setChainInput(suggestion.chainId.toString());
-		setShowSuggestions(false);
-		setSuggestions([]);
-		setSelectedSuggestionIndex(-1);
-
-		// Focus back to input for better UX
-		chainInputRef.current?.focus();
-
-		// Trigger validation after setting the value
-		setTimeout(() => trigger("chainIdOrName"), 0);
+		setValue("chainIdOrName", suggestion.chainId.toString(), { shouldValidate: true });
+		reset();
+		inputRef.current?.focus();
 	};
 
-	// Handle keyboard navigation
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (!showSuggestions || suggestions.length === 0) return;
-
-		switch (e.key) {
-			case "ArrowDown":
-				e.preventDefault();
-				setSelectedSuggestionIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
-				break;
-			case "ArrowUp":
-				e.preventDefault();
-				setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-				break;
-			case "Enter":
-				e.preventDefault();
-				if (selectedSuggestionIndex >= 0) {
-					selectSuggestion(suggestions[selectedSuggestionIndex]);
-				}
-				break;
-			case "Escape":
-				setShowSuggestions(false);
-				setSelectedSuggestionIndex(-1);
-				break;
-		}
-	};
-
-	// Close suggestions when clicking outside
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (
-				suggestionsRef.current &&
-				!suggestionsRef.current.contains(event.target as Node) &&
-				chainInputRef.current &&
-				!chainInputRef.current.contains(event.target as Node)
-			) {
-				setShowSuggestions(false);
-				setSelectedSuggestionIndex(-1);
-			}
-		};
-
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, []);
-
-	const onSubmitForm = (data: SafeAddressFormData) => {
-		const chainId = resolveChainIdFromInput(data.chainIdOrName);
+	// Form submission
+	const onSubmitForm = ({ safeAddress, chainIdOrName }: SafeAddressFormData) => {
+		const chainId = resolveChainIdFromInput(chainIdOrName);
 		if (chainId) {
-			onSubmit(data.safeAddress, chainId);
+			onSubmit(safeAddress, chainId);
 		}
 	};
 
@@ -156,15 +102,19 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 					Chain ID or Chain Name
 				</label>
 				<input
-					ref={chainInputRef}
+					{...register("chainIdOrName", {
+						onBlur: () => setFocus(false),
+					})}
+					ref={inputRef}
 					id="chainIdOrName"
 					type="text"
-					value={chainInput}
-					onChange={(e) => setChainInput(e.target.value)}
-					onKeyDown={handleKeyDown}
-					onFocus={() => {
-						if (suggestions.length > 0 && !numericStringSchema.safeParse(chainInput).success) {
-							setShowSuggestions(true);
+					onFocus={() => setFocus(true)}
+					onKeyDown={(e) => {
+						if (index >= 0 && e.key === "Enter") {
+							e.preventDefault();
+							selectSuggestion(suggestions[index]);
+						} else {
+							onKey(e);
 						}
 					}}
 					placeholder="1 or Ethereum Mainnet"
@@ -172,21 +122,21 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 					autoComplete="off"
 				/>
 
-				{/* Suggestions dropdown */}
-				{showSuggestions && suggestions.length > 0 && (
+				{/* Suggestions dropdown - shown when focused and suggestions exist */}
+				{isFocused && suggestions.length > 0 && (
 					<div
-						ref={suggestionsRef}
+						ref={listRef}
 						className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
 					>
-						{suggestions.map((suggestion, index) => (
+						{suggestions.map((suggestion, i) => (
 							<button
 								key={suggestion.chainId}
 								type="button"
 								className={`w-full text-left px-3 py-2 text-sm border-none bg-transparent ${
-									index === selectedSuggestionIndex ? "bg-gray-100" : "hover:bg-gray-50"
+									i === index ? "bg-gray-100" : "hover:bg-gray-50"
 								}`}
 								onClick={() => selectSuggestion(suggestion)}
-								onMouseEnter={() => setSelectedSuggestionIndex(index)}
+								onMouseEnter={() => reset()}
 							>
 								<div className="font-medium">{suggestion.name}</div>
 								<div className="text-gray-500 text-xs">Chain ID: {suggestion.chainId}</div>
