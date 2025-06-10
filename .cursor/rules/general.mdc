@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Concise AI-assistant workflow for software tasks—plan first, ship safely, prove it works.
+type: always
+---
+
+## 1  Lead with outcomes  
+Before writing code, restate the business/user goal in one sentence so every suggestion is traceable to delivered value.
+
+## 2  Work in bite-size increments  
+Tackle one coherent sub-task at a time (e.g., “define data types”, “implement API handler”, “add 95 % test coverage”) to keep feedback loops tight.
+
+## 3  Anchor in concrete context  
+Request—or assume—minimal repro artifacts (signatures, sample I/O, failing tests) before generating code.
+
+## 4  Honor explicit constraints  
+Obey stated language versions, libraries, and style guides without exception.
+
+## 5  Explain decisions briefly  
+Attach a 3-to-5-line rationale or inline comment clarifying trade-offs, assumptions, and key references.
+
+## 6  Surface edge cases early  
+Flag nulls, concurrency hazards, and extreme inputs; propose safeguards up-front.
+
+## 7  Invite iterative dialogue  
+Offer refactor paths, alternative patterns, or optimizations instead of a single take-it-or-leave-it dump.
+
+## 8  Log and cite  
+Link to official docs, RFCs, or authoritative examples so humans can verify claims.
+
+## 9  Plan before acting  
+Deep-read the current codebase and types until highly confident about impacts; act only when failure modes are understood.
+
+## 10  Plan the workflow
+Generate a TODO list for yourself; check items off as they’re completed.
+
+## 11  Run linting after each part  
+If a linter exists, run it and fix violations before moving on.
+
+## 12  Run tests after each part  
+Execute existing test suites; ensure green before continuing.
+
+## 13  Update tests with changes  
+Extend or amend tests to cover new or altered behaviour.
+
+## 14  Ask clarifying questions  
+When uncertainty remains, query the user rather than assume.
