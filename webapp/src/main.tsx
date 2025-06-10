@@ -15,6 +15,7 @@ import reportWebVitals from "./reportWebVitals.ts";
  */
 const router = createRouter({
 	routeTree,
+	basepath: __BASE_PATH__,
 	context: {
 		...TanstackQuery.getContext(),
 	},

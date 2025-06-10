@@ -32,5 +32,9 @@ export default defineConfig(({ mode }) => {
 				"@": resolve(__dirname, "./src"),
 			},
 		},
+		define: {
+			// Expose the normalized base path as a constant that can be used in client code
+			__BASE_PATH__: basePath,
+		},
 	};
 });
