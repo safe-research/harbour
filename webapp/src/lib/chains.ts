@@ -1,4 +1,5 @@
 import type { JsonRpcApiProvider } from "ethers";
+import Fuse from "fuse.js";
 import type { ChainId } from "./types";
 
 import { shuffle } from "./arrays";
@@ -32,6 +33,15 @@ interface ChainsJsonEntry {
 }
 
 /**
+ * Interface for chain search results
+ */
+export interface ChainSearchResult {
+	chainId: number;
+	name: string;
+	displayName: string; // "Chain Name (Chain ID)"
+}
+
+/**
  * Interface for parameters used with the `wallet_addEthereumChain` RPC method.
  */
 interface WalletAddEthereumChainParams {
@@ -45,6 +55,16 @@ interface WalletAddEthereumChainParams {
 	rpcUrls: string[];
 	blockExplorerUrls: string[];
 }
+
+// Initialize Fuse.js instance for chain search
+const chainsFuse = new Fuse(chainsJson as ChainsJsonEntry[], {
+	keys: ["name", "chain"],
+	threshold: 0.4, // Lower threshold for more strict matching
+	includeScore: true,
+	includeMatches: true,
+	ignoreLocation: true,
+	minMatchCharLength: 2,
+});
 
 /**
  * Retrieves the chain data for a given chain ID.
@@ -198,6 +218,69 @@ async function switchToChain(provider: JsonRpcApiProvider, chainId: ChainId): Pr
 			throw error;
 		}
 	}
+}
+
+/**
+ * Performs fuzzy search on chain names using Fuse.js
+ *
+ * @param query - The search string to match against chain names
+ * @param maxResults - Maximum number of results to return (default: 10)
+ * @returns Array of matching chains with their display names
+ */
+export function searchChainsByName(query: string, maxResults = 10): ChainSearchResult[] {
+	if (!query.trim()) {
+		return [];
+	}
+
+	const results = chainsFuse.search(query, { limit: maxResults });
+
+	return results.map(({ item }) => ({
+		chainId: item.chainId,
+		name: item.name,
+		displayName: `${item.name} (${item.chainId})`,
+	}));
+}
+
+/**
+ * Finds a chain by exact chain ID
+ */
+export function getChainById(chainId: number): ChainSearchResult | null {
+	const chains = chainsJson as ChainsJsonEntry[];
+	const chain = chains.find((c) => c.chainId === chainId);
+
+	if (!chain) {
+		return null;
+	}
+
+	return {
+		chainId: chain.chainId,
+		name: chain.name,
+		displayName: `${chain.name} (${chain.chainId})`,
+	};
+}
+
+/**
+ * Converts a chain ID or name input to a numeric chain ID
+ *
+ * @param input - Either a numeric chain ID string or a chain name
+ * @returns The numeric chain ID, or null if not found
+ */
+export function resolveChainIdFromInput(input: string): number | null {
+	const trimmedInput = input.trim();
+	const chains = chainsJson as ChainsJsonEntry[];
+
+	// If it's a numeric chain ID, parse and validate
+	if (/^\d+$/.test(trimmedInput)) {
+		const chainId = Number.parseInt(trimmedInput, 10);
+		const exists = chains.some((chain) => chain.chainId === chainId);
+		return exists ? chainId : null;
+	}
+
+	// Otherwise, search by name
+	const normalizedInput = trimmedInput.toLowerCase();
+	const matchingChain = chains.find((chain) => chain.name.toLowerCase() === normalizedInput);
+
+	return matchingChain ? matchingChain.chainId : null;
 }
 
 export { getRpcUrlByChainId, switchToChain, getNativeCurrencyByChainId };

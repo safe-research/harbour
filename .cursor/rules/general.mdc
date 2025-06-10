@@ -49,3 +49,6 @@ Extend or amend tests to cover new or altered behaviour.
 
 ## 14  Ask clarifying questions  
 When uncertainty remains, query the user rather than assume.
+
+## 15  Do not include useless comments
+Comments should answer the question WHY, not WHAT, the code already answers the WHAT question.
