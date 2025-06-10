@@ -24,6 +24,11 @@ export const safeAddressSchema = ethereumAddressSchema;
 export const chainIdSchema = z.number().int().positive();
 
 /**
+ * Generic schema for validating numeric strings (reusable for any numeric input)
+ */
+export const numericStringSchema = z.string().regex(/^\d+$/, "Must be a valid number");
+
+/**
  * Zod schema for validating search parameters for routes that require Safe address and chain ID.
  */
 export const safeIdSchema = z.object({
