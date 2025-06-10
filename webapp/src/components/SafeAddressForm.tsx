@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMemo, useRef, useState } from "react";
+import { useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useKeyNav } from "../hooks/useKeyNav";
@@ -73,6 +73,12 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 		inputRef.current?.focus();
 	};
 
+	// Destructure register to handle ref conflict
+	const { ref: chainInputRef, ...chainRegisterProps } = register("chainIdOrName");
+
+	// Merge our ref with react-hook-form's ref
+	useImperativeHandle(chainInputRef, () => inputRef.current);
+
 	// Form submission
 	const onSubmitForm = ({ safeAddress, chainIdOrName }: SafeAddressFormData) => {
 		const chainId = resolveChainIdFromInput(chainIdOrName);
@@ -102,10 +108,8 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 					Chain ID or Chain Name
 				</label>
 				<input
-					{...register("chainIdOrName", {
-						onBlur: () => setFocus(false),
-					})}
 					ref={inputRef}
+					{...chainRegisterProps}
 					id="chainIdOrName"
 					type="text"
 					onFocus={() => setFocus(true)}
