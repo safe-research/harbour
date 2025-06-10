@@ -60,7 +60,17 @@ export function BatchTransactionForm({ safeAddress, chainId, browserProvider, co
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<h2 className="text-xl font-semibold mb-4">Batch Transactions</h2>
+			<div className="flex items-center justify-between mb-4">
+				<h2 className="text-xl font-semibold">Batch Transactions</h2>
+				<button
+					type="button"
+					onClick={() => clearBatch(safeAddress, chainId)}
+					disabled={isSubmitting || transactions.length === 0}
+					className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					Clear All
+				</button>
+			</div>
 			{transactions.length === 0 ? (
 				<p className="text-gray-600">No transactions added to batch.</p>
 			) : (

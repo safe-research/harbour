@@ -1,5 +1,5 @@
 import { JsonRpcProvider } from "ethers";
-import type { JsonRpcApiProvider } from "ethers";
+import type { JsonRpcApiProvider, JsonRpcApiProviderOptions } from "ethers";
 import { useEffect, useState } from "react";
 import { getRpcUrlByChainId } from "../lib/chains";
 
@@ -19,9 +19,14 @@ interface UseChainlistRpcProviderResult {
  * Custom hook to get an Ethers JsonRpcApiProvider for a given chain ID.
  * It fetches the RPC URL from a predefined list (simulating Chainlist) and initializes the provider.
  * @param {number} chainId - The chain ID for which to get the provider.
+ * @param {JsonRpcApiProviderOptions} providerOptions - The options to pass to the provider. We disable batching by default because
+ *                                                      we cannot guarantee that the random RPC URLs will support batching.
  * @returns {UseChainlistRpcProviderResult} An object containing the provider, error state, and loading state.
  */
-export function useChainlistRpcProvider(chainId: number): UseChainlistRpcProviderResult {
+export function useChainlistRpcProvider(
+	chainId: number,
+	providerOptions: JsonRpcApiProviderOptions = { batchMaxCount: 1 },
+): UseChainlistRpcProviderResult {
 	const [provider, setProvider] = useState<JsonRpcApiProvider | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -34,7 +39,7 @@ export function useChainlistRpcProvider(chainId: number): UseChainlistRpcProvide
 		(async () => {
 			try {
 				const url = await getRpcUrlByChainId(chainId);
-				setProvider(new JsonRpcProvider(url));
+				setProvider(new JsonRpcProvider(url, undefined, providerOptions));
 			} catch (e) {
 				if (e instanceof Error) {
 					setError(e);
@@ -45,7 +50,7 @@ export function useChainlistRpcProvider(chainId: number): UseChainlistRpcProvide
 				setIsLoading(false);
 			}
 		})();
-	}, [chainId]);
+	}, [chainId, providerOptions]);
 
 	return { provider, error, isLoading };
 }

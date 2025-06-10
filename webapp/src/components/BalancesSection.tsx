@@ -136,7 +136,7 @@ export function BalancesSection({ provider, safeAddress, chainId, onSendNative, 
 				{/* ERC20 Tokens */}
 				<div>
 					<h3 className="text-lg font-medium text-gray-800 mb-2">ERC20 Tokens</h3>
-					<form onSubmit={handleSubmit(onSubmit)} className="space-y-2">
+					<form onSubmit={handleSubmit(onSubmit)} className="space-y-2 mb-4">
 						<div className="flex items-center space-x-4">
 							<input
 								{...register("tokenAddress")}
