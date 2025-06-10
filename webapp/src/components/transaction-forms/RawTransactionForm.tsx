@@ -1,12 +1,13 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethereumAddressSchema, ethValueSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
+import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
 
 const createRawTransactionFormSchema = (currentSafeNonce: string) =>
@@ -29,6 +30,7 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
+	const { addTransaction } = useBatch();
 
 	const {
 		register,
@@ -72,6 +74,17 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 			setIsSubmitting(false);
 		}
 	};
+
+	const handleAddToBatch = handleSubmit((data: RawTransactionFormData) => {
+		const tx = {
+			to: data.to,
+			value: ethers.parseEther(data.value || "0").toString(),
+			data: data.data || "0x",
+			safeAddress,
+			chainId,
+		};
+		addTransaction(tx);
+	});
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
@@ -136,11 +149,11 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>
 
-				<div className="pt-4">
+				<div className="pt-4 flex space-x-4">
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (
 							<>
@@ -163,6 +176,13 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						) : (
 							"Sign & Enqueue Raw Transaction"
 						)}
+					</button>
+					<button
+						type="button"
+						onClick={handleAddToBatch}
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-gray-900 text-base font-medium rounded-md text-gray-900 bg-white hover:bg-gray-100 transition-colors duration-200"
+					>
+						Add to Batch
 					</button>
 				</div>
 

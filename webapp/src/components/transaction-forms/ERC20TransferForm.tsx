@@ -1,14 +1,15 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethereumAddressSchema, positiveAmountSchema, nonceSchema } from "@/lib/validators";
+import { ethereumAddressSchema, nonceSchema, positiveAmountSchema } from "@/lib/validators";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import type { ERC20TransferFormProps } from "./types";
 
 const createERC20TransferFormSchema = (currentSafeNonce: string) =>
@@ -101,6 +102,14 @@ export function ERC20TransferForm({
 
 	const isTokenAddressValid = tokenAddress && !errors.tokenAddress;
 
+	const { addTransaction } = useBatch();
+	const handleAddToBatch = handleSubmit((data: ERC20TransferFormData) => {
+		if (decimals === null) return;
+		const amountInSmallestUnit = ethers.parseUnits(data.amount, decimals);
+		const encodedData = encodeERC20Transfer(data.recipient, amountInSmallestUnit);
+		addTransaction({ to: data.tokenAddress, value: "0", data: encodedData, safeAddress, chainId });
+	});
+
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -192,11 +201,11 @@ export function ERC20TransferForm({
 					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>
 
-				<div className="pt-4">
+				<div className="pt-4 flex space-x-4">
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (
 							<>
@@ -219,6 +228,13 @@ export function ERC20TransferForm({
 						) : (
 							"Sign & Enqueue ERC20 Transfer"
 						)}
+					</button>
+					<button
+						type="button"
+						onClick={handleAddToBatch}
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-gray-900 text-base font-medium rounded-md text-gray-900 bg-white hover:bg-gray-100 transition-colors duration-200"
+					>
+						Add to Batch
 					</button>
 				</div>
 

@@ -5,6 +5,7 @@ import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import z from "zod";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
+import { BatchTransactionForm } from "../components/transaction-forms/BatchTransactionForm";
 import { ERC20TransferForm } from "../components/transaction-forms/ERC20TransferForm";
 import { NativeTransferForm } from "../components/transaction-forms/NativeTransferForm";
 import { RawTransactionForm } from "../components/transaction-forms/RawTransactionForm";
@@ -17,7 +18,7 @@ interface EnqueueContentProps {
 	rpcProvider: JsonRpcApiProvider;
 	safeAddress: string;
 	chainId: ChainId;
-	flow?: "native" | "erc20" | "raw";
+	flow?: "native" | "erc20" | "raw" | "batch";
 	tokenAddress?: string;
 }
 
@@ -42,6 +43,9 @@ function EnqueueContent({
 	let pageTitle = "Enqueue Transaction";
 
 	switch (flow) {
+		case "batch":
+			pageTitle = "Enqueue Batched Transactions";
+			break;
 		case "native":
 			pageTitle = "Enqueue Native ETH Transfer";
 			break;
@@ -81,7 +85,15 @@ function EnqueueContent({
 					</div>
 				) : (
 					config &&
-					(flow === "erc20" ? (
+					(flow === "batch" ? (
+						<BatchTransactionForm
+							safeAddress={safeAddress}
+							chainId={chainId}
+							browserProvider={browserProvider}
+							rpcProvider={rpcProvider}
+							config={config}
+						/>
+					) : flow === "erc20" ? (
 						<ERC20TransferForm
 							safeAddress={safeAddress}
 							chainId={chainId}
@@ -113,7 +125,7 @@ function EnqueueContent({
 	);
 }
 
-const flowSchema = z.enum(["native", "erc20", "raw"]).optional().default("raw");
+const flowSchema = z.enum(["native", "erc20", "raw", "batch"]).optional().default("raw");
 const enqueueSchema = safeIdSchema.extend({
 	flow: flowSchema,
 	tokenAddress: z.string().optional(),

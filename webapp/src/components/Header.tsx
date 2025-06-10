@@ -1,3 +1,4 @@
+import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { Link } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 
@@ -5,6 +6,12 @@ export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
 	const address = primaryWallet?.accounts[0]?.address;
 	const chainId = primaryWallet?.chains[0]?.id;
+	const { totalCount } = useBatch();
+	const params = new URLSearchParams(window.location.search);
+	const safeParam = params.get("safe");
+	const chainIdParam = params.get("chainId");
+	const safeAddressParam = safeParam ?? undefined;
+	const chainIdParamNum = chainIdParam ? Number(chainIdParam) : undefined;
 
 	const handleConnect = async () => {
 		await connect();
@@ -23,6 +30,16 @@ export default function Header() {
 				</Link>
 			</nav>
 			<div className="flex items-center gap-2">
+				{/* Batch cart button */}
+				{totalCount > 0 && safeAddressParam && chainIdParamNum && (
+					<Link
+						to="/enqueue"
+						search={{ safe: safeAddressParam, chainId: chainIdParamNum, flow: "batch" }}
+						className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition"
+					>
+						Batch ({totalCount})
+					</Link>
+				)}
 				{primaryWallet ? (
 					<div className="flex items-center gap-2">
 						{chainId && <span className="font-mono text-sm text-gray-600">{chainId}</span>}
