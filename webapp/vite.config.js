@@ -14,10 +14,10 @@ export default defineConfig(({ mode }) => {
 	// This prevents routing issues and ensures consistent path handling across environments
 	let basePath = env.VITE_BASE_PATH || "/harbour/";
 	if (!basePath.startsWith("/")) {
-		basePath = "/" + basePath;
+		basePath = `/${basePath}`;
 	}
 	if (!basePath.endsWith("/")) {
-		basePath = basePath + "/";
+		basePath = `${basePath}/`;
 	}
 
 	return {
