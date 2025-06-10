@@ -89,3 +89,16 @@ This app interacts with the [`SafeInternationalHarbour.sol`](../contracts/src/Sa
 **Deployed contract address:** [`0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6`](https://gnosisscan.io/address/0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6) on [Gnosis Chain](https://gnosisscan.io/).
 
 **Note:** This application also depends on the [multicall3](https://github.com/mds1/multicall) contract to be available on the chains being used.
+
+## Environment Variables
+
+You can configure the `base` path for the application using the `VITE_BASE_PATH` environment variable. By default, it falls back to `/harbour/` for GitHub Pages nested routes.
+
+Create a `.env` file in the `webapp` directory (or at project root) with the following content:
+
+```bash
+# .env
+VITE_BASE_PATH=/harbour/
+```
+
+Vite will automatically load this variable on build and serve.
