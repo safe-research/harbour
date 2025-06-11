@@ -1,10 +1,16 @@
+import type { MetaTransaction } from "@/lib/types";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { z } from "zod";
+import {
+	chainIdSchema,
+	ethereumAddressSchema,
+	hexDataSchema,
+	numericStringSchema,
+	safeAddressSchema,
+} from "../lib/validators";
 
-export interface BatchedTransaction {
-	to: string;
-	value: string;
-	data: string;
+interface BatchedTransaction extends MetaTransaction {
 	safeAddress: string;
 	chainId: number;
 }
@@ -21,13 +27,30 @@ interface BatchContextValue {
 const STORAGE_KEY = "harbour_batch_transactions";
 const BatchContext = createContext<BatchContextValue | undefined>(undefined);
 
-export const BatchProvider = ({ children }: { children: ReactNode }) => {
+// ---------------- Zod Schemas ----------------
+// Schema for a single BatchedTransaction object
+const batchedTransactionSchema = z.object({
+	to: ethereumAddressSchema,
+	value: numericStringSchema,
+	data: hexDataSchema,
+	safeAddress: safeAddressSchema,
+	chainId: chainIdSchema,
+});
+
+// Schema for the entire persisted batches record
+const batchesSchema = z.record(z.array(batchedTransactionSchema));
+
+function BatchProvider({ children }: { children: ReactNode }) {
 	const [batches, setBatches] = useState<Record<string, BatchedTransaction[]>>(() => {
 		if (typeof window === "undefined") return {};
 		try {
 			const stored = localStorage.getItem(STORAGE_KEY);
-			return stored ? JSON.parse(stored) : {};
+			if (!stored) return {};
+			const parsed = JSON.parse(stored);
+			const validation = batchesSchema.safeParse(parsed);
+			return validation.success ? (validation.data as Record<string, BatchedTransaction[]>) : {};
 		} catch {
+			// In case of malformed JSON or other errors, fall back to empty state
 			return {};
 		}
 	});
@@ -84,12 +107,15 @@ export const BatchProvider = ({ children }: { children: ReactNode }) => {
 			{children}
 		</BatchContext.Provider>
 	);
-};
+}
 
-export const useBatch = (): BatchContextValue => {
+function useBatch(): BatchContextValue {
 	const context = useContext(BatchContext);
 	if (!context) {
 		throw new Error("useBatch must be used within a BatchProvider");
 	}
 	return context;
-};
+}
+
+export { BatchProvider, useBatch };
+export type { BatchedTransaction };
