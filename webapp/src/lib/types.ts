@@ -75,4 +75,12 @@ interface FullSafeTransaction extends SafeTransaction {
 	safeAddress: string;
 }
 
-export type { ChainId, HarbourSignature, HarbourTransactionDetails, MetaTransaction, FullSafeTransaction };
+export type {
+	Operation,
+	ChainId,
+	HarbourSignature,
+	HarbourTransactionDetails,
+	MetaTransaction,
+	FullSafeTransaction,
+	SafeTransaction,
+};

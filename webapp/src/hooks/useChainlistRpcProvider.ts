@@ -37,6 +37,7 @@ export function useChainlistRpcProvider(
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 
 	useEffect(() => {
+		let cancelled = false;
 		setIsLoading(true);
 		setError(null);
 		setProvider(null);
@@ -44,17 +45,22 @@ export function useChainlistRpcProvider(
 		(async () => {
 			try {
 				const url = await getRpcUrlByChainId(chainId);
-				setProvider(new JsonRpcProvider(url, undefined, providerOptions));
+				if (!cancelled) {
+					setProvider(new JsonRpcProvider(url, undefined, providerOptions));
+				}
 			} catch (e) {
 				if (e instanceof Error) {
-					setError(e);
+					!cancelled && setError(e);
 				} else {
-					setError(new Error("Unknown error occurred while fetching RPC URL"));
+					!cancelled && setError(new Error("Unknown error occurred while fetching RPC URL"));
 				}
 			} finally {
-				setIsLoading(false);
+				!cancelled && setIsLoading(false);
 			}
 		})();
+		return () => {
+			cancelled = true;
+		};
 	}, [chainId, providerOptions]);
 
 	return { provider, error, isLoading };
