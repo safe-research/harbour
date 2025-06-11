@@ -1,3 +1,6 @@
+> [!WARNING]
+> Code in this repository is not audited and may contain serious security holes. Use at your own risk.
+
 # Harbour
 
 <img src="assets/logo.png" width="200px" alt="Harbour Logo" />
