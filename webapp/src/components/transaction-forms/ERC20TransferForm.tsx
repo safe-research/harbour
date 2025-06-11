@@ -62,6 +62,18 @@ export function ERC20TransferForm({
 	} = useERC20TokenDetails(rpcProvider, tokenAddress, safeAddress, chainId);
 	const decimals = tokenDetails?.decimals ?? null;
 
+	// Determine if the form has all prerequisites fulfilled for batching
+	const recipient = watch("recipient");
+	const amount = watch("amount");
+
+	const canAddToBatch =
+		decimals !== null &&
+		!isFetchingDetails &&
+		!fetchDetailsError &&
+		recipient.trim() !== "" &&
+		amount.trim() !== "" &&
+		Object.keys(errors).length === 0;
+
 	const onSubmit = async (data: ERC20TransferFormData) => {
 		setError(undefined);
 		setTxHash(undefined);
@@ -232,7 +244,8 @@ export function ERC20TransferForm({
 					<button
 						type="button"
 						onClick={handleAddToBatch}
-						className="flex-1 flex justify-center items-center px-6 py-3 border border-gray-900 text-base font-medium rounded-md text-gray-900 bg-white hover:bg-gray-100 transition-colors duration-200"
+						disabled={!canAddToBatch}
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-gray-900 text-base font-medium rounded-md text-gray-900 bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						Add to Batch
 					</button>
