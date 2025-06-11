@@ -1,10 +1,26 @@
-import { Link } from "@tanstack/react-router";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
+import { safeIdSchema } from "@/lib/validators";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
+import { useMemo } from "react";
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
 	const address = primaryWallet?.accounts[0]?.address;
 	const chainId = primaryWallet?.chains[0]?.id;
+	const { totalCount } = useBatch();
+	const location = useLocation();
+	const { safe: rawSafe, chainId: rawChainId } = location.search;
+	const { safeAddressParam, chainIdParamNum } = useMemo(() => {
+		const parseResult = safeIdSchema.safeParse({ safe: rawSafe, chainId: rawChainId });
+		if (!parseResult.success) {
+			return { safeAddressParam: undefined, chainIdParamNum: undefined };
+		}
+		return {
+			safeAddressParam: parseResult.data.safe,
+			chainIdParamNum: parseResult.data.chainId,
+		};
+	}, [rawSafe, rawChainId]);
 
 	const handleConnect = async () => {
 		await connect();
@@ -23,6 +39,16 @@ export default function Header() {
 				</Link>
 			</nav>
 			<div className="flex items-center gap-2">
+				{/* Batch cart button */}
+				{totalCount > 0 && safeAddressParam && chainIdParamNum && (
+					<Link
+						to="/enqueue"
+						search={{ safe: safeAddressParam, chainId: chainIdParamNum, flow: "batch" }}
+						className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition"
+					>
+						Batch ({totalCount})
+					</Link>
+				)}
 				{primaryWallet ? (
 					<div className="flex items-center gap-2">
 						{chainId && <span className="font-mono text-sm text-gray-600">{chainId}</span>}

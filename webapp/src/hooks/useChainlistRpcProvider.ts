@@ -1,5 +1,5 @@
 import { JsonRpcProvider } from "ethers";
-import type { JsonRpcApiProvider } from "ethers";
+import type { JsonRpcApiProvider, JsonRpcApiProviderOptions } from "ethers";
 import { useEffect, useState } from "react";
 import { getRpcUrlByChainId } from "../lib/chains";
 
@@ -15,18 +15,29 @@ interface UseChainlistRpcProviderResult {
 	isLoading: boolean;
 }
 
+// Define default provider options to keep a constant reference
+// So that the hook doesn't re-create the provider options object on every render
+// If the default is used
+const DEFAULT_PROVIDER_OPTIONS: JsonRpcApiProviderOptions = { batchMaxCount: 1 };
+
 /**
  * Custom hook to get an Ethers JsonRpcApiProvider for a given chain ID.
  * It fetches the RPC URL from a predefined list (simulating Chainlist) and initializes the provider.
  * @param {number} chainId - The chain ID for which to get the provider.
+ * @param {JsonRpcApiProviderOptions} providerOptions - The options to pass to the provider. We disable batching by default because
+ *                                                      we cannot guarantee that the random RPC URLs will support batching.
  * @returns {UseChainlistRpcProviderResult} An object containing the provider, error state, and loading state.
  */
-export function useChainlistRpcProvider(chainId: number): UseChainlistRpcProviderResult {
+export function useChainlistRpcProvider(
+	chainId: number,
+	providerOptions: JsonRpcApiProviderOptions = DEFAULT_PROVIDER_OPTIONS,
+): UseChainlistRpcProviderResult {
 	const [provider, setProvider] = useState<JsonRpcApiProvider | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 
 	useEffect(() => {
+		let cancelled = false;
 		setIsLoading(true);
 		setError(null);
 		setProvider(null);
@@ -34,18 +45,23 @@ export function useChainlistRpcProvider(chainId: number): UseChainlistRpcProvide
 		(async () => {
 			try {
 				const url = await getRpcUrlByChainId(chainId);
-				setProvider(new JsonRpcProvider(url));
+				if (!cancelled) {
+					setProvider(new JsonRpcProvider(url, undefined, providerOptions));
+				}
 			} catch (e) {
 				if (e instanceof Error) {
-					setError(e);
+					!cancelled && setError(e);
 				} else {
-					setError(new Error("Unknown error occurred while fetching RPC URL"));
+					!cancelled && setError(new Error("Unknown error occurred while fetching RPC URL"));
 				}
 			} finally {
-				setIsLoading(false);
+				!cancelled && setIsLoading(false);
 			}
 		})();
-	}, [chainId]);
+		return () => {
+			cancelled = true;
+		};
+	}, [chainId, providerOptions]);
 
 	return { provider, error, isLoading };
 }

@@ -1,13 +1,14 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethereumAddressSchema, positiveAmountSchema, nonceSchema } from "@/lib/validators";
+import { ethereumAddressSchema, nonceSchema, positiveAmountSchema } from "@/lib/validators";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
 
 const createNativeTransferFormSchema = (currentSafeNonce: string) =>
@@ -35,6 +36,7 @@ export function NativeTransferForm({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
+	const { addTransaction } = useBatch();
 
 	const {
 		register,
@@ -45,6 +47,17 @@ export function NativeTransferForm({
 		defaultValues: {
 			nonce: config.nonce.toString(),
 		},
+	});
+
+	const handleAddToBatch = handleSubmit((data: NativeTransferFormData) => {
+		const tx = {
+			to: data.recipient,
+			value: ethers.parseEther(data.amount).toString(),
+			data: "0x",
+			safeAddress,
+			chainId,
+		};
+		addTransaction(tx);
 	});
 
 	const {
@@ -137,11 +150,11 @@ export function NativeTransferForm({
 					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>
 
-				<div className="pt-4">
+				<div className="pt-4 flex space-x-4">
 					<button
 						type="submit"
 						disabled={isSubmitting}
-						className="w-full flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
 					>
 						{isSubmitting ? (
 							<>
@@ -164,6 +177,13 @@ export function NativeTransferForm({
 						) : (
 							"Sign & Enqueue Native Transfer"
 						)}
+					</button>
+					<button
+						type="button"
+						onClick={handleAddToBatch}
+						className="flex-1 flex justify-center items-center px-6 py-3 border border-gray-900 text-base font-medium rounded-md text-gray-900 bg-white hover:bg-gray-100 transition-colors duration-200"
+					>
+						Add to Batch
 					</button>
 				</div>
 

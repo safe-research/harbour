@@ -2,6 +2,7 @@ import { Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import Header from "../components/Header";
+import { BatchProvider } from "../contexts/BatchTransactionsContext";
 
 import ReactQueryDevtoolsSetup from "../integrations/tanstack-query/layout";
 
@@ -22,13 +23,11 @@ interface MyRouterContext {
  */
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	component: () => (
-		<>
+		<BatchProvider>
 			<Header />
-
 			<Outlet />
 			<TanStackRouterDevtools />
-
 			<ReactQueryDevtoolsSetup />
-		</>
+		</BatchProvider>
 	),
 });
