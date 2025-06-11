@@ -15,6 +15,11 @@ interface UseChainlistRpcProviderResult {
 	isLoading: boolean;
 }
 
+// Define default provider options to keep a constant reference
+// So that the hook doesn't re-create the provider options object on every render
+// If the default is used
+const DEFAULT_PROVIDER_OPTIONS: JsonRpcApiProviderOptions = { batchMaxCount: 1 };
+
 /**
  * Custom hook to get an Ethers JsonRpcApiProvider for a given chain ID.
  * It fetches the RPC URL from a predefined list (simulating Chainlist) and initializes the provider.
@@ -25,7 +30,7 @@ interface UseChainlistRpcProviderResult {
  */
 export function useChainlistRpcProvider(
 	chainId: number,
-	providerOptions: JsonRpcApiProviderOptions = { batchMaxCount: 1 },
+	providerOptions: JsonRpcApiProviderOptions = DEFAULT_PROVIDER_OPTIONS,
 ): UseChainlistRpcProviderResult {
 	const [provider, setProvider] = useState<JsonRpcApiProvider | null>(null);
 	const [error, setError] = useState<Error | null>(null);
