@@ -2,6 +2,7 @@ import { safeIdSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
+import type { ReactNode } from "react";
 import z from "zod";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
@@ -57,6 +58,56 @@ function EnqueueContent({
 			break;
 	}
 
+	let formComponent: ReactNode | null = null;
+	if (config) {
+		switch (flow) {
+			case "batch":
+				formComponent = (
+					<BatchTransactionForm
+						safeAddress={safeAddress}
+						chainId={chainId}
+						browserProvider={browserProvider}
+						rpcProvider={rpcProvider}
+						config={config}
+					/>
+				);
+				break;
+			case "erc20":
+				formComponent = (
+					<ERC20TransferForm
+						safeAddress={safeAddress}
+						chainId={chainId}
+						browserProvider={browserProvider}
+						rpcProvider={rpcProvider}
+						config={config}
+						tokenAddress={tokenAddress}
+					/>
+				);
+				break;
+			case "native":
+				formComponent = (
+					<NativeTransferForm
+						safeAddress={safeAddress}
+						chainId={chainId}
+						browserProvider={browserProvider}
+						rpcProvider={rpcProvider}
+						config={config}
+					/>
+				);
+				break;
+			default:
+				formComponent = (
+					<RawTransactionForm
+						safeAddress={safeAddress}
+						chainId={chainId}
+						browserProvider={browserProvider}
+						rpcProvider={rpcProvider}
+						config={config}
+					/>
+				);
+		}
+	}
+
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
@@ -84,41 +135,7 @@ function EnqueueContent({
 						<p className="text-center mt-4 text-gray-600">Loading Safe configuration...</p>
 					</div>
 				) : (
-					config &&
-					(flow === "batch" ? (
-						<BatchTransactionForm
-							safeAddress={safeAddress}
-							chainId={chainId}
-							browserProvider={browserProvider}
-							rpcProvider={rpcProvider}
-							config={config}
-						/>
-					) : flow === "erc20" ? (
-						<ERC20TransferForm
-							safeAddress={safeAddress}
-							chainId={chainId}
-							browserProvider={browserProvider}
-							rpcProvider={rpcProvider}
-							config={config}
-							tokenAddress={tokenAddress}
-						/>
-					) : flow === "native" ? (
-						<NativeTransferForm
-							safeAddress={safeAddress}
-							chainId={chainId}
-							browserProvider={browserProvider}
-							rpcProvider={rpcProvider}
-							config={config}
-						/>
-					) : (
-						<RawTransactionForm
-							safeAddress={safeAddress}
-							chainId={chainId}
-							browserProvider={browserProvider}
-							rpcProvider={rpcProvider}
-							config={config}
-						/>
-					))
+					formComponent
 				)}
 			</div>
 		</div>
