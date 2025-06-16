@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
+import { WalletConnectProvider } from "./providers/WalletConnectProvider";
 
 import { routeTree } from "./routeTree.gen";
 import "./lib/onboard";
@@ -42,7 +43,9 @@ if (rootElement && !rootElement.innerHTML) {
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>
-				<RouterProvider router={router} />
+				<WalletConnectProvider router={router}>
+					<RouterProvider router={router} />
+				</WalletConnectProvider>
 			</TanstackQuery.Provider>
 		</StrictMode>,
 	);

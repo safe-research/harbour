@@ -2,7 +2,7 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { FileCode, ScrollText } from "lucide-react";
+import { FileCode, ScrollText, Link2 } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
@@ -74,6 +74,14 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								icon={FileCode}
 								ctaText="Create Raw Tx"
 								to="/enqueue"
+								search={{ safe: safeAddress, chainId }}
+							/>
+							<ActionCard
+								title="Connect to dApp"
+								description="Use WalletConnect to connect this Safe to decentralised applications."
+								icon={Link2}
+								ctaText="WalletConnect"
+								to="/walletconnect"
 								search={{ safe: safeAddress, chainId }}
 							/>
 						</div>
