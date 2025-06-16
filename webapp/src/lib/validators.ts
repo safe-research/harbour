@@ -107,3 +107,14 @@ export const hexDataSchema = z.string().refine(
 		message: "Data must be a valid hex string (e.g., 0x123abc)",
 	},
 );
+
+/**
+ * Regular expression for WalletConnect URI validation
+ * Matches wc: followed by session topic and version 2 parameters
+ */
+export const WALLETCONNECT_URI_REGEX = /^wc:[a-zA-Z0-9]+@2\?/;
+
+/**
+ * Schema for validating WalletConnect URIs
+ */
+export const walletConnectUriSchema = z.string().regex(WALLETCONNECT_URI_REGEX, "Invalid WalletConnect URI");

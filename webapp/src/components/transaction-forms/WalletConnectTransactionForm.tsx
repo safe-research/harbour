@@ -4,11 +4,11 @@ import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } fro
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
-import { useWalletConnect } from "../../hooks/walletConnect";
+import { useWalletConnect } from "@/hooks/walletConnect";
 
 interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txTo?: string;
@@ -38,7 +38,6 @@ export function WalletConnectTransactionForm({
 	safeAddress,
 	chainId,
 	browserProvider,
-	rpcProvider: _rpcProvider,
 	config,
 	txTo,
 	txValue,
@@ -52,13 +51,17 @@ export function WalletConnectTransactionForm({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
 	const [error, setError] = useState<string>();
+	const [warning, setWarning] = useState<string>();
+
+	// Memoize form schema to prevent recreation on every render
+	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce.toString()), [config.nonce]);
 
 	const {
 		register,
 		handleSubmit,
 		formState: { errors },
 	} = useForm<WalletConnectFormData>({
-		resolver: zodResolver(createWalletConnectFormSchema(config.nonce.toString())),
+		resolver: zodResolver(formSchema),
 		defaultValues: {
 			to: txTo ?? "",
 			value: txValue ?? "0",
@@ -99,6 +102,8 @@ export function WalletConnectTransactionForm({
 				}
 			} catch (err: unknown) {
 				console.error("Failed to respond to WalletConnect session request", err);
+				// Show non-blocking warning to user
+				setWarning("Transaction submitted but WalletConnect response failed. The dApp may not be notified.");
 			}
 
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
@@ -205,6 +210,13 @@ export function WalletConnectTransactionForm({
 					<div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
 						<h3 className="text-sm font-medium text-red-800">Error</h3>
 						<p className="mt-1 text-sm text-red-700">{error}</p>
+					</div>
+				)}
+
+				{warning && (
+					<div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+						<h3 className="text-sm font-medium text-yellow-800">Warning</h3>
+						<p className="mt-1 text-sm text-yellow-700">{warning}</p>
 					</div>
 				)}
 			</form>

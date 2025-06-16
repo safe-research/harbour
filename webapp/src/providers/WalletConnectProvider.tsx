@@ -5,21 +5,18 @@ import { getSdkError } from "@walletconnect/utils";
 import { ethers } from "ethers";
 import type React from "react";
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-// Minimal shape of a WalletKit session we rely on in the UI
-interface SessionMetadata {
-	peer: { metadata: { name: string; url: string } };
-	expiry: number;
-	topic: string;
-	// Catch-all for additional fields we don't use directly
-	[key: string]: unknown;
-}
+import {
+	WALLETCONNECT_EVENTS,
+	type WalletKitSession,
+	walletConnectTransactionParamsSchema,
+	isEthSendTransaction,
+} from "@/types/walletConnect";
 
 type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
-	sessions: Record<string, SessionMetadata>;
+	sessions: Record<string, WalletKitSession>;
 	error: string | null;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
@@ -42,7 +39,7 @@ interface WalletConnectProviderProps {
  */
 export function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
-	const [sessions, setSessions] = useState<Record<string, SessionMetadata>>({});
+	const [sessions, setSessions] = useState<Record<string, WalletKitSession>>({});
 	// Store the last error so UI can surface it
 	const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +58,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 	useEffect(() => {
 		let wkInstance: WalletKitInstance | undefined;
+		let isCleanedUp = false;
 		type OffEventName = Parameters<WalletKitInstance["off"]>[0];
 		type OffHandler = Parameters<WalletKitInstance["off"]>[1];
 		const listeners: Array<[OffEventName, OffHandler]> = [];
@@ -81,7 +79,11 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 				wkInstance = wk;
 
 				// Helper to sync sessions state
-				const syncSessions = () => setSessions(wk.getActiveSessions() as unknown as Record<string, SessionMetadata>);
+				const syncSessions = () => {
+					const activeSessions = wk.getActiveSessions();
+					// Safely cast to our session type
+					setSessions(activeSessions as Record<string, WalletKitSession>);
+				};
 
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
 					setError(null);
@@ -114,54 +116,68 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 						setError(`Failed to approve WalletConnect session: ${msg}`);
 					}
 				};
-				wk.on("session_proposal", onSessionProposal);
-				listeners.push(["session_proposal" as OffEventName, onSessionProposal as OffHandler]);
+				wk.on(WALLETCONNECT_EVENTS.SESSION_PROPOSAL, onSessionProposal);
+				listeners.push([WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName, onSessionProposal as OffHandler]);
 
 				const onSessionRequest = async (event: WalletKitTypes.SessionRequest) => {
 					setError(null);
 
-					// Extract method & params from the WalletConnect request
-					const request = (event as unknown as { request?: { method?: string; params?: unknown[]; id?: number } })
-						.request;
-					const method = request?.method;
-					const requestParams = request?.params;
-					const reqId = request?.id ?? event.id;
+					if (isEthSendTransaction(event)) {
+						const requestParams = event.params.request.params;
 
-					if (method === "eth_sendTransaction" && Array.isArray(requestParams) && requestParams.length > 0) {
-						const tx = requestParams[0] as Record<string, unknown>;
+						if (Array.isArray(requestParams) && requestParams.length > 0) {
+							const parsedTx = walletConnectTransactionParamsSchema.safeParse(requestParams[0]);
 
-						if (safeContextRef.current) {
-							const active = wk.getActiveSessions() as unknown as Record<string, SessionMetadata>;
-							const sessionMetadata = active[event.topic];
-							const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
-
-							let ethValue = "0";
-							if (typeof tx.value === "string" && tx.value !== "") {
+							if (!parsedTx.success) {
+								console.error("Invalid transaction params", parsedTx.error);
+								// Reject the request with proper error
 								try {
-									const wei = BigInt(tx.value as string);
-									ethValue = ethers.formatEther(wei);
-								} catch {}
+									await wk.respondSessionRequest({
+										topic: event.topic,
+										response: {
+											id: event.id,
+											jsonrpc: "2.0",
+											error: { code: -32602, message: "Invalid transaction parameters" },
+										},
+									});
+								} catch (err) {
+									console.error("Failed to respond with error", err);
+								}
+								return;
 							}
 
-							// Navigate to enqueue flow, include topic and reqId
-							// @ts-ignore: search params include custom topic and reqId
-							router.navigate({
-								to: "/enqueue",
-								search: {
-									safe: safeContextRef.current.safeAddress,
-									chainId: safeContextRef.current.chainId,
-									flow: "walletconnect" as const,
-									txTo: (tx.to as string | undefined) ?? "",
-									txData: (tx.data as string | undefined) ?? "",
-									txValue: ethValue,
-									wcApp: wcAppName,
-									topic: event.topic,
-									reqId: reqId.toString(),
-								},
-							});
+							if (safeContextRef.current) {
+								const activeSessions = wk.getActiveSessions() as Record<string, WalletKitSession>;
+								const sessionMetadata = activeSessions[event.topic];
+								const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
+
+								let ethValue = "0";
+								if (parsedTx.data.value) {
+									try {
+										const wei = BigInt(parsedTx.data.value);
+										ethValue = ethers.formatEther(wei);
+									} catch {}
+								}
+
+								// Navigate to enqueue flow with proper types
+								router.navigate({
+									to: "/enqueue",
+									search: {
+										safe: safeContextRef.current.safeAddress,
+										chainId: safeContextRef.current.chainId,
+										flow: "walletconnect",
+										txTo: parsedTx.data.to,
+										txData: parsedTx.data.data ?? "",
+										txValue: ethValue,
+										wcApp: wcAppName,
+										topic: event.topic,
+										reqId: event.id.toString(),
+									},
+								});
+							}
+							// Skip auto-response; response will be sent from the form
+							return;
 						}
-						// Skip auto-response; response will be sent from the form
-						return;
 					}
 
 					// Always respond to other WalletConnect requests
@@ -174,24 +190,32 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 						console.error("Failed to respond to WalletConnect session request", err);
 					}
 				};
-				wk.on("session_request", onSessionRequest);
-				listeners.push(["session_request" as OffEventName, onSessionRequest as OffHandler]);
+				wk.on(WALLETCONNECT_EVENTS.SESSION_REQUEST, onSessionRequest);
+				listeners.push([WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName, onSessionRequest as OffHandler]);
 
 				const onSessionDelete = () => syncSessions();
-				wk.on("session_delete", onSessionDelete);
-				listeners.push(["session_delete" as OffEventName, onSessionDelete as OffHandler]);
+				wk.on(WALLETCONNECT_EVENTS.SESSION_DELETE, onSessionDelete);
+				listeners.push([WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName, onSessionDelete as OffHandler]);
 
 				// Initial sessions
 				syncSessions();
-				setWalletkit(wk);
+
+				// Only set walletkit if not cleaned up
+				if (!isCleanedUp) {
+					setWalletkit(wk);
+				}
 			} catch (err) {
 				console.error("Failed to initialise WalletConnect", err);
+				if (!isCleanedUp) {
+					setError("Failed to initialize WalletConnect");
+				}
 			}
 		}
 
 		init();
 
 		return () => {
+			isCleanedUp = true;
 			if (wkInstance) {
 				for (const [evtName, handler] of listeners) {
 					try {

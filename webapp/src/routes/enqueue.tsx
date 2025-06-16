@@ -14,6 +14,7 @@ import { WalletConnectTransactionForm } from "../components/transaction-forms/Wa
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
+import type { WalletConnectParams } from "../types/walletConnect";
 
 interface EnqueueContentProps {
 	browserProvider: BrowserProvider;
@@ -208,65 +209,44 @@ export const Route = createFileRoute("/enqueue")({
  * Retrieves validated search params (including flow) and wraps content with wallet and provider requirements.
  */
 export function EnqueuePage() {
-	const {
-		safe: safeAddress,
-		chainId,
-		flow,
-		tokenAddress,
-		txTo,
-		txValue,
-		txData,
-		wcApp,
-		topic,
-		reqId,
-	} = Route.useSearch();
+	const searchParams = Route.useSearch();
+
+	// Extract WalletConnect-specific params
+	const walletConnectParams: WalletConnectParams = {
+		txTo: searchParams.txTo,
+		txValue: searchParams.txValue,
+		txData: searchParams.txData,
+		wcApp: searchParams.wcApp,
+		topic: searchParams.topic,
+		reqId: searchParams.reqId,
+	};
+
 	return (
 		<RequireWallet>
 			<EnqueuePageInner
-				safeAddress={safeAddress}
-				chainId={Number(chainId)}
-				flow={flow}
-				tokenAddress={tokenAddress}
-				txTo={txTo}
-				txValue={txValue}
-				txData={txData}
-				wcApp={wcApp}
-				topic={topic}
-				reqId={reqId}
+				safeAddress={searchParams.safe}
+				chainId={Number(searchParams.chainId)}
+				flow={searchParams.flow}
+				tokenAddress={searchParams.tokenAddress}
+				walletConnectParams={walletConnectParams}
 			/>
 		</RequireWallet>
 	);
 }
 
-type TransactionFlow = z.infer<typeof flowSchema>;
+type TransactionFlowType = z.infer<typeof flowSchema>;
 
 interface EnqueuePageInnerProps {
 	safeAddress: string;
 	chainId: ChainId;
-	flow?: TransactionFlow;
+	flow?: TransactionFlowType;
 	tokenAddress?: string;
-	txTo?: string;
-	txValue?: string;
-	txData?: string;
-	wcApp?: string;
-	topic?: string;
-	reqId?: string;
+	walletConnectParams: WalletConnectParams;
 }
 /**
  * Inner component for the enqueue page, rendered if wallet and providers are ready.
  */
-function EnqueuePageInner({
-	safeAddress,
-	chainId,
-	flow,
-	tokenAddress,
-	txTo,
-	txValue,
-	txData,
-	wcApp,
-	topic,
-	reqId,
-}: EnqueuePageInnerProps) {
+function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConnectParams }: EnqueuePageInnerProps) {
 	const browserProvider = useWalletProvider();
 	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(chainId);
 
@@ -286,12 +266,7 @@ function EnqueuePageInner({
 			chainId={chainId}
 			flow={flow}
 			tokenAddress={tokenAddress}
-			txTo={txTo}
-			txValue={txValue}
-			txData={txData}
-			wcApp={wcApp}
-			topic={topic}
-			reqId={reqId}
+			{...walletConnectParams}
 		/>
 	);
 }
