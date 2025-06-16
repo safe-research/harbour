@@ -12,7 +12,7 @@ interface WalletConnectContentProps {
 }
 
 function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProps) {
-	const { pair, sessions } = useWalletConnect();
+	const { pair, sessions, error } = useWalletConnect();
 	const [uriInput, setUriInput] = useState("");
 	const navigate = useNavigate();
 
@@ -60,6 +60,7 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 							Connect
 						</button>
 					</div>
+					{error && <p className="text-sm text-red-600">{error}</p>}
 				</div>
 
 				<div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">

@@ -19,6 +19,7 @@ type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
 	sessions: Record<string, SessionMetadata>;
+	error: string | null;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
 }
@@ -41,6 +42,8 @@ interface WalletConnectProviderProps {
 export function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
 	const [sessions, setSessions] = useState<Record<string, SessionMetadata>>({});
+	// Store the last error so UI can surface it
+	const [error, setError] = useState<string | null>(null);
 
 	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
 	const [_, setSafeContext] = useState<{ safeAddress: string; chainId: number } | null>(null);
@@ -90,6 +93,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 				};
 
 				const onSessionProposal = async (raw: unknown) => {
+					setError(null);
 					const proposal = raw as SessionProposal;
 					if (!safeContextRef.current) {
 						await wk.rejectSession({ id: proposal.id, reason: getSdkError("USER_REJECTED_METHODS") });
@@ -106,8 +110,14 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 						},
 					};
 
-					await wk.approveSession({ id: proposal.id, namespaces });
-					syncSessions();
+					try {
+						await wk.approveSession({ id: proposal.id, namespaces });
+						syncSessions();
+					} catch (err: unknown) {
+						const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+						console.error("Failed to approve WalletConnect session", err);
+						setError(`Failed to approve WalletConnect session: ${msg}`);
+					}
 				};
 				wk.on("session_proposal", onSessionProposal);
 				listeners.push(["session_proposal" as OffEventName, onSessionProposal as OffHandler]);
@@ -116,6 +126,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 					request: { topic: string; id: number };
 				};
 				const onSessionRequest = async (raw: unknown) => {
+					setError(null);
 					const event = raw as SessionRequestEvent;
 					if (safeContextRef.current) {
 						router.navigate({
@@ -166,17 +177,20 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 		() => ({
 			walletkit,
 			sessions,
+			error,
 			pair: async (uri: string) => {
 				if (!walletkit) return;
 				try {
 					await walletkit.pair({ uri });
-				} catch (e) {
-					console.error("Pairing failed", e);
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					console.error("Pairing failed", err);
+					setError(`Pairing failed: ${msg}`);
 				}
 			},
 			setSafeContext: registerSafeContext,
 		}),
-		[walletkit, sessions, registerSafeContext],
+		[walletkit, sessions, error, registerSafeContext],
 	);
 
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
