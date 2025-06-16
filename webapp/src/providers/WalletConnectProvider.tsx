@@ -2,8 +2,9 @@ import { WalletKit, type WalletKitTypes } from "@reown/walletkit";
 import type { AnyRouter } from "@tanstack/react-router";
 import { Core } from "@walletconnect/core";
 import { getSdkError } from "@walletconnect/utils";
+import { ethers } from "ethers";
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // Minimal shape of a WalletKit session we rely on in the UI
 interface SessionMetadata {
@@ -118,16 +119,52 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 				const onSessionRequest = async (event: WalletKitTypes.SessionRequest) => {
 					setError(null);
-					if (safeContextRef.current) {
-						router.navigate({
-							to: "/enqueue",
-							search: {
-								safe: safeContextRef.current.safeAddress,
-								chainId: safeContextRef.current.chainId,
-							},
-						});
+
+					// Extract method & params from the WalletConnect request
+					const request = (event as unknown as { request?: { method?: string; params?: unknown[] } }).request;
+					const method = request?.method;
+					const requestParams = request?.params;
+
+					if (method === "eth_sendTransaction" && Array.isArray(requestParams) && requestParams.length > 0) {
+						// We only consider the first transaction object as WalletConnect v2 currently bundles
+						// a single transaction per request. See: https://docs.walletconnect.com/2.0/specs/clients/json-rpc
+						const tx = requestParams[0] as Record<string, unknown>;
+
+						if (safeContextRef.current) {
+							// Retrieve dApp metadata to surface later in the UI
+							const active = wk.getActiveSessions() as unknown as Record<string, SessionMetadata>;
+							const sessionMetadata = active[event.topic];
+							const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
+
+							// `value` comes as a hex‐encoded wei string (e.g., "0x0"). We convert it to a decimal ETH string
+							// so it can be plugged straight into our RawTransactionForm default values.
+							let ethValue = "0";
+							if (typeof tx.value === "string" && tx.value !== "") {
+								try {
+									// ethers.formatEther accepts BigNumberish – we normalise to BigInt first to support hex or decimal.
+									const wei = BigInt(tx.value as string);
+									ethValue = ethers.formatEther(wei);
+								} catch {
+									// Silently ignore malformed value – fallback to "0"
+								}
+							}
+
+							router.navigate({
+								to: "/enqueue",
+								search: {
+									safe: safeContextRef.current.safeAddress,
+									chainId: safeContextRef.current.chainId,
+									flow: "walletconnect" as const,
+									txTo: (tx.to as string | undefined) ?? "",
+									txData: (tx.data as string | undefined) ?? "",
+									txValue: ethValue,
+									wcApp: wcAppName,
+								},
+							});
+						}
 					}
 
+					// Always respond to the WalletConnect request so the dApp is not left hanging.
 					await wk.respondSessionRequest({
 						topic: event.topic,
 						response: { id: event.id, jsonrpc: "2.0", result: null },
