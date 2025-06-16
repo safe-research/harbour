@@ -121,34 +121,30 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 					setError(null);
 
 					// Extract method & params from the WalletConnect request
-					const request = (event as unknown as { request?: { method?: string; params?: unknown[] } }).request;
+					const request = (event as unknown as { request?: { method?: string; params?: unknown[]; id?: number } })
+						.request;
 					const method = request?.method;
 					const requestParams = request?.params;
+					const reqId = request?.id ?? event.id;
 
 					if (method === "eth_sendTransaction" && Array.isArray(requestParams) && requestParams.length > 0) {
-						// We only consider the first transaction object as WalletConnect v2 currently bundles
-						// a single transaction per request. See: https://docs.walletconnect.com/2.0/specs/clients/json-rpc
 						const tx = requestParams[0] as Record<string, unknown>;
 
 						if (safeContextRef.current) {
-							// Retrieve dApp metadata to surface later in the UI
 							const active = wk.getActiveSessions() as unknown as Record<string, SessionMetadata>;
 							const sessionMetadata = active[event.topic];
 							const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
 
-							// `value` comes as a hex‐encoded wei string (e.g., "0x0"). We convert it to a decimal ETH string
-							// so it can be plugged straight into our RawTransactionForm default values.
 							let ethValue = "0";
 							if (typeof tx.value === "string" && tx.value !== "") {
 								try {
-									// ethers.formatEther accepts BigNumberish – we normalise to BigInt first to support hex or decimal.
 									const wei = BigInt(tx.value as string);
 									ethValue = ethers.formatEther(wei);
-								} catch {
-									// Silently ignore malformed value – fallback to "0"
-								}
+								} catch {}
 							}
 
+							// Navigate to enqueue flow, include topic and reqId
+							// @ts-ignore: search params include custom topic and reqId
 							router.navigate({
 								to: "/enqueue",
 								search: {
@@ -159,16 +155,24 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 									txData: (tx.data as string | undefined) ?? "",
 									txValue: ethValue,
 									wcApp: wcAppName,
+									topic: event.topic,
+									reqId: reqId.toString(),
 								},
 							});
 						}
+						// Skip auto-response; response will be sent from the form
+						return;
 					}
 
-					// Always respond to the WalletConnect request so the dApp is not left hanging.
-					await wk.respondSessionRequest({
-						topic: event.topic,
-						response: { id: event.id, jsonrpc: "2.0", result: null },
-					});
+					// Always respond to other WalletConnect requests
+					try {
+						await wk.respondSessionRequest({
+							topic: event.topic,
+							response: { id: event.id, jsonrpc: "2.0", result: null },
+						});
+					} catch (err: unknown) {
+						console.error("Failed to respond to WalletConnect session request", err);
+					}
 				};
 				wk.on("session_request", onSessionRequest);
 				listeners.push(["session_request" as OffEventName, onSessionRequest as OffHandler]);

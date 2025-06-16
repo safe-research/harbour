@@ -8,12 +8,15 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
+import { useWalletConnect } from "../../hooks/walletConnect";
 
 interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txTo?: string;
 	txValue?: string;
 	txData?: string;
 	wcApp?: string;
+	topic?: string;
+	reqId?: string;
 }
 
 const createWalletConnectFormSchema = (currentSafeNonce: string) =>
@@ -41,7 +44,10 @@ export function WalletConnectTransactionForm({
 	txValue,
 	txData,
 	wcApp,
+	topic,
+	reqId,
 }: WalletConnectFormProps) {
+	const { walletkit } = useWalletConnect();
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
@@ -82,6 +88,19 @@ export function WalletConnectTransactionForm({
 			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
 
 			setTxHash(receipt.transactionHash);
+
+			// Respond to WalletConnect session request with the transaction hash
+			try {
+				if (walletkit && topic && reqId) {
+					await walletkit.respondSessionRequest({
+						topic,
+						response: { id: Number(reqId), jsonrpc: "2.0", result: receipt.transactionHash },
+					});
+				}
+			} catch (err: unknown) {
+				console.error("Failed to respond to WalletConnect session request", err);
+			}
+
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "Transaction failed";

@@ -27,6 +27,9 @@ interface EnqueueContentProps {
 	txValue?: string;
 	txData?: string;
 	wcApp?: string;
+	// WalletConnect request identifiers
+	topic?: string;
+	reqId?: string;
 }
 
 /**
@@ -44,6 +47,8 @@ function EnqueueContent({
 	txValue,
 	txData,
 	wcApp,
+	topic,
+	reqId,
 }: EnqueueContentProps) {
 	const {
 		data: config, // Renamed from configResult to config for clarity
@@ -120,6 +125,8 @@ function EnqueueContent({
 						txData={txData}
 						txValue={txValue}
 						wcApp={wcApp}
+						topic={topic}
+						reqId={reqId}
 					/>
 				);
 				break;
@@ -177,11 +184,14 @@ const flowSchema = z.enum(["native", "erc20", "raw", "batch", "walletconnect"]).
 const enqueueSchema = safeIdSchema.extend({
 	flow: flowSchema,
 	tokenAddress: z.string().optional(),
-	// WalletConnect‐specific search params
+	// WalletConnect-specific search params
 	txTo: z.string().optional(),
 	txValue: z.string().optional(),
 	txData: z.string().optional(),
 	wcApp: z.string().optional(),
+	// WalletConnect request identifiers
+	topic: z.string().optional(),
+	reqId: z.string().optional(),
 });
 
 /**
@@ -198,7 +208,18 @@ export const Route = createFileRoute("/enqueue")({
  * Retrieves validated search params (including flow) and wraps content with wallet and provider requirements.
  */
 export function EnqueuePage() {
-	const { safe: safeAddress, chainId, flow, tokenAddress, txTo, txValue, txData, wcApp } = Route.useSearch();
+	const {
+		safe: safeAddress,
+		chainId,
+		flow,
+		tokenAddress,
+		txTo,
+		txValue,
+		txData,
+		wcApp,
+		topic,
+		reqId,
+	} = Route.useSearch();
 	return (
 		<RequireWallet>
 			<EnqueuePageInner
@@ -210,6 +231,8 @@ export function EnqueuePage() {
 				txValue={txValue}
 				txData={txData}
 				wcApp={wcApp}
+				topic={topic}
+				reqId={reqId}
 			/>
 		</RequireWallet>
 	);
@@ -226,6 +249,8 @@ interface EnqueuePageInnerProps {
 	txValue?: string;
 	txData?: string;
 	wcApp?: string;
+	topic?: string;
+	reqId?: string;
 }
 /**
  * Inner component for the enqueue page, rendered if wallet and providers are ready.
@@ -239,6 +264,8 @@ function EnqueuePageInner({
 	txValue,
 	txData,
 	wcApp,
+	topic,
+	reqId,
 }: EnqueuePageInnerProps) {
 	const browserProvider = useWalletProvider();
 	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(chainId);
@@ -263,6 +290,8 @@ function EnqueuePageInner({
 			txValue={txValue}
 			txData={txData}
 			wcApp={wcApp}
+			topic={topic}
+			reqId={reqId}
 		/>
 	);
 }
