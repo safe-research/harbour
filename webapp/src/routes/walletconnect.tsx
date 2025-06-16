@@ -3,8 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useState } from "react";
 import { RequireWallet } from "../components/RequireWallet";
-import { useWalletConnect, useRegisterSafeContext } from "../providers/WalletConnectProvider";
 import type { ChainId } from "../lib/types";
+import { useRegisterSafeContext, useWalletConnect } from "../providers/WalletConnectProvider";
 
 interface WalletConnectContentProps {
 	safeAddress: string;
@@ -68,7 +68,7 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 						<p className="text-gray-600 text-sm">No active WalletConnect sessions</p>
 					) : (
 						<ul className="divide-y divide-gray-200">
-							{sessionEntries.map((s: any) => (
+							{sessionEntries.map((s) => (
 								<li key={s.topic} className="py-3 flex items-center justify-between">
 									<div>
 										<p className="font-medium text-gray-900">{s.peer.metadata.name}</p>

@@ -1,12 +1,24 @@
-import { Core } from "@walletconnect/core";
 import { WalletKit } from "@reown/walletkit";
-import { getSdkError } from "@walletconnect/utils";
 import type { AnyRouter } from "@tanstack/react-router";
-import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
+import { Core } from "@walletconnect/core";
+import { getSdkError } from "@walletconnect/utils";
+import type React from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+
+// Minimal shape of a WalletKit session we rely on in the UI
+interface SessionMetadata {
+	peer: { metadata: { name: string; url: string } };
+	expiry: number;
+	topic: string;
+	// Catch-all for additional fields we don't use directly
+	[key: string]: unknown;
+}
+
+type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
 interface WalletConnectContextValue {
-	walletkit: any;
-	sessions: Record<string, any>;
+	walletkit: WalletKitInstance | null;
+	sessions: Record<string, SessionMetadata>;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
 }
@@ -27,22 +39,28 @@ interface WalletConnectProviderProps {
  * to the `/enqueue` flow so they can review and enqueue the transaction in their Safe.
  */
 export function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
-	const [walletkit, setWalletkit] = useState<any>(null);
-	const [sessions, setSessions] = useState<Record<string, any>>({});
+	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
+	const [sessions, setSessions] = useState<Record<string, SessionMetadata>>({});
 
 	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
 	const [_, setSafeContext] = useState<{ safeAddress: string; chainId: number } | null>(null);
 	// Keep a ref in sync with the latest safeContext so event listeners always read fresh data
 	const safeContextRef = useRef<{ safeAddress: string; chainId: number } | null>(null);
 
+	// WalletKit instance retained locally for cleanup; we store in effect scope instead of ref
+
 	// Expose setter through ref to enable external registration via hook
-	const registerSafeContext = (ctx: { safeAddress: string; chainId: number }) => {
+	const registerSafeContext = useCallback((ctx: { safeAddress: string; chainId: number }) => {
 		setSafeContext(ctx);
 		safeContextRef.current = ctx;
-	};
+	}, []);
 
-	// Initialise WalletKit once at startup
 	useEffect(() => {
+		let wkInstance: WalletKitInstance | undefined;
+		type OffEventName = Parameters<WalletKitInstance["off"]>[0];
+		type OffHandler = Parameters<WalletKitInstance["off"]>[1];
+		const listeners: Array<[OffEventName, OffHandler]> = [];
+
 		async function init() {
 			try {
 				const core = new Core({ projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID });
@@ -56,21 +74,28 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 					},
 				});
 
-				// Helper to sync sessions state
-				const syncSessions = () => setSessions(wk.getActiveSessions());
+				wkInstance = wk;
 
-				// Register lifecycle listeners
-				wk.on("session_proposal", async (proposal: any) => {
+				// Helper to sync sessions state
+				const syncSessions = () => setSessions(wk.getActiveSessions() as unknown as Record<string, SessionMetadata>);
+
+				// --- Event listeners with stable references so we can unsubscribe later --- //
+				// --- Session proposal ----
+				type SessionProposal = {
+					id: number;
+					permissions?: { methods?: string[]; events?: string[] };
+					requiredNamespaces?: {
+						eip155?: { methods?: string[]; events?: string[] };
+					};
+				};
+
+				const onSessionProposal = async (raw: unknown) => {
+					const proposal = raw as SessionProposal;
 					if (!safeContextRef.current) {
-						// No safe context -> reject proposal
-						await wk.rejectSession({
-							id: proposal.id,
-							reason: getSdkError("USER_REJECTED_METHODS"),
-						});
+						await wk.rejectSession({ id: proposal.id, reason: getSdkError("USER_REJECTED_METHODS") });
 						return;
 					}
 
-					// Build namespaces so dApp gets access to our Safe account only
 					const namespaces = {
 						eip155: {
 							methods: proposal.permissions?.methods || proposal.requiredNamespaces?.eip155?.methods || [],
@@ -83,25 +108,36 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 					await wk.approveSession({ id: proposal.id, namespaces });
 					syncSessions();
-				});
+				};
+				wk.on("session_proposal", onSessionProposal);
+				listeners.push(["session_proposal" as OffEventName, onSessionProposal as OffHandler]);
 
-				wk.on("session_request", async (event: any) => {
-					// For now we treat any session_request as a transaction proposal and redirect.
+				type SessionRequestEvent = {
+					request: { topic: string; id: number };
+				};
+				const onSessionRequest = async (raw: unknown) => {
+					const event = raw as SessionRequestEvent;
 					if (safeContextRef.current) {
 						router.navigate({
 							to: "/enqueue",
-							search: { safe: safeContextRef.current.safeAddress, chainId: safeContextRef.current.chainId },
+							search: {
+								safe: safeContextRef.current.safeAddress,
+								chainId: safeContextRef.current.chainId,
+							},
 						});
 					}
 
-					// Acknowledge request to avoid hanging the dApp
 					await wk.respondSessionRequest({
-						id: event.request.id,
-						result: null, // The user will handle in /enqueue UI
+						topic: event.request.topic,
+						response: { id: event.request.id, jsonrpc: "2.0", result: null },
 					});
-				});
+				};
+				wk.on("session_request", onSessionRequest);
+				listeners.push(["session_request" as OffEventName, onSessionRequest as OffHandler]);
 
-				wk.on("session_delete", syncSessions);
+				const onSessionDelete = () => syncSessions();
+				wk.on("session_delete", onSessionDelete);
+				listeners.push(["session_delete" as OffEventName, onSessionDelete as OffHandler]);
 
 				// Initial sessions
 				syncSessions();
@@ -112,8 +148,19 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 		}
 
 		init();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+
+		return () => {
+			if (wkInstance) {
+				for (const [evtName, handler] of listeners) {
+					try {
+						wkInstance.off(evtName, handler);
+					} catch (err) {
+						console.error("Failed to remove WalletKit listener", err);
+					}
+				}
+			}
+		};
+	}, [router]);
 
 	const value = useMemo<WalletConnectContextValue>(
 		() => ({
@@ -129,7 +176,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 			},
 			setSafeContext: registerSafeContext,
 		}),
-		[walletkit, sessions],
+		[walletkit, sessions, registerSafeContext],
 	);
 
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
