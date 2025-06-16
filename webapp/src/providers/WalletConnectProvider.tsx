@@ -2,7 +2,7 @@ import { Core } from "@walletconnect/core";
 import { WalletKit } from "@reown/walletkit";
 import { getSdkError } from "@walletconnect/utils";
 import type { AnyRouter } from "@tanstack/react-router";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useRef } from "react";
 
 interface WalletConnectContextValue {
 	walletkit: any;
@@ -31,11 +31,14 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 	const [sessions, setSessions] = useState<Record<string, any>>({});
 
 	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
-	const [safeContext, setSafeContext] = useState<{ safeAddress: string; chainId: number } | null>(null);
+	const [_, setSafeContext] = useState<{ safeAddress: string; chainId: number } | null>(null);
+	// Keep a ref in sync with the latest safeContext so event listeners always read fresh data
+	const safeContextRef = useRef<{ safeAddress: string; chainId: number } | null>(null);
 
 	// Expose setter through ref to enable external registration via hook
 	const registerSafeContext = (ctx: { safeAddress: string; chainId: number }) => {
 		setSafeContext(ctx);
+		safeContextRef.current = ctx;
 	};
 
 	// Initialise WalletKit once at startup
@@ -58,7 +61,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 				// Register lifecycle listeners
 				wk.on("session_proposal", async (proposal: any) => {
-					if (!safeContext) {
+					if (!safeContextRef.current) {
 						// No safe context -> reject proposal
 						await wk.rejectSession({
 							id: proposal.id,
@@ -72,7 +75,9 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 						eip155: {
 							methods: proposal.permissions?.methods || proposal.requiredNamespaces?.eip155?.methods || [],
 							events: proposal.permissions?.events || proposal.requiredNamespaces?.eip155?.events || [],
-							accounts: [`eip155:${safeContext.chainId}:${safeContext.safeAddress.toLowerCase()}`],
+							accounts: [
+								`eip155:${safeContextRef.current.chainId}:${safeContextRef.current.safeAddress.toLowerCase()}`,
+							],
 						},
 					};
 
@@ -82,10 +87,10 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 				wk.on("session_request", async (event: any) => {
 					// For now we treat any session_request as a transaction proposal and redirect.
-					if (safeContext) {
+					if (safeContextRef.current) {
 						router.navigate({
 							to: "/enqueue",
-							search: { safe: safeContext.safeAddress, chainId: safeContext.chainId },
+							search: { safe: safeContextRef.current.safeAddress, chainId: safeContextRef.current.chainId },
 						});
 					}
 
@@ -127,11 +132,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 		[walletkit, sessions],
 	);
 
-	return (
-		<WalletConnectContext.Provider value={value}>
-			{children}
-		</WalletConnectContext.Provider>
-	);
+	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
 }
 
 /**
