@@ -3,8 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useState } from "react";
 import { RequireWallet } from "../components/RequireWallet";
+import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect";
 import type { ChainId } from "../lib/types";
-import { useRegisterSafeContext, useWalletConnect } from "../providers/WalletConnectProvider";
 
 interface WalletConnectContentProps {
 	safeAddress: string;

@@ -24,7 +24,7 @@ interface WalletConnectContextValue {
 	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
 }
 
-const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
+export const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
 
 interface WalletConnectProviderProps {
 	/** TanStack Router instance so we can redirect programmatically */
@@ -116,12 +116,8 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 				wk.on("session_proposal", onSessionProposal);
 				listeners.push(["session_proposal" as OffEventName, onSessionProposal as OffHandler]);
 
-				type SessionRequestEvent = {
-					request: { topic: string; id: number };
-				};
-				const onSessionRequest = async (raw: unknown) => {
+				const onSessionRequest = async (event: WalletKitTypes.SessionRequest) => {
 					setError(null);
-					const event = raw as SessionRequestEvent;
 					if (safeContextRef.current) {
 						router.navigate({
 							to: "/enqueue",
@@ -133,8 +129,8 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 					}
 
 					await wk.respondSessionRequest({
-						topic: event.request.topic,
-						response: { id: event.request.id, jsonrpc: "2.0", result: null },
+						topic: event.topic,
+						response: { id: event.id, jsonrpc: "2.0", result: null },
 					});
 				};
 				wk.on("session_request", onSessionRequest);
@@ -190,21 +186,4 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
 }
 
-/**
- * Hook to access WalletConnect context.
- */
-export function useWalletConnect() {
-	const ctx = useContext(WalletConnectContext);
-	if (!ctx) throw new Error("useWalletConnect must be used within WalletConnectProvider");
-	return ctx;
-}
-
-/**
- * Helper hook for pages to register (or update) the Safe context so WalletKit knows which Safe account to expose.
- */
-export function useRegisterSafeContext(safeAddress: string, chainId: number) {
-	const ctx = useContext(WalletConnectContext);
-	useEffect(() => {
-		ctx?.setSafeContext?.({ safeAddress, chainId });
-	}, [safeAddress, chainId, ctx]);
-}
+// Hooks moved to dedicated module to satisfy Vite's Consistent Component Exports rule.
