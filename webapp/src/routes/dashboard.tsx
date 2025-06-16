@@ -2,7 +2,7 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { FileCode, ScrollText, Link2 } from "lucide-react";
+import { FileCode, Link2, ScrollText } from "lucide-react";
 
 import ActionCard from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
@@ -45,6 +45,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 		});
 	};
 
+	const walletConnectDisabled = !import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -83,6 +85,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								ctaText="WalletConnect"
 								to="/walletconnect"
 								search={{ safe: safeAddress, chainId }}
+								disabled={walletConnectDisabled}
+								disabledTooltip="WalletConnect is unavailable because VITE_WALLETCONNECT_PROJECT_ID is not set."
 							/>
 						</div>
 
