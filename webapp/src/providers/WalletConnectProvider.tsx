@@ -1,4 +1,4 @@
-import { WalletKit } from "@reown/walletkit";
+import { WalletKit, type WalletKitTypes } from "@reown/walletkit";
 import type { AnyRouter } from "@tanstack/react-router";
 import { Core } from "@walletconnect/core";
 import { getSdkError } from "@walletconnect/utils";
@@ -82,31 +82,25 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 				// Helper to sync sessions state
 				const syncSessions = () => setSessions(wk.getActiveSessions() as unknown as Record<string, SessionMetadata>);
 
-				// --- Event listeners with stable references so we can unsubscribe later --- //
-				// --- Session proposal ----
-				type SessionProposal = {
-					id: number;
-					permissions?: { methods?: string[]; events?: string[] };
-					requiredNamespaces?: {
-						eip155?: { methods?: string[]; events?: string[] };
-					};
-				};
-
-				const onSessionProposal = async (raw: unknown) => {
+				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
 					setError(null);
-					const proposal = raw as SessionProposal;
 					if (!safeContextRef.current) {
 						await wk.rejectSession({ id: proposal.id, reason: getSdkError("USER_REJECTED_METHODS") });
 						return;
 					}
 
+					// As workaround, we pretend to support all the required chains plus the current Safe's chain
+					const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
+					const eip155ChainIds = [`eip155:${safeContextRef.current.chainId}`].concat(requiredChains ?? []);
+					const eip155Accounts = eip155ChainIds.map(
+						(eip155ChainId) => `${eip155ChainId}:${safeContextRef.current?.safeAddress.toLowerCase()}`,
+					);
+
 					const namespaces = {
 						eip155: {
-							methods: proposal.permissions?.methods || proposal.requiredNamespaces?.eip155?.methods || [],
-							events: proposal.permissions?.events || proposal.requiredNamespaces?.eip155?.events || [],
-							accounts: [
-								`eip155:${safeContextRef.current.chainId}:${safeContextRef.current.safeAddress.toLowerCase()}`,
-							],
+							methods: proposal.params.requiredNamespaces?.eip155?.methods || [],
+							events: proposal.params.requiredNamespaces?.eip155?.events || [],
+							accounts: eip155Accounts,
 						},
 					};
 
