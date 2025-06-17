@@ -1,4 +1,4 @@
-import { safeIdSchema } from "@/lib/validators";
+import { ethereumAddressSchema, hexDataSchema, safeIdSchema } from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
@@ -14,7 +14,6 @@ import { WalletConnectTransactionForm } from "../components/transaction-forms/Wa
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
-import type { WalletConnectParams } from "../types/walletConnect";
 
 interface EnqueueContentProps {
 	browserProvider: BrowserProvider;
@@ -32,6 +31,17 @@ interface EnqueueContentProps {
 	topic?: string;
 	reqId?: string;
 }
+
+export const walletConnectParamsSchema = z.object({
+	txTo: ethereumAddressSchema.optional(),
+	txValue: z.string().optional(),
+	txData: hexDataSchema.optional(),
+	wcApp: z.string().optional(),
+	topic: z.string().optional(),
+	reqId: z.string().optional(),
+});
+
+export type WalletConnectParams = z.infer<typeof walletConnectParamsSchema>;
 
 /**
  * Content component for the enqueue transaction page.

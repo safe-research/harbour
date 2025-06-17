@@ -1,11 +1,10 @@
 import { safeIdSchema, walletConnectUriSchema } from "@/lib/validators";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { RequireWallet } from "../components/RequireWallet";
 import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect";
 import type { ChainId } from "../lib/types";
-import { USER_FRIENDLY_ERRORS } from "@/types/walletConnect";
 
 interface WalletConnectContentProps {
 	safeAddress: string;
@@ -19,7 +18,6 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 	const [validationError, setValidationError] = useState<string>();
 	const navigate = useNavigate();
 
-	// Let WalletKit know which Safe we are exposing
 	useRegisterSafeContext(safeAddress, chainId);
 
 	const handlePair = useCallback(async () => {
@@ -29,7 +27,7 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 		// Validate URI
 		const validation = walletConnectUriSchema.safeParse(trimmedUri);
 		if (!validation.success) {
-			setValidationError(USER_FRIENDLY_ERRORS.INVALID_URI);
+			setValidationError(validation.error.message);
 			return;
 		}
 

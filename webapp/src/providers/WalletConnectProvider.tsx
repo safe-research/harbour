@@ -1,22 +1,19 @@
+import { ethereumAddressSchema, hexDataSchema } from "@/lib/validators";
 import { WalletKit, type WalletKitTypes } from "@reown/walletkit";
 import type { AnyRouter } from "@tanstack/react-router";
 import { Core } from "@walletconnect/core";
+import type { SessionTypes } from "@walletconnect/types";
 import { getSdkError } from "@walletconnect/utils";
 import { ethers } from "ethers";
 import type React from "react";
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	WALLETCONNECT_EVENTS,
-	type WalletKitSession,
-	walletConnectTransactionParamsSchema,
-	isEthSendTransaction,
-} from "@/types/walletConnect";
+import { z } from "zod";
 
 type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
-	sessions: Record<string, WalletKitSession>;
+	sessions: Record<string, SessionTypes.Struct>;
 	error: string | null;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
@@ -30,6 +27,26 @@ interface WalletConnectProviderProps {
 	children: React.ReactNode;
 }
 
+const WALLETCONNECT_EVENTS = {
+	SESSION_PROPOSAL: "session_proposal",
+	SESSION_REQUEST: "session_request",
+	SESSION_DELETE: "session_delete",
+} as const;
+
+const isEthSendTransaction = (
+	event: WalletKitTypes.SessionRequest,
+): event is WalletKitTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } => {
+	return event.params?.request?.method === "eth_sendTransaction";
+};
+
+const walletConnectTransactionParamsSchema = z.object({
+	to: ethereumAddressSchema,
+	value: z.string().optional(),
+	data: hexDataSchema.optional(),
+	from: ethereumAddressSchema.optional(),
+	gas: z.string().optional(),
+});
+
 /**
  * WalletConnectProvider sets up a singleton WalletKit instance that acts as a Safe-aware wallet.
  * It exposes current active sessions and a `pair` helper to initiate a connection from a wc: URI.
@@ -37,9 +54,9 @@ interface WalletConnectProviderProps {
  * On any incoming session_request from a dApp (used as a transaction proposal), the user is redirected
  * to the `/enqueue` flow so they can review and enqueue the transaction in their Safe.
  */
-export function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
+function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
-	const [sessions, setSessions] = useState<Record<string, WalletKitSession>>({});
+	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
 	// Store the last error so UI can surface it
 	const [error, setError] = useState<string | null>(null);
 
@@ -78,11 +95,9 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 
 				wkInstance = wk;
 
-				// Helper to sync sessions state
 				const syncSessions = () => {
 					const activeSessions = wk.getActiveSessions();
-					// Safely cast to our session type
-					setSessions(activeSessions as Record<string, WalletKitSession>);
+					setSessions(activeSessions);
 				};
 
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
@@ -147,7 +162,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 							}
 
 							if (safeContextRef.current) {
-								const activeSessions = wk.getActiveSessions() as Record<string, WalletKitSession>;
+								const activeSessions = wk.getActiveSessions();
 								const sessionMetadata = activeSessions[event.topic];
 								const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
 
@@ -251,4 +266,4 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
 }
 
-// Hooks moved to dedicated module to satisfy Vite's Consistent Component Exports rule.
+export { WalletConnectProvider };
