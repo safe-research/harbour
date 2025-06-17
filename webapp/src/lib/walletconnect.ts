@@ -50,15 +50,21 @@ async function initWalletKit(): Promise<WalletKitInstance> {
 	if (!walletkitInitPromise) {
 		const core = new Core({ projectId: WALLETCONNECT_PROJECT_ID });
 		walletkitInitPromise = (async () => {
-			return await WalletKit.init({
-				core,
-				metadata: {
-					name: "Harbour Safe Wallet",
-					description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
-					url: window.location.origin,
-					icons: [],
-				},
-			});
+			try {
+				return await WalletKit.init({
+					core,
+					metadata: {
+						name: "Harbour Safe Wallet",
+						description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
+						url: window.location.origin,
+						icons: [],
+					},
+				});
+			} catch (error) {
+				// Reset the promise on failure to allow retry on next call
+				walletkitInitPromise = undefined;
+				throw error;
+			}
 		})();
 	}
 
