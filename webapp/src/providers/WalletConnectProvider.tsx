@@ -1,15 +1,18 @@
-import { type SafeId, ethereumAddressSchema, hexDataSchema } from "@/lib/validators";
-import { WalletKit, type WalletKitTypes } from "@reown/walletkit";
+import type { SafeId } from "@/lib/validators";
+import {
+	type SessionTypes,
+	WALLETCONNECT_EVENTS,
+	type WalletKitInstance,
+	type WalletKitTypes,
+	getSdkError,
+	initWalletKit,
+	isEthSendTransaction,
+	walletConnectTransactionParamsSchema,
+} from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
-import { Core } from "@walletconnect/core";
-import type { SessionTypes } from "@walletconnect/types";
-import { getSdkError } from "@walletconnect/utils";
 import { ethers } from "ethers";
 import type React from "react";
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { z } from "zod";
-
-type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
@@ -27,32 +30,8 @@ interface WalletConnectProviderProps {
 	children: React.ReactNode;
 }
 
-const WALLETCONNECT_EVENTS = {
-	SESSION_PROPOSAL: "session_proposal",
-	SESSION_REQUEST: "session_request",
-	SESSION_DELETE: "session_delete",
-} as const;
-
-const isEthSendTransaction = (
-	event: WalletKitTypes.SessionRequest,
-): event is WalletKitTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } => {
-	return event.params?.request?.method === "eth_sendTransaction";
-};
-
-const walletConnectTransactionParamsSchema = z.object({
-	to: ethereumAddressSchema,
-	value: z.string().optional(),
-	data: hexDataSchema.optional(),
-	from: ethereumAddressSchema.optional(),
-	gas: z.string().optional(),
-});
-
 /**
  * WalletConnectProvider sets up a singleton WalletKit instance that acts as a Safe-aware wallet.
- * It exposes current active sessions and a `pair` helper to initiate a connection from a wc: URI.
- *
- * On any incoming session_request from a dApp (used as a transaction proposal), the user is redirected
- * to the `/enqueue` flow so they can review and enqueue the transaction in their Safe.
  */
 function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
@@ -82,16 +61,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 		async function init() {
 			try {
-				const core = new Core({ projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID });
-				const wk = await WalletKit.init({
-					core,
-					metadata: {
-						name: "Harbour Safe Wallet",
-						description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
-						url: window.location.origin,
-						icons: [],
-					},
-				});
+				const wk = await initWalletKit();
 
 				wkInstance = wk;
 
