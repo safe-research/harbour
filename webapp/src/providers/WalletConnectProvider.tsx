@@ -1,4 +1,4 @@
-import { ethereumAddressSchema, hexDataSchema } from "@/lib/validators";
+import { type SafeId, ethereumAddressSchema, hexDataSchema } from "@/lib/validators";
 import { WalletKit, type WalletKitTypes } from "@reown/walletkit";
 import type { AnyRouter } from "@tanstack/react-router";
 import { Core } from "@walletconnect/core";
@@ -16,7 +16,7 @@ interface WalletConnectContextValue {
 	sessions: Record<string, SessionTypes.Struct>;
 	error: string | null;
 	pair: (uri: string) => Promise<void>;
-	setSafeContext: (ctx: { safeAddress: string; chainId: number }) => void;
+	setSafeContext: (ctx: SafeId) => void;
 }
 
 export const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
@@ -61,14 +61,14 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	const [error, setError] = useState<string | null>(null);
 
 	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
-	const [_, setSafeContext] = useState<{ safeAddress: string; chainId: number } | null>(null);
+	const [_, setSafeContext] = useState<{ safe: string; chainId: number } | null>(null);
 	// Keep a ref in sync with the latest safeContext so event listeners always read fresh data
-	const safeContextRef = useRef<{ safeAddress: string; chainId: number } | null>(null);
+	const safeContextRef = useRef<{ safe: string; chainId: number } | null>(null);
 
 	// WalletKit instance retained locally for cleanup; we store in effect scope instead of ref
 
 	// Expose setter through ref to enable external registration via hook
-	const registerSafeContext = useCallback((ctx: { safeAddress: string; chainId: number }) => {
+	const registerSafeContext = useCallback((ctx: SafeId) => {
 		setSafeContext(ctx);
 		safeContextRef.current = ctx;
 	}, []);
@@ -111,7 +111,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 					const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
 					const eip155ChainIds = [`eip155:${safeContextRef.current.chainId}`].concat(requiredChains ?? []);
 					const eip155Accounts = eip155ChainIds.map(
-						(eip155ChainId) => `${eip155ChainId}:${safeContextRef.current?.safeAddress.toLowerCase()}`,
+						(eip155ChainId) => `${eip155ChainId}:${safeContextRef.current?.safe.toLowerCase()}`,
 					);
 
 					const namespaces = {
@@ -178,7 +178,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 								router.navigate({
 									to: "/enqueue",
 									search: {
-										safe: safeContextRef.current.safeAddress,
+										safe: safeContextRef.current.safe,
 										chainId: safeContextRef.current.chainId,
 										flow: "walletconnect",
 										txTo: parsedTx.data.to,

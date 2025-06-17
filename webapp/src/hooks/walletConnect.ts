@@ -1,7 +1,6 @@
+import { safeIdSchema } from "@/lib/validators";
 import { useContext, useEffect, useMemo } from "react";
 import { WalletConnectContext } from "../providers/WalletConnectProvider";
-import { ethereumAddressSchema } from "@/lib/validators";
-import { z } from "zod";
 
 /**
  * Access the WalletConnect context (walletkit instance, sessions, errors & helpers)
@@ -16,12 +15,6 @@ export function useWalletConnect() {
 	return useMemo(() => ctx, [ctx]);
 }
 
-// Schema for safe context validation
-const safeContextSchema = z.object({
-	safeAddress: ethereumAddressSchema,
-	chainId: z.number().int().positive(),
-});
-
 /**
  * Register (or update) the Safe context that WalletKit should expose to dApps.
  * Keeps the provider-side context in sync whenever safeAddress/chainId change.
@@ -34,7 +27,7 @@ export function useRegisterSafeContext(safeAddress: string, chainId: number) {
 
 		try {
 			// Validate parameters before setting
-			const validatedContext = safeContextSchema.parse({ safeAddress, chainId });
+			const validatedContext = safeIdSchema.parse({ safeAddress, chainId });
 			ctx.setSafeContext(validatedContext);
 		} catch (error) {
 			console.error("Invalid Safe context parameters:", error);

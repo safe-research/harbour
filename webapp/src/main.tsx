@@ -2,9 +2,9 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 import { WalletConnectProvider } from "./providers/WalletConnectProvider";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 
 import { routeTree } from "./routeTree.gen";
 import "./lib/onboard";
@@ -44,25 +44,7 @@ if (rootElement && !rootElement.innerHTML) {
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>
-				<ErrorBoundary
-					fallback={
-						<div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-							<div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full">
-								<h2 className="text-lg font-semibold text-red-600 mb-2">WalletConnect initialization failed</h2>
-								<p className="text-gray-600 text-sm mb-4">
-									Unable to initialize WalletConnect. Please check your connection and try again.
-								</p>
-								<button
-									type="button"
-									onClick={() => window.location.reload()}
-									className="w-full px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 text-sm"
-								>
-									Reload page
-								</button>
-							</div>
-						</div>
-					}
-				>
+				<ErrorBoundary>
 					<WalletConnectProvider router={router}>
 						<RouterProvider router={router} />
 					</WalletConnectProvider>
