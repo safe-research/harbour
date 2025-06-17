@@ -129,7 +129,7 @@ export function WalletConnectProvider({ router, children }: WalletConnectProvide
 							const parsedTx = walletConnectTransactionParamsSchema.safeParse(requestParams[0]);
 
 							if (!parsedTx.success) {
-								console.error("Invalid transaction params", parsedTx.error);
+								console.error("Invalid transaction params:", parsedTx.error.issues || parsedTx.error);
 								// Reject the request with proper error
 								try {
 									await wk.respondSessionRequest({

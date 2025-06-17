@@ -6,7 +6,7 @@ import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
 
-import ActionCard from "../components/ActionCard";
+import { ActionCard } from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";

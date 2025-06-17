@@ -4,7 +4,7 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, Link2, ScrollText } from "lucide-react";
 
-import ActionCard from "../components/ActionCard";
+import { ActionCard } from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";

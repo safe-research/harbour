@@ -31,7 +31,7 @@ interface ActionCardProps {
  * @param {ActionCardProps} props - The component props.
  * @returns JSX element representing the action card.
  */
-export default function ActionCard({
+function ActionCard({
 	title,
 	description,
 	icon: Icon,
@@ -41,7 +41,6 @@ export default function ActionCard({
 	disabled = false,
 	disabledTooltip,
 }: ActionCardProps) {
-	// Determine CTA element based on disabled state
 	const CTA = disabled ? (
 		<span
 			title={disabledTooltip}
@@ -76,3 +75,5 @@ export default function ActionCard({
 		</div>
 	);
 }
+
+export { ActionCard };
