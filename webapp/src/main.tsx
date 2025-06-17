@@ -38,10 +38,7 @@ declare module "@tanstack/react-router" {
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement);
-	/**
-	 * Renders the main application component tree into the DOM.
-	 * It sets up StrictMode, the TanStack Query Provider, and the TanStack RouterProvider.
-	 */
+
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>

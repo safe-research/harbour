@@ -37,31 +37,32 @@ const walletConnectTransactionParamsSchema = z.object({
 	gas: z.string().optional(),
 });
 
-let walletkitInstance: WalletKitInstance | undefined;
-
+let walletkitInitPromise: Promise<WalletKitInstance> | undefined;
 /**
  * Lazily initializes and returns a cached WalletKit instance configured with WalletConnect Core.
  *
- * @remarks
- * - Uses the `VITE_WALLETCONNECT_PROJECT_ID` environment variable for the WalletConnect project ID.
- * - Subsequent calls return the already initialized instance.
+ * This function is safe to call multiple times: if initialization is already in progress or completed,
+ * it returns the same promise without invoking WalletKit.init again, which must be called only once.
  *
  * @returns A promise that resolves to the initialized WalletKit instance.
  */
 async function initWalletKit(): Promise<WalletKitInstance> {
-	if (!walletkitInstance) {
+	if (!walletkitInitPromise) {
 		const core = new Core({ projectId: WALLETCONNECT_PROJECT_ID });
-		walletkitInstance = await WalletKit.init({
-			core,
-			metadata: {
-				name: "Harbour Safe Wallet",
-				description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
-				url: window.location.origin,
-				icons: [],
-			},
-		});
+		walletkitInitPromise = (async () => {
+			return await WalletKit.init({
+				core,
+				metadata: {
+					name: "Harbour Safe Wallet",
+					description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
+					url: window.location.origin,
+					icons: [],
+				},
+			});
+		})();
 	}
-	return walletkitInstance;
+
+	return walletkitInitPromise;
 }
 
 function canUseWalletConnect(): boolean {

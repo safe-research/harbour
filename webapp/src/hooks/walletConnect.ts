@@ -27,17 +27,17 @@ export function useWalletConnect() {
  * @param chainId The chain ID where the Safe contract is deployed.
  * @returns void
  */
-export function useRegisterSafeContext(safeAddress: string, chainId: number) {
+export function useRegisterSafeContext(safe: string, chainId: number) {
 	const ctx = useContext(WalletConnectContext);
 
 	useEffect(() => {
 		if (!ctx?.setSafeContext) return;
 
 		try {
-			const validatedContext = safeIdSchema.parse({ safeAddress, chainId });
+			const validatedContext = safeIdSchema.parse({ safe, chainId });
 			ctx.setSafeContext(validatedContext);
 		} catch (error) {
 			console.error("Invalid Safe context parameters:", error);
 		}
-	}, [safeAddress, chainId, ctx]);
+	}, [safe, chainId, ctx]);
 }

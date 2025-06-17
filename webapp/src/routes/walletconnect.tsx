@@ -7,18 +7,18 @@ import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect
 import type { ChainId } from "../lib/types";
 
 interface WalletConnectContentProps {
-	safeAddress: string;
+	safe: string;
 	chainId: ChainId;
 }
 
-function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProps) {
+function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 	const { pair, sessions, error } = useWalletConnect();
 	const [uriInput, setUriInput] = useState("");
 	const [isPairing, setIsPairing] = useState(false);
 	const [validationError, setValidationError] = useState<string>();
 	const navigate = useNavigate();
 
-	useRegisterSafeContext(safeAddress, chainId);
+	useRegisterSafeContext(safe, chainId);
 
 	const handlePair = useCallback(async () => {
 		const trimmedUri = uriInput.trim();
@@ -54,7 +54,7 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 						onClick={() =>
 							navigate({
 								to: "/dashboard",
-								search: { safe: safeAddress, chainId },
+								search: { safe, chainId },
 							})
 						}
 						className="text-sm text-gray-600 hover:underline"
@@ -149,10 +149,11 @@ export const Route = createFileRoute("/walletconnect")({
 });
 
 function WalletConnectPage() {
-	const { safe: safeAddress, chainId } = Route.useSearch();
+	const { safe, chainId } = Route.useSearch();
+
 	return (
 		<RequireWallet>
-			<WalletConnectContent safeAddress={safeAddress} chainId={chainId} />
+			<WalletConnectContent safe={safe} chainId={chainId} />
 		</RequireWallet>
 	);
 }
