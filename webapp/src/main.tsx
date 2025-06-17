@@ -7,6 +7,7 @@ import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
 import { WalletConnectProvider } from "./providers/WalletConnectProvider";
 
 import { routeTree } from "./routeTree.gen";
+// Import the onboard library so it initializes correctly
 import "./lib/onboard";
 
 import "./styles.css";
