@@ -93,7 +93,7 @@ This app interacts with the [`SafeInternationalHarbour.sol`](../contracts/src/Sa
 ## Environment Variables
 
 - The app consumes environment variables via Vite (`import.meta.env`).
-- Copy `webapp/env.example` to `.env` (or `.env.local`) and adjust the values.
+- Copy `webapp/.env.example` to `.env` (or `.env.local`) and adjust the values.
 - The following variables are recognised:
 
 ```bash
