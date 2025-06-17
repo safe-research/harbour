@@ -7,12 +7,20 @@ import { z } from "zod";
 
 type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
 const WALLETCONNECT_EVENTS = {
 	SESSION_PROPOSAL: "session_proposal",
 	SESSION_REQUEST: "session_request",
 	SESSION_DELETE: "session_delete",
 } as const;
 
+/**
+ * Type guard to determine if a WalletKit session request event is an eth_sendTransaction request.
+ *
+ * @param event - The WalletKit session request event to check.
+ * @returns True if the request method is "eth_sendTransaction", false otherwise.
+ */
 const isEthSendTransaction = (
 	event: WKTypes.SessionRequest,
 ): event is WKTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } => {
@@ -29,9 +37,18 @@ const walletConnectTransactionParamsSchema = z.object({
 
 let walletkitInstance: WalletKitInstance | undefined;
 
+/**
+ * Lazily initializes and returns a cached WalletKit instance configured with WalletConnect Core.
+ *
+ * @remarks
+ * - Uses the `VITE_WALLETCONNECT_PROJECT_ID` environment variable for the WalletConnect project ID.
+ * - Subsequent calls return the already initialized instance.
+ *
+ * @returns A promise that resolves to the initialized WalletKit instance.
+ */
 async function initWalletKit(): Promise<WalletKitInstance> {
 	if (!walletkitInstance) {
-		const core = new Core({ projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID });
+		const core = new Core({ projectId: WALLETCONNECT_PROJECT_ID });
 		walletkitInstance = await WalletKit.init({
 			core,
 			metadata: {
@@ -45,6 +62,10 @@ async function initWalletKit(): Promise<WalletKitInstance> {
 	return walletkitInstance;
 }
 
+function canUseWalletConnect(): boolean {
+	return Boolean(WALLETCONNECT_PROJECT_ID);
+}
+
 export {
 	initWalletKit,
 	WALLETCONNECT_EVENTS,
@@ -54,4 +75,5 @@ export {
 	type WalletKitInstance,
 	type WKTypes as WalletKitTypes,
 	type SCTypes as SessionTypes,
+	canUseWalletConnect,
 };

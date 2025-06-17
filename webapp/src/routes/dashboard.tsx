@@ -11,6 +11,7 @@ import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
+import { canUseWalletConnect } from "@/lib/walletconnect";
 import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {
@@ -45,7 +46,7 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 		});
 	};
 
-	const walletConnectDisabled = !import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+	const walletConnectDisabled = !canUseWalletConnect();
 
 	return (
 		<div className="min-h-screen bg-gray-50">
