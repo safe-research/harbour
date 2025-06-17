@@ -40,7 +40,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	const [error, setError] = useState<string | null>(null);
 
 	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
-	const [_, setSafeContext] = useState<{ safe: string; chainId: number } | null>(null);
+	const [_, setSafeContext] = useState<{
+		safe: string;
+		chainId: number;
+	} | null>(null);
 	// Keep a ref in sync with the latest safeContext so event listeners always read fresh data
 	const safeContextRef = useRef<{ safe: string; chainId: number } | null>(null);
 
@@ -73,7 +76,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
 					setError(null);
 					if (!safeContextRef.current) {
-						await wk.rejectSession({ id: proposal.id, reason: getSdkError("USER_REJECTED_METHODS") });
+						await wk.rejectSession({
+							id: proposal.id,
+							reason: getSdkError("USER_REJECTED_METHODS"),
+						});
 						return;
 					}
 
@@ -122,7 +128,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 										response: {
 											id: event.id,
 											jsonrpc: "2.0",
-											error: { code: -32602, message: "Invalid transaction parameters" },
+											error: {
+												code: -32602,
+												message: "Invalid transaction parameters",
+											},
 										},
 									});
 								} catch (err) {

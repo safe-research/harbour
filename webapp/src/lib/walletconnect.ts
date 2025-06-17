@@ -23,7 +23,9 @@ const WALLETCONNECT_EVENTS = {
  */
 const isEthSendTransaction = (
 	event: WKTypes.SessionRequest,
-): event is WKTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } => {
+): event is WKTypes.SessionRequest & {
+	params: { request: { method: "eth_sendTransaction" } };
+} => {
 	return event.params?.request?.method === "eth_sendTransaction";
 };
 

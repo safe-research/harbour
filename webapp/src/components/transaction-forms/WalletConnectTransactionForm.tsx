@@ -97,7 +97,11 @@ export function WalletConnectTransactionForm({
 				if (walletkit && topic && reqId) {
 					await walletkit.respondSessionRequest({
 						topic,
-						response: { id: Number(reqId), jsonrpc: "2.0", result: receipt.transactionHash },
+						response: {
+							id: Number(reqId),
+							jsonrpc: "2.0",
+							result: receipt.transactionHash,
+						},
 					});
 				}
 			} catch (err: unknown) {

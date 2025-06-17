@@ -51,7 +51,12 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 				<div>
 					<button
 						type="button"
-						onClick={() => navigate({ to: "/dashboard", search: { safe: safeAddress, chainId } })}
+						onClick={() =>
+							navigate({
+								to: "/dashboard",
+								search: { safe: safeAddress, chainId },
+							})
+						}
 						className="text-sm text-gray-600 hover:underline"
 					>
 						← Back to dashboard
@@ -60,7 +65,8 @@ function WalletConnectContent({ safeAddress, chainId }: WalletConnectContentProp
 					<p className="text-gray-700 mt-2">Connect your Safe to dApps via WalletConnect</p>
 					{hasActiveSessions && (
 						<p className="text-sm text-green-600 mt-1">
-							{sessionEntries.length} active session{sessionEntries.length > 1 ? "s" : ""}
+							{sessionEntries.length} active session
+							{sessionEntries.length > 1 ? "s" : ""}
 						</p>
 					)}
 				</div>
