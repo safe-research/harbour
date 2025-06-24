@@ -13,7 +13,7 @@ interface WalletConnectContentProps {
 }
 
 function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
-	const { pair, sessions, error } = useWalletConnect();
+	const { pair, sessions, error, disconnectSession } = useWalletConnect();
 	const [uriInput, setUriInput] = useState("");
 	const [isPairing, setIsPairing] = useState(false);
 	const [validationError, setValidationError] = useState<string>();
@@ -125,10 +125,17 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 											<p className="font-medium text-gray-900">{s.peer.metadata.name}</p>
 											<p className="text-gray-600 text-xs truncate">{s.peer.metadata.url}</p>
 										</div>
-										<div className="ml-4 flex-shrink-0">
+										<div className="ml-4 flex items-center space-x-4">
 											<span className={`text-xs ${isExpired ? "text-red-500" : "text-gray-500"}`}>
 												{isExpired ? "Expired" : `Expires ${expiryDate.toLocaleString()}`}
 											</span>
+											<button
+												type="button"
+												onClick={() => disconnectSession(s.topic)}
+												className="text-sm text-red-600 hover:underline"
+											>
+												End Session
+											</button>
 										</div>
 									</li>
 								);

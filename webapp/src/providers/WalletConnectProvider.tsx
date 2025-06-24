@@ -19,6 +19,7 @@ interface WalletConnectContextValue {
 	error: string | null;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: SafeId) => void;
+	disconnectSession: (topic: string) => Promise<void>;
 }
 
 const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
@@ -217,6 +218,16 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
 					console.error("Pairing failed", err);
 					setError(`Pairing failed: ${msg}`);
+				}
+			},
+			disconnectSession: async (topic: string) => {
+				if (!walletkit) return;
+				try {
+					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					console.error("Failed to disconnect session", err);
+					setError(`Disconnect session failed: ${msg}`);
 				}
 			},
 			setSafeContext: registerSafeContext,
