@@ -65,7 +65,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 					if (!safeIdRef.current) {
 						await wk.rejectSession({
 							id: proposal.id,
-							reason: getSdkError("USER_REJECTED_METHODS"),
+							reason: getSdkError("UNSUPPORTED_ACCOUNTS"),
 						});
 						return;
 					}
