@@ -21,13 +21,11 @@ const WALLETCONNECT_EVENTS = {
  * @param event - The WalletKit session request event to check.
  * @returns True if the request method is "eth_sendTransaction", false otherwise.
  */
-const isEthSendTransaction = (
-	event: WKTypes.SessionRequest,
-): event is WKTypes.SessionRequest & {
+function isEthSendTransaction(event: WKTypes.SessionRequest): event is WKTypes.SessionRequest & {
 	params: { request: { method: "eth_sendTransaction" } };
-} => {
+} {
 	return event.params?.request?.method === "eth_sendTransaction";
-};
+}
 
 const walletConnectTransactionParamsSchema = z.object({
 	to: ethereumAddressSchema,
@@ -71,6 +69,11 @@ async function initWalletKit(): Promise<WalletKitInstance> {
 	return walletkitInitPromise;
 }
 
+/**
+ * Checks if WalletConnect can be used by verifying the presence of the project ID.
+ *
+ * @returns `true` if `WALLETCONNECT_PROJECT_ID` is defined and truthy, otherwise `false`.
+ */
 function canUseWalletConnect(): boolean {
 	return Boolean(WALLETCONNECT_PROJECT_ID);
 }
