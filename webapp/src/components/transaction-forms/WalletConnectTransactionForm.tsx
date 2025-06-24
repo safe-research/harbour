@@ -1,25 +1,25 @@
+import { useWalletConnect } from "@/hooks/walletConnect";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
 import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
-import { useWalletConnect } from "@/hooks/walletConnect";
 
 interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txTo?: string;
 	txValue?: string;
 	txData?: string;
-	wcApp?: string;
-	topic?: string;
-	reqId?: string;
+	wcApp: string;
+	topic: string;
+	reqId: string;
 }
 
-const createWalletConnectFormSchema = (currentSafeNonce: string) =>
+const createWalletConnectFormSchema = (currentSafeNonce: string | bigint) =>
 	z.object({
 		to: ethereumAddressSchema,
 		value: ethValueSchema,
@@ -53,8 +53,7 @@ export function WalletConnectTransactionForm({
 	const [error, setError] = useState<string>();
 	const [warning, setWarning] = useState<string>();
 
-	// Memoize form schema to prevent recreation on every render
-	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce.toString()), [config.nonce]);
+	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce), [config.nonce]);
 
 	const {
 		register,
@@ -66,7 +65,7 @@ export function WalletConnectTransactionForm({
 			to: txTo ?? "",
 			value: txValue ?? "0",
 			data: txData ?? "",
-			nonce: config.nonce.toString(),
+			nonce: config.nonce,
 		},
 	});
 
@@ -92,7 +91,6 @@ export function WalletConnectTransactionForm({
 
 			setTxHash(receipt.transactionHash);
 
-			// Respond to WalletConnect session request with the transaction hash
 			try {
 				if (walletkit && topic && reqId) {
 					await walletkit.respondSessionRequest({
@@ -106,7 +104,6 @@ export function WalletConnectTransactionForm({
 				}
 			} catch (err: unknown) {
 				console.error("Failed to respond to WalletConnect session request", err);
-				// Show non-blocking warning to user
 				setWarning("Transaction submitted but WalletConnect response failed. The dApp may not be notified.");
 			}
 
@@ -183,7 +180,7 @@ export function WalletConnectTransactionForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span>
+						Current Safe nonce: <span className="font-medium">{config.nonce}</span>
 					</p>
 					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
 				</div>

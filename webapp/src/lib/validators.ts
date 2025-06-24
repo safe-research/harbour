@@ -45,24 +45,27 @@ type SafeId = z.infer<typeof safeIdSchema>;
  * @param currentSafeNonce - current safe nonce as a string
  * @returns Zod schema for nonce validation
  */
-function nonceSchema(currentSafeNonce: string) {
-	return z.string().refine(
-		(nonce) => {
-			if (nonce === "") {
-				return true;
-			}
-			try {
-				const n = BigInt(nonce);
-				const current = BigInt(currentSafeNonce);
-				return n >= BigInt(0) && n >= current;
-			} catch {
-				return false;
-			}
-		},
-		{
-			message: `Invalid nonce: must be empty or a non-negative integer >= ${currentSafeNonce}`,
-		},
-	);
+function nonceSchema(currentSafeNonce: string | bigint) {
+	return z
+		.string()
+		.or(z.bigint())
+		.refine(
+			(nonce) => {
+				if (nonce === "") {
+					return true;
+				}
+				try {
+					const n = BigInt(nonce);
+					const current = BigInt(currentSafeNonce);
+					return n >= BigInt(0) && n >= current;
+				} catch {
+					return false;
+				}
+			},
+			{
+				message: `Invalid nonce: must be empty or a non-negative integer >= ${currentSafeNonce}`,
+			},
+		);
 }
 
 /**
