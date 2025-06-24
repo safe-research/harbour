@@ -21,7 +21,7 @@ function useWalletConnect() {
  * Registers or updates the Safe context in WalletConnect to expose to dApps.
  * Ensures that the provider-side Safe context stays in sync when parameters change.
  *
- * @param safeAddress The Safe contract address to register.
+ * @param safe The Safe contract address to register.
  * @param chainId The chain ID where the Safe contract is deployed.
  * @returns void
  */
