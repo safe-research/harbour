@@ -11,7 +11,7 @@ import {
 import type { AnyRouter } from "@tanstack/react-router";
 import { ethers } from "ethers";
 import type React from "react";
-import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type JSX, createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
@@ -29,7 +29,7 @@ interface WalletConnectProviderProps {
 	children: React.ReactNode;
 }
 
-function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
+function WalletConnectProvider({ router, children }: WalletConnectProviderProps): JSX.Element {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
 	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
 	const [error, setError] = useState<string | null>(null);
@@ -47,17 +47,17 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 		type OffHandler = Parameters<WalletKitInstance["off"]>[1];
 		const listeners: Array<[OffEventName, OffHandler]> = [];
 
-		async function init() {
+		async function init(): Promise<void> {
 			try {
 				const wk = await initOrGetWalletKit();
 				cachedWkInstance = wk;
 
-				const syncSessions = () => {
+				const syncSessions = (): void => {
 					const activeSessions = wk.getActiveSessions();
 					setSessions(activeSessions);
 				};
 
-				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
+				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal): Promise<void> => {
 					setError(null);
 					if (!safeIdRef.current) {
 						await wk.rejectSession({
@@ -94,7 +94,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				wk.on(WALLETCONNECT_EVENTS.SESSION_PROPOSAL, onSessionProposal);
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName, onSessionProposal as OffHandler]);
 
-				const onSessionRequest = async (event: WalletKitTypes.SessionRequest) => {
+				const onSessionRequest = async (event: WalletKitTypes.SessionRequest): Promise<void> => {
 					setError(null);
 
 					if (isEthSendTransaction(event)) {
@@ -170,14 +170,13 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				wk.on(WALLETCONNECT_EVENTS.SESSION_REQUEST, onSessionRequest);
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName, onSessionRequest as OffHandler]);
 
-				const onSessionDelete = () => syncSessions();
+				const onSessionDelete = (): void => syncSessions();
 				wk.on(WALLETCONNECT_EVENTS.SESSION_DELETE, onSessionDelete);
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName, onSessionDelete as OffHandler]);
 
 				// Initial sessions
 				syncSessions();
 
-				// Only set walletkit if not cleaned up
 				if (!isCleanedUp) {
 					setWalletkit(wk);
 				}
@@ -191,7 +190,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 		init();
 
-		return () => {
+		return (): void => {
 			isCleanedUp = true;
 			if (cachedWkInstance) {
 				for (const [evtName, handler] of listeners) {
@@ -210,7 +209,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 			walletkit,
 			sessions,
 			error,
-			pair: async (uri: string) => {
+			pair: async (uri: string): Promise<void> => {
 				if (!walletkit) return;
 				try {
 					await walletkit.pair({ uri });
@@ -220,7 +219,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 					setError(`Pairing failed: ${msg}`);
 				}
 			},
-			disconnectSession: async (topic: string) => {
+			disconnectSession: async (topic: string): Promise<void> => {
 				if (!walletkit) return;
 				try {
 					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
