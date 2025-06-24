@@ -30,6 +30,9 @@ interface WalletConnectProviderProps {
 }
 
 function WalletConnectProvider({ router, children }: WalletConnectProviderProps): JSX.Element {
+	// WalletKit is initialized as a singleton via initOrGetWalletKit(),
+	// but we store it in React state so that our provider (and its consumers)
+	// re-render as soon as the instance is ready.
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
 	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
 	const [error, setError] = useState<string | null>(null);
@@ -67,7 +70,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 						return;
 					}
 
-					// As workaround, we pretend to support all the required chains plus the current Safe's chain
+					// WORKAROUND: WalletConnect session proposals under eip155 may not include our Safe’s current chain.
+					// To ensure our Safe can sign transactions, merge proposal.params.requiredNamespaces.eip155.chains
+					// with our Safe’s chainId and derive full account strings for each chain.
+					// Remove this once WalletKit supports adding fallback chains natively.
 					const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
 					const eip155ChainIds = [`eip155:${safeIdRef.current.chainId}`].concat(requiredChains ?? []);
 					const eip155Accounts = eip155ChainIds.map(
