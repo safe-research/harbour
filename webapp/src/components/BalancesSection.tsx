@@ -21,7 +21,6 @@ const createAddTokenFormSchema = (
 		tokenAddress: ethereumAddressSchema
 			.refine(
 				(address) => {
-					// Check if token already exists
 					const tokenExists = erc20Tokens.find(
 						(token: ERC20TokenDetails) => token.address.toLowerCase() === address.toLowerCase(),
 					);
@@ -33,7 +32,6 @@ const createAddTokenFormSchema = (
 			)
 			.refine(
 				async (address) => {
-					// Validate that the token exists and is a valid ERC20
 					try {
 						const details = await fetchERC20TokenDetails(provider, address, safeAddress);
 						return !!details;
