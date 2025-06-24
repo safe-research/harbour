@@ -2,14 +2,12 @@ import { type WalletKitTypes as WKTypes, WalletKit } from "@reown/walletkit";
 import { Core } from "@walletconnect/core";
 import type { SessionTypes as SCTypes } from "@walletconnect/types";
 import { getSdkError } from "@walletconnect/utils";
+import { z } from "zod";
 
-// Type for WalletKit instance
 type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
-// WalletConnect project ID from environment
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 
-// WalletConnect event constants
 const WALLETCONNECT_EVENTS = {
 	SESSION_PROPOSAL: "session_proposal",
 	SESSION_REQUEST: "session_request",
