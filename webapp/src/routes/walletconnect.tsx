@@ -1,4 +1,5 @@
-import { safeIdSchema, walletConnectUriSchema } from "@/lib/validators";
+import { safeIdSchema } from "@/lib/validators";
+import { walletConnectUriSchema } from "@/lib/walletconnect";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useState } from "react";
@@ -24,7 +25,6 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 		const trimmedUri = uriInput.trim();
 		if (!trimmedUri) return;
 
-		// Validate URI
 		const validation = walletConnectUriSchema.safeParse(trimmedUri);
 		if (!validation.success) {
 			setValidationError(validation.error.message);

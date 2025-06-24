@@ -1,14 +1,15 @@
-import { ethereumAddressSchema, hexDataSchema } from "@/lib/validators";
 import { type WalletKitTypes as WKTypes, WalletKit } from "@reown/walletkit";
 import { Core } from "@walletconnect/core";
 import type { SessionTypes as SCTypes } from "@walletconnect/types";
 import { getSdkError } from "@walletconnect/utils";
-import { z } from "zod";
 
+// Type for WalletKit instance
 type WalletKitInstance = Awaited<ReturnType<typeof WalletKit.init>>;
 
+// WalletConnect project ID from environment
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 
+// WalletConnect event constants
 const WALLETCONNECT_EVENTS = {
 	SESSION_PROPOSAL: "session_proposal",
 	SESSION_REQUEST: "session_request",
@@ -16,24 +17,24 @@ const WALLETCONNECT_EVENTS = {
 } as const;
 
 /**
- * Type guard to determine if a WalletKit session request event is an eth_sendTransaction request.
- *
- * @param event - The WalletKit session request event to check.
- * @returns True if the request method is "eth_sendTransaction", false otherwise.
+ * Regular expression for WalletConnect URI validation
+ * Matches wc: followed by session topic and version 2 parameters
  */
-function isEthSendTransaction(event: WKTypes.SessionRequest): event is WKTypes.SessionRequest & {
-	params: { request: { method: "eth_sendTransaction" } };
-} {
+const WALLETCONNECT_URI_REGEX = /^wc:[a-zA-Z0-9]+@2\?/;
+
+/**
+ * Schema for validating WalletConnect URIs
+ */
+const walletConnectUriSchema = z.string().regex(WALLETCONNECT_URI_REGEX, "Invalid WalletConnect URI");
+
+/**
+ * Type guard to determine if a session request is eth_sendTransaction
+ */
+function isEthSendTransaction(
+	event: WKTypes.SessionRequest,
+): event is WKTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } {
 	return event.params?.request?.method === "eth_sendTransaction";
 }
-
-const walletConnectTransactionParamsSchema = z.object({
-	to: ethereumAddressSchema,
-	value: z.string().optional(),
-	data: hexDataSchema.optional(),
-	from: ethereumAddressSchema.optional(),
-	gas: z.string().optional(),
-});
 
 let walletkitInitPromise: Promise<WalletKitInstance> | undefined;
 /**
@@ -44,7 +45,7 @@ let walletkitInitPromise: Promise<WalletKitInstance> | undefined;
  *
  * @returns A promise that resolves to the initialized WalletKit instance.
  */
-async function initWalletKit(): Promise<WalletKitInstance> {
+async function initOrGetWalletKit(): Promise<WalletKitInstance> {
 	if (!walletkitInitPromise) {
 		const core = new Core({ projectId: WALLETCONNECT_PROJECT_ID });
 		walletkitInitPromise = (async () => {
@@ -78,14 +79,12 @@ function canUseWalletConnect(): boolean {
 	return Boolean(WALLETCONNECT_PROJECT_ID);
 }
 
+export type { WalletKitInstance, WKTypes as WalletKitTypes, SCTypes as SessionTypes };
 export {
-	initWalletKit,
+	initOrGetWalletKit,
 	WALLETCONNECT_EVENTS,
 	isEthSendTransaction,
-	walletConnectTransactionParamsSchema,
 	getSdkError,
-	type WalletKitInstance,
-	type WKTypes as WalletKitTypes,
-	type SCTypes as SessionTypes,
 	canUseWalletConnect,
+	walletConnectUriSchema,
 };

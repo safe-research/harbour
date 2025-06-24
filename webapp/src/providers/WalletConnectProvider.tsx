@@ -1,13 +1,12 @@
-import type { SafeId } from "@/lib/validators";
+import { type SafeId, ethTransactionParamsSchema } from "@/lib/validators";
 import {
 	type SessionTypes,
 	WALLETCONNECT_EVENTS,
 	type WalletKitInstance,
 	type WalletKitTypes,
 	getSdkError,
-	initWalletKit,
+	initOrGetWalletKit,
 	isEthSendTransaction,
-	walletConnectTransactionParamsSchema,
 } from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
 import { ethers } from "ethers";
@@ -22,41 +21,26 @@ interface WalletConnectContextValue {
 	setSafeContext: (ctx: SafeId) => void;
 }
 
-export const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
+const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
 
 interface WalletConnectProviderProps {
-	/** TanStack Router instance so we can redirect programmatically */
 	router: AnyRouter;
 	children: React.ReactNode;
 }
 
-/**
- * WalletConnectProvider sets up a singleton WalletKit instance that acts as a Safe-aware wallet.
- */
 function WalletConnectProvider({ router, children }: WalletConnectProviderProps) {
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
 	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
-	// Store the last error so UI can surface it
 	const [error, setError] = useState<string | null>(null);
-
-	// Safe context needed to craft namespaces & redirects. We keep the last used pair here.
-	const [_, setSafeContext] = useState<{
-		safe: string;
-		chainId: number;
-	} | null>(null);
-	// Keep a ref in sync with the latest safeContext so event listeners always read fresh data
-	const safeContextRef = useRef<{ safe: string; chainId: number } | null>(null);
-
-	// WalletKit instance retained locally for cleanup; we store in effect scope instead of ref
+	const safeIdRef = useRef<SafeId | null>(null);
 
 	// Expose setter through ref to enable external registration via hook
-	const registerSafeContext = useCallback((ctx: SafeId) => {
-		setSafeContext(ctx);
-		safeContextRef.current = ctx;
+	const registerSafeContext = useCallback((id: SafeId) => {
+		safeIdRef.current = id;
 	}, []);
 
 	useEffect(() => {
-		let wkInstance: WalletKitInstance | undefined;
+		let cachedWkInstance: WalletKitInstance | undefined;
 		let isCleanedUp = false;
 		type OffEventName = Parameters<WalletKitInstance["off"]>[0];
 		type OffHandler = Parameters<WalletKitInstance["off"]>[1];
@@ -64,9 +48,8 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 		async function init() {
 			try {
-				const wk = await initWalletKit();
-
-				wkInstance = wk;
+				const wk = await initOrGetWalletKit();
+				cachedWkInstance = wk;
 
 				const syncSessions = () => {
 					const activeSessions = wk.getActiveSessions();
@@ -75,7 +58,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal) => {
 					setError(null);
-					if (!safeContextRef.current) {
+					if (!safeIdRef.current) {
 						await wk.rejectSession({
 							id: proposal.id,
 							reason: getSdkError("USER_REJECTED_METHODS"),
@@ -85,9 +68,9 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 					// As workaround, we pretend to support all the required chains plus the current Safe's chain
 					const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
-					const eip155ChainIds = [`eip155:${safeContextRef.current.chainId}`].concat(requiredChains ?? []);
+					const eip155ChainIds = [`eip155:${safeIdRef.current.chainId}`].concat(requiredChains ?? []);
 					const eip155Accounts = eip155ChainIds.map(
-						(eip155ChainId) => `${eip155ChainId}:${safeContextRef.current?.safe.toLowerCase()}`,
+						(eip155ChainId) => `${eip155ChainId}:${safeIdRef.current?.safe.toLowerCase()}`,
 					);
 
 					const namespaces = {
@@ -117,7 +100,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 						const requestParams = event.params.request.params;
 
 						if (Array.isArray(requestParams) && requestParams.length > 0) {
-							const parsedTx = walletConnectTransactionParamsSchema.safeParse(requestParams[0]);
+							const parsedTx = ethTransactionParamsSchema.safeParse(requestParams[0]);
 
 							if (!parsedTx.success) {
 								console.error("Invalid transaction params:", parsedTx.error.issues || parsedTx.error);
@@ -140,7 +123,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 								return;
 							}
 
-							if (safeContextRef.current) {
+							if (safeIdRef.current) {
 								const activeSessions = wk.getActiveSessions();
 								const sessionMetadata = activeSessions[event.topic];
 								const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
@@ -153,12 +136,11 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 									} catch {}
 								}
 
-								// Navigate to enqueue flow with proper types
 								router.navigate({
 									to: "/enqueue",
 									search: {
-										safe: safeContextRef.current.safe,
-										chainId: safeContextRef.current.chainId,
+										safe: safeIdRef.current.safe,
+										chainId: safeIdRef.current.chainId,
 										flow: "walletconnect",
 										txTo: parsedTx.data.to,
 										txData: parsedTx.data.data ?? "",
@@ -210,10 +192,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 		return () => {
 			isCleanedUp = true;
-			if (wkInstance) {
+			if (cachedWkInstance) {
 				for (const [evtName, handler] of listeners) {
 					try {
-						wkInstance.off(evtName, handler);
+						cachedWkInstance.off(evtName, handler);
 					} catch (err) {
 						console.error("Failed to remove WalletKit listener", err);
 					}
@@ -245,4 +227,4 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
 }
 
-export { WalletConnectProvider };
+export { WalletConnectContext, WalletConnectProvider };
