@@ -1,8 +1,9 @@
 import { safeIdSchema } from "@/lib/validators";
 import { walletConnectUriSchema } from "@/lib/walletconnect";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useState } from "react";
+import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet } from "../components/RequireWallet";
 import { SessionsList } from "../components/walletconnect/SessionsList";
 import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect";
@@ -18,7 +19,6 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 	const [uriInput, setUriInput] = useState("");
 	const [isPairing, setIsPairing] = useState(false);
 	const [validationError, setValidationError] = useState<string>();
-	const navigate = useNavigate();
 
 	useRegisterSafeContext(safe, chainId);
 
@@ -50,18 +50,7 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 		<div className="min-h-screen bg-gray-50">
 			<div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8 space-y-8">
 				<div>
-					<button
-						type="button"
-						onClick={() =>
-							navigate({
-								to: "/dashboard",
-								search: { safe, chainId },
-							})
-						}
-						className="text-sm text-gray-600 hover:underline"
-					>
-						← Back to dashboard
-					</button>
+					<BackToDashboardButton safeAddress={safe} chainId={chainId} />
 					<h1 className="text-3xl font-bold text-gray-900 mt-4">WalletConnect</h1>
 					<p className="text-gray-700 mt-2">Connect your Safe to dApps via WalletConnect</p>
 					{hasActiveSessions && (
