@@ -15,22 +15,30 @@ import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
 
-interface EnqueueContentProps {
+// Base props shared by all flows
+interface BaseEnqueueContentProps {
 	browserProvider: BrowserProvider;
 	rpcProvider: JsonRpcApiProvider;
 	safeAddress: string;
 	chainId: ChainId;
-	flow?: "native" | "erc20" | "raw" | "batch" | "walletconnect";
-	tokenAddress?: string;
-	// Prefill fields for walletconnect flow
-	txTo?: string;
-	txValue?: string;
-	txData?: string;
-	wcApp?: string;
-	// WalletConnect request identifiers
-	topic?: string;
-	reqId?: string;
 }
+
+// Discriminated union based on flow type
+type EnqueueContentProps =
+	| (BaseEnqueueContentProps & { flow?: "native" })
+	| (BaseEnqueueContentProps & { flow: "erc20"; tokenAddress?: string })
+	| (BaseEnqueueContentProps & { flow?: "raw" })
+	| (BaseEnqueueContentProps & { flow: "batch" })
+	| (BaseEnqueueContentProps & {
+			flow: "walletconnect";
+			// Prefill fields for walletconnect flow
+			txTo?: string;
+			txValue?: string;
+			txData?: string;
+			wcApp: string;
+			topic: string;
+			reqId: string;
+	  });
 
 export const walletConnectParamsSchema = z.object({
 	txTo: ethereumAddressSchema.optional(),
@@ -47,20 +55,8 @@ export type WalletConnectParams = z.infer<typeof walletConnectParamsSchema>;
  * Content component for the enqueue transaction page.
  * Dynamically renders the correct form based on the 'flow' search parameter.
  */
-function EnqueueContent({
-	browserProvider,
-	rpcProvider,
-	safeAddress,
-	chainId,
-	flow,
-	tokenAddress,
-	txTo,
-	txValue,
-	txData,
-	wcApp,
-	topic,
-	reqId,
-}: EnqueueContentProps) {
+function EnqueueContent(props: EnqueueContentProps) {
+	const { browserProvider, rpcProvider, safeAddress, chainId, flow } = props;
 	const {
 		data: config, // Renamed from configResult to config for clarity
 		isLoading: isLoadingConfig,
@@ -109,7 +105,7 @@ function EnqueueContent({
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
-						tokenAddress={tokenAddress}
+						tokenAddress={props.flow === "erc20" ? props.tokenAddress : undefined}
 					/>
 				);
 				break;
@@ -125,21 +121,23 @@ function EnqueueContent({
 				);
 				break;
 			case "walletconnect":
-				formComponent = (
-					<WalletConnectTransactionForm
-						safeAddress={safeAddress}
-						chainId={chainId}
-						browserProvider={browserProvider}
-						rpcProvider={rpcProvider}
-						config={config}
-						txTo={txTo}
-						txData={txData}
-						txValue={txValue}
-						wcApp={wcApp}
-						topic={topic}
-						reqId={reqId}
-					/>
-				);
+				if (props.flow === "walletconnect") {
+					formComponent = (
+						<WalletConnectTransactionForm
+							safeAddress={safeAddress}
+							chainId={chainId}
+							browserProvider={browserProvider}
+							rpcProvider={rpcProvider}
+							config={config}
+							txTo={props.txTo}
+							txData={props.txData}
+							txValue={props.txValue}
+							wcApp={props.wcApp}
+							topic={props.topic}
+							reqId={props.reqId}
+						/>
+					);
+				}
 				break;
 			default:
 				formComponent = (
@@ -268,15 +266,50 @@ function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConn
 		return <p className="text-center p-6 text-gray-600">Initializing RPC provider for chain {String(chainId)}...</p>;
 	}
 
+	// Build props based on flow type
+	if (flow === "walletconnect") {
+		// For walletconnect flow, we need to ensure required props are present
+		if (!walletConnectParams.wcApp || !walletConnectParams.topic || !walletConnectParams.reqId) {
+			return <p className="text-center p-6 text-red-600">Missing required WalletConnect parameters</p>;
+		}
+		return (
+			<EnqueueContent
+				browserProvider={browserProvider}
+				rpcProvider={rpcProvider}
+				safeAddress={safeAddress}
+				chainId={chainId}
+				flow="walletconnect"
+				txTo={walletConnectParams.txTo}
+				txValue={walletConnectParams.txValue}
+				txData={walletConnectParams.txData}
+				wcApp={walletConnectParams.wcApp}
+				topic={walletConnectParams.topic}
+				reqId={walletConnectParams.reqId}
+			/>
+		);
+	}
+
+	if (flow === "erc20") {
+		return (
+			<EnqueueContent
+				browserProvider={browserProvider}
+				rpcProvider={rpcProvider}
+				safeAddress={safeAddress}
+				chainId={chainId}
+				flow="erc20"
+				tokenAddress={tokenAddress}
+			/>
+		);
+	}
+
+	// For other flows (native, raw, batch, or undefined)
 	return (
 		<EnqueueContent
 			browserProvider={browserProvider}
 			rpcProvider={rpcProvider}
 			safeAddress={safeAddress}
 			chainId={chainId}
-			flow={flow}
-			tokenAddress={tokenAddress}
-			{...walletConnectParams}
+			flow={flow as "native" | "raw" | "batch" | undefined}
 		/>
 	);
 }
