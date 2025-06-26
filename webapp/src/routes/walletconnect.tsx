@@ -14,7 +14,7 @@ type WalletConnectContentProps = {
 	chainId: ChainId;
 };
 
-function WalletConnectContent({ safe, chainId }: WalletConnectContentProps): JSX.Element {
+function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 	const { pair, sessions, error, disconnectSession } = useWalletConnect();
 	const [uriInput, setUriInput] = useState("");
 	const [isPairing, setIsPairing] = useState(false);
@@ -113,7 +113,7 @@ export const Route = createFileRoute("/walletconnect")({
 	component: WalletConnectPage,
 });
 
-function WalletConnectPage(): JSX.Element {
+function WalletConnectPage() {
 	const { safe, chainId } = Route.useSearch();
 
 	return (

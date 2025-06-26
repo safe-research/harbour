@@ -7,7 +7,7 @@ type TransactionAlertsProps = {
 /**
  * Displays transaction status alerts including success, error, and warning messages
  */
-function TransactionAlerts({ transactionHash, error, warning }: TransactionAlertsProps): JSX.Element | null {
+function TransactionAlerts({ transactionHash, error, warning }: TransactionAlertsProps) {
 	if (!transactionHash && !error && !warning) {
 		return null;
 	}

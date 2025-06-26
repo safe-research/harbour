@@ -72,7 +72,7 @@ export function useWalletConnectTransaction() {
 							response: {
 								id: Number(reqId),
 								jsonrpc: "2.0",
-								result: receipt.transactionHash,
+								result: receipt.hash,
 							},
 						});
 					} catch (err: unknown) {

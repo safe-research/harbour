@@ -20,7 +20,7 @@ type SendButtonProps = {
 	disabled: boolean;
 };
 
-function SendButton({ onClick, disabled }: SendButtonProps): JSX.Element {
+function SendButton({ onClick, disabled }: SendButtonProps) {
 	return (
 		<button
 			type="button"
@@ -36,7 +36,7 @@ function SendButton({ onClick, disabled }: SendButtonProps): JSX.Element {
 /**
  * Displays a list of ERC20 tokens with balances and actions
  */
-function TokenList({ tokens, onSendToken, onRemoveToken }: TokenListProps): JSX.Element {
+function TokenList({ tokens, onSendToken, onRemoveToken }: TokenListProps) {
 	if (tokens.length === 0) {
 		return <p className="text-sm text-gray-500">No ERC20 tokens added yet.</p>;
 	}

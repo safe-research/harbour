@@ -4,7 +4,7 @@ type TransactionFormData = {
 	to: string;
 	value: string;
 	data: string;
-	nonce: string;
+	nonce: string | bigint;
 };
 
 type TransactionFormFieldsProps = {
@@ -17,7 +17,7 @@ type TransactionFormFieldsProps = {
  * Reusable transaction form fields component that displays
  * the common fields for transaction forms (to, value, data, nonce)
  */
-function TransactionFormFields({ register, errors, currentNonce }: TransactionFormFieldsProps): JSX.Element {
+function TransactionFormFields({ register, errors, currentNonce }: TransactionFormFieldsProps) {
 	return (
 		<>
 			<div>

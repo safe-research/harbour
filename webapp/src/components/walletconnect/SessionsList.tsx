@@ -5,7 +5,7 @@ type SessionsListProps = {
 	disconnectSession: (topic: string) => void;
 };
 
-function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps): JSX.Element {
+function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) {
 	return sessionEntries.length === 0 ? (
 		<div className="text-center py-8">
 			<p className="text-gray-600 text-sm mb-2">No active WalletConnect sessions</p>
