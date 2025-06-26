@@ -1,11 +1,8 @@
-import { useWalletConnect } from "@/hooks/walletConnect";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import { getSafeTransaction } from "@/lib/safe";
 import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
+import { useWalletConnectTransaction } from "@/hooks/useWalletConnectTransaction";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
-import { ethers } from "ethers";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
@@ -95,12 +92,8 @@ export function WalletConnectTransactionForm({
 	topic,
 	reqId,
 }: WalletConnectFormProps) {
-	const { walletkit } = useWalletConnect();
 	const navigate = useNavigate();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [txHash, setTxHash] = useState<string>();
-	const [error, setError] = useState<string>();
-	const [warning, setWarning] = useState<string>();
+	const { submitTransaction, transactionHash, error, warning, isSubmitting, clearResult } = useWalletConnectTransaction();
 
 	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce), [config.nonce]);
 
@@ -118,51 +111,29 @@ export function WalletConnectTransactionForm({
 		},
 	});
 
-	const onSubmit = async (data: WalletConnectFormData) => {
-		setError(undefined);
-		setTxHash(undefined);
+	// Navigate to queue when transaction is successful
+	useEffect(() => {
+		if (transactionHash) {
+			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
+		}
+	}, [transactionHash, navigate, safeAddress, chainId]);
 
+	const onSubmit = async (data: WalletConnectFormData) => {
+		clearResult();
+		
 		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
-		try {
-			setIsSubmitting(true);
-
-			const transaction = getSafeTransaction({
-				chainId,
-				safeAddress,
-				to: data.to,
-				value: ethers.parseEther(data.value || "0").toString(),
-				data: data.data || "0x",
-				nonce: currentNonce.toString(),
-			});
-
-			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
-
-			setTxHash(receipt.transactionHash);
-
-			try {
-				if (walletkit && topic && reqId) {
-					await walletkit.respondSessionRequest({
-						topic,
-						response: {
-							id: Number(reqId),
-							jsonrpc: "2.0",
-							result: receipt.transactionHash,
-						},
-					});
-				}
-			} catch (err: unknown) {
-				console.error("Failed to respond to WalletConnect session request", err);
-				setWarning("Transaction submitted but WalletConnect response failed. The dApp may not be notified.");
-			}
-
-			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Transaction failed";
-			setError(message);
-		} finally {
-			setIsSubmitting(false);
-		}
+		await submitTransaction({
+			safeAddress,
+			chainId,
+			browserProvider,
+			to: data.to,
+			value: data.value || "0",
+			data: data.data || "0x",
+			nonce: currentNonce.toString(),
+			topic,
+			reqId,
+		});
 	};
 
 	return (
@@ -246,11 +217,11 @@ export function WalletConnectTransactionForm({
 					</button>
 				</div>
 
-				{txHash && (
+				{transactionHash && (
 					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
 						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
 						<p className="mt-1 text-sm text-green-700">
-							Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+							Transaction Hash: <span className="font-mono break-all">{transactionHash}</span>
 						</p>
 						<p className="mt-1 text-sm text-green-700">
 							It will be enqueued on Harbour and then proposed to your Safe.

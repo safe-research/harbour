@@ -1,17 +1,14 @@
-import { type SafeId, ethTransactionParamsSchema } from "@/lib/validators";
+import type { SafeId } from "@/lib/validators";
 import {
 	type SessionTypes,
-	WALLETCONNECT_EVENTS,
 	type WalletKitInstance,
-	type WalletKitTypes,
 	getSdkError,
 	initOrGetWalletKit,
-	isEthSendTransaction,
 } from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
-import { ethers } from "ethers";
 import type React from "react";
 import { type JSX, createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useWalletConnectSession } from "@/hooks/useWalletConnectSession";
 
 interface WalletConnectContextValue {
 	walletkit: WalletKitInstance | null;
@@ -34,24 +31,14 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	// but we store it in React state so that our provider (and its consumers)
 	// re-render as soon as the instance is ready.
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
-	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
-
-	// Synchronize local session state with the active sessions from WalletKit.
-	// If a WalletKit instance is provided, it is used; otherwise the hook falls back
-	// to the current `walletkit` state. This allows the helper to be reused both
-	// inside the initialisation lifecycle (before `walletkit` is put into state)
-	// and from any callback that depends on the stable `walletkit` reference.
-	const syncSessions = useCallback(
-		(wkInstance?: WalletKitInstance): void => {
-			const instance = wkInstance ?? walletkit;
-			if (!instance) return;
-			const active = instance.getActiveSessions();
-			setSessions(active);
-		},
-		[walletkit],
-	);
-	const [error, setError] = useState<string | null>(null);
 	const safeIdRef = useRef<SafeId | null>(null);
+
+	// Use the session management hook
+	const { sessions, error, setError, syncSessions } = useWalletConnectSession({
+		walletkit,
+		router,
+		safeIdRef,
+	});
 
 	// Expose setter through ref to enable external registration via hook
 	const registerSafeContext = useCallback((id: SafeId) => {
@@ -59,158 +46,16 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	}, []);
 
 	useEffect(() => {
-		let cachedWkInstance: WalletKitInstance | undefined;
 		let isCleanedUp = false;
-		type OffEventName = Parameters<WalletKitInstance["off"]>[0];
-		type OffHandler = Parameters<WalletKitInstance["off"]>[1];
-		const listeners: Array<[OffEventName, OffHandler]> = [];
 
 		async function init(): Promise<void> {
-			if (isCleanedUp) return; // Prevent initialization if already cleaned up
+			if (isCleanedUp) return;
 
 			try {
 				const wk = await initOrGetWalletKit();
-				if (isCleanedUp) return; // Check again after async operation
+				if (isCleanedUp) return;
 
-				cachedWkInstance = wk;
-
-				syncSessions(wk);
-
-				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal): Promise<void> => {
-					if (isCleanedUp) return; // Prevent handling if cleaned up
-					setError(null);
-					if (!safeIdRef.current) {
-						await wk.rejectSession({
-							id: proposal.id,
-							reason: getSdkError("UNSUPPORTED_ACCOUNTS"),
-						});
-						return;
-					}
-
-					// WORKAROUND: WalletConnect session proposals under eip155 may not include our Safe’s current chain.
-					// To ensure our Safe can sign transactions, merge proposal.params.requiredNamespaces.eip155.chains
-					// with our Safe’s chainId and derive full account strings for each chain.
-					// Remove this once WalletKit supports adding fallback chains natively.
-					const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
-					const eip155ChainIds = [`eip155:${safeIdRef.current.chainId}`].concat(requiredChains ?? []);
-					const eip155Accounts = eip155ChainIds.map(
-						(eip155ChainId) => `${eip155ChainId}:${safeIdRef.current?.safe.toLowerCase()}`,
-					);
-
-					const namespaces = {
-						eip155: {
-							methods: proposal.params.requiredNamespaces?.eip155?.methods || [],
-							events: proposal.params.requiredNamespaces?.eip155?.events || [],
-							accounts: eip155Accounts,
-						},
-					};
-
-					try {
-						await wk.approveSession({ id: proposal.id, namespaces });
-						syncSessions();
-					} catch (err: unknown) {
-						const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
-						console.error("Failed to approve WalletConnect session", err);
-						setError(`Failed to approve WalletConnect session: ${msg}`);
-					}
-				};
-				wk.on(WALLETCONNECT_EVENTS.SESSION_PROPOSAL, onSessionProposal);
-				listeners.push([WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName, onSessionProposal as OffHandler]);
-
-				const onSessionRequest = async (event: WalletKitTypes.SessionRequest): Promise<void> => {
-					if (isCleanedUp) return; // Prevent handling if cleaned up
-					setError(null);
-
-					if (isEthSendTransaction(event)) {
-						const requestParams = event.params.request.params;
-
-						if (Array.isArray(requestParams) && requestParams.length > 0) {
-							const parsedTx = ethTransactionParamsSchema.safeParse(requestParams[0]);
-
-							if (!parsedTx.success) {
-								console.error("Invalid transaction params:", parsedTx.error.issues || parsedTx.error);
-								// Reject the request with proper error
-								try {
-									await wk.respondSessionRequest({
-										topic: event.topic,
-										response: {
-											id: event.id,
-											jsonrpc: "2.0",
-											error: {
-												code: -32602,
-												message: "Invalid transaction parameters",
-											},
-										},
-									});
-								} catch (err) {
-									console.error("Failed to respond with error", err);
-								}
-								return;
-							}
-
-							if (safeIdRef.current) {
-								const activeSessions = wk.getActiveSessions();
-								const sessionMetadata = activeSessions[event.topic];
-								const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
-								const wcAppUrl = sessionMetadata?.peer?.metadata?.url ?? "";
-								const wcAppIcon = sessionMetadata?.peer?.metadata?.icons?.[0] ?? "";
-								const wcAppDescription = sessionMetadata?.peer?.metadata?.description ?? "";
-
-								let ethValue = "0";
-								if (parsedTx.data.value) {
-									try {
-										const wei = BigInt(parsedTx.data.value);
-										ethValue = ethers.formatEther(wei);
-									} catch {}
-								}
-
-								router.navigate({
-									to: "/enqueue",
-									search: {
-										safe: safeIdRef.current.safe,
-										chainId: safeIdRef.current.chainId,
-										flow: "walletconnect",
-										txTo: parsedTx.data.to,
-										txData: parsedTx.data.data ?? "",
-										txValue: ethValue,
-										wcApp: wcAppName,
-										wcAppUrl,
-										wcAppIcon,
-										wcAppDescription,
-										topic: event.topic,
-										reqId: event.id.toString(),
-									},
-								});
-							}
-							// Skip auto-response; response will be sent from the form
-							return;
-						}
-					}
-
-					try {
-						await wk.respondSessionRequest({
-							topic: event.topic,
-							response: { id: event.id, jsonrpc: "2.0", result: null },
-						});
-					} catch (err: unknown) {
-						console.error("Failed to respond to WalletConnect session request", err);
-					}
-				};
-				wk.on(WALLETCONNECT_EVENTS.SESSION_REQUEST, onSessionRequest);
-				listeners.push([WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName, onSessionRequest as OffHandler]);
-
-				const onSessionDelete = (): void => {
-					if (isCleanedUp) return; // Prevent handling if cleaned up
-					syncSessions();
-				};
-				wk.on(WALLETCONNECT_EVENTS.SESSION_DELETE, onSessionDelete);
-				listeners.push([WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName, onSessionDelete as OffHandler]);
-
-				// Initial sessions
-				if (!isCleanedUp) {
-					syncSessions();
-					setWalletkit(wk);
-				}
+				setWalletkit(wk);
 			} catch (err) {
 				console.error("Failed to initialise WalletConnect", err);
 				if (!isCleanedUp) {
@@ -223,48 +68,50 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 		return (): void => {
 			isCleanedUp = true;
-			if (cachedWkInstance) {
-				for (const [evtName, handler] of listeners) {
-					try {
-						cachedWkInstance.off(evtName, handler);
-					} catch (err) {
-						console.error("Failed to remove WalletKit listener", err);
-					}
-				}
-			}
 		};
-	}, [router, syncSessions]);
+	}, [setError]);
+
+	// Memoize pair function separately to prevent unnecessary re-renders
+	const pair = useMemo(
+		() => async (uri: string): Promise<void> => {
+			if (!walletkit) return;
+			try {
+				await walletkit.pair({ uri });
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+				console.error("Pairing failed", err);
+				setError(`Pairing failed: ${msg}`);
+			}
+		},
+		[walletkit, setError],
+	);
+
+	// Memoize disconnectSession function separately to prevent unnecessary re-renders
+	const disconnectSession = useMemo(
+		() => async (topic: string): Promise<void> => {
+			if (!walletkit) return;
+			try {
+				await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
+				syncSessions();
+			} catch (err: unknown) {
+				const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+				console.error("Failed to disconnect session", err);
+				setError(`Disconnect session failed: ${msg}`);
+			}
+		},
+		[walletkit, syncSessions, setError],
+	);
 
 	const value = useMemo<WalletConnectContextValue>(
 		() => ({
 			walletkit,
 			sessions,
 			error,
-			pair: async (uri: string): Promise<void> => {
-				if (!walletkit) return;
-				try {
-					await walletkit.pair({ uri });
-				} catch (err: unknown) {
-					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
-					console.error("Pairing failed", err);
-					setError(`Pairing failed: ${msg}`);
-				}
-			},
-			disconnectSession: async (topic: string): Promise<void> => {
-				if (!walletkit) return;
-				try {
-					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
-
-					syncSessions();
-				} catch (err: unknown) {
-					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
-					console.error("Failed to disconnect session", err);
-					setError(`Disconnect session failed: ${msg}`);
-				}
-			},
+			pair,
+			disconnectSession,
 			setSafeContext: registerSafeContext,
 		}),
-		[walletkit, sessions, error, registerSafeContext, syncSessions],
+		[walletkit, sessions, error, pair, disconnectSession, registerSafeContext],
 	);
 
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
