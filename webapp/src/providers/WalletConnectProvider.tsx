@@ -35,6 +35,21 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 	// re-render as soon as the instance is ready.
 	const [walletkit, setWalletkit] = useState<WalletKitInstance | null>(null);
 	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
+
+	// Synchronize local session state with the active sessions from WalletKit.
+	// If a WalletKit instance is provided, it is used; otherwise the hook falls back
+	// to the current `walletkit` state. This allows the helper to be reused both
+	// inside the initialisation lifecycle (before `walletkit` is put into state)
+	// and from any callback that depends on the stable `walletkit` reference.
+	const syncSessions = useCallback(
+		(wkInstance?: WalletKitInstance): void => {
+			const instance = wkInstance ?? walletkit;
+			if (!instance) return;
+			const active = instance.getActiveSessions();
+			setSessions(active);
+		},
+		[walletkit],
+	);
 	const [error, setError] = useState<string | null>(null);
 	const safeIdRef = useRef<SafeId | null>(null);
 
@@ -55,10 +70,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				const wk = await initOrGetWalletKit();
 				cachedWkInstance = wk;
 
-				const syncSessions = (): void => {
-					const activeSessions = wk.getActiveSessions();
-					setSessions(activeSessions);
-				};
+				syncSessions(wk);
 
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal): Promise<void> => {
 					setError(null);
@@ -171,6 +183,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 					// Always respond to other WalletConnect requests
 					try {
+						console.log("Responding to WalletConnect session request", event);
 						await wk.respondSessionRequest({
 							topic: event.topic,
 							response: { id: event.id, jsonrpc: "2.0", result: null },
@@ -214,7 +227,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				}
 			}
 		};
-	}, [router]);
+	}, [router, syncSessions]);
 
 	const value = useMemo<WalletConnectContextValue>(
 		() => ({
@@ -235,6 +248,8 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				if (!walletkit) return;
 				try {
 					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
+
+					syncSessions();
 				} catch (err: unknown) {
 					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
 					console.error("Failed to disconnect session", err);
@@ -243,7 +258,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 			},
 			setSafeContext: registerSafeContext,
 		}),
-		[walletkit, sessions, error, registerSafeContext],
+		[walletkit, sessions, error, registerSafeContext, syncSessions],
 	);
 
 	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
