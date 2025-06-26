@@ -6,6 +6,8 @@ import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import type { CommonTransactionFormProps } from "./types";
+import { TransactionFormFields } from "./TransactionFormFields";
+import { TransactionAlerts } from "./TransactionAlerts";
 
 interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txTo?: string;
@@ -93,7 +95,8 @@ export function WalletConnectTransactionForm({
 	reqId,
 }: WalletConnectFormProps) {
 	const navigate = useNavigate();
-	const { submitTransaction, transactionHash, error, warning, isSubmitting, clearResult } = useWalletConnectTransaction();
+	const { submitTransaction, transactionHash, error, warning, isSubmitting, clearResult } =
+		useWalletConnectTransaction();
 
 	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce), [config.nonce]);
 
@@ -120,7 +123,7 @@ export function WalletConnectTransactionForm({
 
 	const onSubmit = async (data: WalletConnectFormData) => {
 		clearResult();
-		
+
 		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		await submitTransaction({
@@ -147,65 +150,7 @@ export function WalletConnectTransactionForm({
 				/>
 			)}
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-				<div>
-					<label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">
-						To Address
-					</label>
-					<input
-						id="to"
-						type="text"
-						{...register("to")}
-						placeholder="0x..."
-						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-					/>
-					{errors.to && <p className="mt-1 text-sm text-red-600">{errors.to.message}</p>}
-				</div>
-
-				<div>
-					<label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
-						Value (ETH)
-					</label>
-					<input
-						id="value"
-						type="text"
-						{...register("value")}
-						placeholder="0.0"
-						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-					/>
-					{errors.value && <p className="mt-1 text-sm text-red-600">{errors.value.message}</p>}
-				</div>
-
-				<div>
-					<label htmlFor="data" className="block text-sm font-medium text-gray-700 mb-1">
-						Data (Hex String)
-					</label>
-					<input
-						id="data"
-						type="text"
-						{...register("data")}
-						placeholder="0x..."
-						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-mono text-sm"
-					/>
-					{errors.data && <p className="mt-1 text-sm text-red-600">{errors.data.message}</p>}
-				</div>
-
-				<div>
-					<label htmlFor="nonce" className="block text-sm font-medium text-gray-700 mb-1">
-						Nonce
-					</label>
-					<input
-						id="nonce"
-						type="number"
-						{...register("nonce")}
-						min="0"
-						step="1"
-						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-					/>
-					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce}</span>
-					</p>
-					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
-				</div>
+				<TransactionFormFields register={register} errors={errors} currentNonce={config.nonce} />
 
 				<div className="pt-4">
 					<button
@@ -217,31 +162,7 @@ export function WalletConnectTransactionForm({
 					</button>
 				</div>
 
-				{transactionHash && (
-					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
-						<p className="mt-1 text-sm text-green-700">
-							Transaction Hash: <span className="font-mono break-all">{transactionHash}</span>
-						</p>
-						<p className="mt-1 text-sm text-green-700">
-							It will be enqueued on Harbour and then proposed to your Safe.
-						</p>
-					</div>
-				)}
-
-				{error && (
-					<div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-						<h3 className="text-sm font-medium text-red-800">Error</h3>
-						<p className="mt-1 text-sm text-red-700">{error}</p>
-					</div>
-				)}
-
-				{warning && (
-					<div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-						<h3 className="text-sm font-medium text-yellow-800">Warning</h3>
-						<p className="mt-1 text-sm text-yellow-700">{warning}</p>
-					</div>
-				)}
+				<TransactionAlerts transactionHash={transactionHash} error={error} warning={warning} />
 			</form>
 		</div>
 	);

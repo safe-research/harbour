@@ -9,12 +9,12 @@ import { SessionsList } from "../components/walletconnect/SessionsList";
 import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect";
 import type { ChainId } from "../lib/types";
 
-interface WalletConnectContentProps {
+type WalletConnectContentProps = {
 	safe: string;
 	chainId: ChainId;
-}
+};
 
-function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
+function WalletConnectContent({ safe, chainId }: WalletConnectContentProps): JSX.Element {
 	const { pair, sessions, error, disconnectSession } = useWalletConnect();
 	const [uriInput, setUriInput] = useState("");
 	const [isPairing, setIsPairing] = useState(false);
@@ -113,7 +113,7 @@ export const Route = createFileRoute("/walletconnect")({
 	component: WalletConnectPage,
 });
 
-function WalletConnectPage() {
+function WalletConnectPage(): JSX.Element {
 	const { safe, chainId } = Route.useSearch();
 
 	return (

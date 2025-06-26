@@ -1,11 +1,11 @@
 import type { SessionTypes } from "@/lib/walletconnect";
 
-interface SessionsListProps {
+type SessionsListProps = {
 	sessionEntries: SessionTypes.Struct[];
 	disconnectSession: (topic: string) => void;
-}
+};
 
-function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) {
+function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps): JSX.Element {
 	return sessionEntries.length === 0 ? (
 		<div className="text-center py-8">
 			<p className="text-gray-600 text-sm mb-2">No active WalletConnect sessions</p>
@@ -16,11 +16,11 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 			{sessionEntries.map((s) => {
 				const expiryDate = new Date(s.expiry * 1000);
 				const isExpired = expiryDate < new Date();
-				
+
 				// Extract session details
-				const accounts = Object.values(s.namespaces).flatMap(ns => ns.accounts);
-				const methods = Object.values(s.namespaces).flatMap(ns => ns.methods);
-				const chains = Object.values(s.namespaces).flatMap(ns => ns.chains || []);
+				const accounts = Object.values(s.namespaces).flatMap((ns) => ns.accounts);
+				const methods = Object.values(s.namespaces).flatMap((ns) => ns.methods);
+				const chains = Object.values(s.namespaces).flatMap((ns) => ns.chains || []);
 
 				return (
 					<div key={s.topic} className="border border-gray-200 rounded-lg p-4 bg-white">
@@ -59,9 +59,7 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 							</button>
 						</div>
 
-						{s.peer.metadata.description && (
-							<p className="text-sm text-gray-600 mb-3">{s.peer.metadata.description}</p>
-						)}
+						{s.peer.metadata.description && <p className="text-sm text-gray-600 mb-3">{s.peer.metadata.description}</p>}
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
 							{accounts.length > 0 && (
@@ -69,11 +67,13 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 									<h4 className="font-medium text-gray-700 mb-1">Connected Accounts</h4>
 									<div className="space-y-1">
 										{accounts.map((account) => {
-											const [chain, address] = account.split(':').slice(-2);
+											const [chain, address] = account.split(":").slice(-2);
 											return (
 												<div key={account} className="text-gray-600 font-mono">
 													<span className="text-blue-600">{chain}:</span>
-													<span className="ml-1">{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+													<span className="ml-1">
+														{address?.slice(0, 6)}...{address?.slice(-4)}
+													</span>
 												</div>
 											);
 										})}
@@ -86,7 +86,7 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 									<h4 className="font-medium text-gray-700 mb-1">Supported Networks</h4>
 									<div className="flex flex-wrap gap-1">
 										{chains.map((chain) => {
-											const chainId = chain.split(':')[1];
+											const chainId = chain.split(":")[1];
 											return (
 												<span key={chain} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
 													{chainId}
@@ -118,7 +118,10 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 
 						<div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-xs">
 							<span className="text-gray-500">
-								Topic: <span className="font-mono">{s.topic.slice(0, 8)}...{s.topic.slice(-8)}</span>
+								Topic:{" "}
+								<span className="font-mono">
+									{s.topic.slice(0, 8)}...{s.topic.slice(-8)}
+								</span>
 							</span>
 							<span className={`${isExpired ? "text-red-500" : "text-gray-500"}`}>
 								{isExpired ? "Expired" : `Expires ${expiryDate.toLocaleString()}`}

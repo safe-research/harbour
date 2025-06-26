@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type JsonRpcApiProvider, ethers } from "ethers";
-import { Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -11,6 +10,7 @@ import { getNativeCurrencyByChainId } from "@/lib/chains";
 import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
 import { ethereumAddressSchema } from "@/lib/validators";
 import { SendButton } from "./SendButton";
+import { TokenList } from "./TokenList";
 
 const createAddTokenFormSchema = (
 	erc20Tokens: ERC20TokenDetails[],
@@ -154,37 +154,8 @@ export function BalancesSection({ provider, safeAddress, chainId, onSendNative, 
 					</form>
 					{isLoadingTokens && <p className="text-sm text-gray-500">Loading tokens...</p>}
 					{fetchError && !isLoadingTokens && <p className="text-sm text-red-500">{fetchError}</p>}
-					{!isLoadingTokens && erc20Tokens.length === 0 && !fetchError && (
-						<p className="text-sm text-gray-500">No ERC20 tokens added yet.</p>
-					)}
-
-					{erc20Tokens.length > 0 && (
-						<ul className="space-y-3">
-							{erc20Tokens.map((token) => (
-								<li
-									key={token.address}
-									className="p-3 bg-gray-50 border border-gray-200 rounded-md flex justify-between items-center hover:bg-gray-100 transition-colors"
-								>
-									<div>
-										<p className="font-semibold text-gray-800">
-											{token.name} ({token.symbol})
-										</p>
-										<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
-									</div>
-									<div className="flex items-center space-x-2">
-										<SendButton onClick={() => handleSendToken(token.address)} disabled={token.balance === 0n} />
-										<button
-											type="button"
-											onClick={() => handleRemoveToken(token.address)}
-											className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-											aria-label={`Remove ${token.name} token`}
-										>
-											<Trash2 size={18} />
-										</button>
-									</div>
-								</li>
-							))}
-						</ul>
+					{!isLoadingTokens && !fetchError && (
+						<TokenList tokens={erc20Tokens} onSendToken={handleSendToken} onRemoveToken={handleRemoveToken} />
 					)}
 				</div>
 			</div>

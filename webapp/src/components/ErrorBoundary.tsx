@@ -1,16 +1,26 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
 
-interface ErrorBoundaryProps {
+type ErrorBoundaryProps = {
 	children: ReactNode;
 	fallback?: ReactNode;
 	onError?: (error: Error, errorInfo: ErrorInfo) => void;
-}
+};
 
-interface ErrorBoundaryState {
+type ErrorBoundaryState = {
 	hasError: boolean;
 	error: Error | null;
-}
+};
 
+/**
+ * Error boundary component to catch JavaScript errors in child component tree.
+ *
+ * NOTE: This is intentionally a class component, not a functional component.
+ * React Error Boundaries currently require class components as they use
+ * lifecycle methods (componentDidCatch, getDerivedStateFromError) that are
+ * not available in functional components. This is a limitation of React itself.
+ *
+ * @see https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
+ */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 	constructor(props: ErrorBoundaryProps) {
 		super(props);

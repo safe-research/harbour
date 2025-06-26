@@ -1,35 +1,30 @@
 import type { SafeId } from "@/lib/validators";
-import {
-	type SessionTypes,
-	type WalletKitInstance,
-	getSdkError,
-	initOrGetWalletKit,
-} from "@/lib/walletconnect";
+import { type SessionTypes, type WalletKitInstance, getSdkError, initOrGetWalletKit } from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
 import type React from "react";
 import { type JSX, createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWalletConnectSession } from "@/hooks/useWalletConnectSession";
 
-interface WalletConnectContextValue {
+type WalletConnectContextValue = {
 	walletkit: WalletKitInstance | null;
 	sessions: Record<string, SessionTypes.Struct>;
 	error: string | null;
 	pair: (uri: string) => Promise<void>;
 	setSafeContext: (ctx: SafeId) => void;
 	disconnectSession: (topic: string) => Promise<void>;
-}
+};
 
 const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
 
-interface WalletConnectProviderProps {
+type WalletConnectProviderProps = {
 	router: AnyRouter;
 	children: React.ReactNode;
-}
+};
 
 /**
  * Provider component that manages WalletConnect integration for the application.
  * Initializes WalletKit singleton and provides context for WalletConnect operations.
- * 
+ *
  * @param props.router - Router instance for navigation
  * @param props.children - Child components that need access to WalletConnect context
  */
@@ -83,32 +78,34 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 
 	// Memoize pair function separately to prevent unnecessary re-renders
 	const pair = useMemo(
-		() => async (uri: string): Promise<void> => {
-			if (!walletkit) return;
-			try {
-				await walletkit.pair({ uri });
-			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
-				console.error("Pairing failed", err);
-				setError(`Pairing failed: ${msg}`);
-			}
-		},
+		() =>
+			async (uri: string): Promise<void> => {
+				if (!walletkit) return;
+				try {
+					await walletkit.pair({ uri });
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					console.error("Pairing failed", err);
+					setError(`Pairing failed: ${msg}`);
+				}
+			},
 		[walletkit, setError],
 	);
 
 	// Memoize disconnectSession function separately to prevent unnecessary re-renders
 	const disconnectSession = useMemo(
-		() => async (topic: string): Promise<void> => {
-			if (!walletkit) return;
-			try {
-				await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
-				syncSessions();
-			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
-				console.error("Failed to disconnect session", err);
-				setError(`Disconnect session failed: ${msg}`);
-			}
-		},
+		() =>
+			async (topic: string): Promise<void> => {
+				if (!walletkit) return;
+				try {
+					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
+					syncSessions();
+				} catch (err: unknown) {
+					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					console.error("Failed to disconnect session", err);
+					setError(`Disconnect session failed: ${msg}`);
+				}
+			},
 		[walletkit, syncSessions, setError],
 	);
 

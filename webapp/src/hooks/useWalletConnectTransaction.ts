@@ -5,7 +5,7 @@ import { ethers } from "ethers";
 import { useCallback, useState } from "react";
 import type { BrowserProvider } from "ethers";
 
-interface WalletConnectTransactionParams {
+type WalletConnectTransactionParams = {
 	safeAddress: string;
 	chainId: number;
 	browserProvider: BrowserProvider;
@@ -15,20 +15,20 @@ interface WalletConnectTransactionParams {
 	nonce: string;
 	topic?: string;
 	reqId?: string;
-}
+};
 
-interface WalletConnectTransactionResult {
+type WalletConnectTransactionResult = {
 	transactionHash?: string;
 	error?: string;
 	warning?: string;
 	isSubmitting: boolean;
-}
+};
 
 /**
  * Hook for handling WalletConnect transaction submissions.
  * Manages the flow of submitting transactions to Safe and responding to WalletConnect requests.
  * Provides clear separation between transaction success and WalletConnect notification.
- * 
+ *
  * @returns Object containing transaction result state and submission functions
  */
 export function useWalletConnectTransaction() {
@@ -40,7 +40,7 @@ export function useWalletConnectTransaction() {
 	/**
 	 * Submits a transaction to Safe and responds to the WalletConnect session request.
 	 * Handles both success and failure cases, ensuring proper WalletConnect responses.
-	 * 
+	 *
 	 * @param params - Transaction parameters including Safe details and WalletConnect session info
 	 */
 	const submitTransaction = useCallback(
@@ -64,7 +64,7 @@ export function useWalletConnectTransaction() {
 
 				// 2. Attempt to respond to WalletConnect session (separate from transaction success)
 				let wcResponseResult: { success: boolean; error?: string } = { success: true };
-				
+
 				if (walletkit && topic && reqId) {
 					try {
 						await walletkit.respondSessionRequest({
@@ -88,15 +88,14 @@ export function useWalletConnectTransaction() {
 				setResult({
 					isSubmitting: false,
 					transactionHash: receipt.transactionHash,
-					warning: !wcResponseResult.success 
+					warning: !wcResponseResult.success
 						? "Transaction submitted but WalletConnect response failed. The dApp may not be notified."
 						: undefined,
 				});
-
 			} catch (err: unknown) {
 				// 4. Handle transaction submission errors
 				const message = err instanceof Error ? err.message : "Transaction failed";
-				
+
 				// If transaction failed, still try to respond to WalletConnect with error
 				if (walletkit && topic && reqId) {
 					try {
