@@ -66,13 +66,18 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 		const listeners: Array<[OffEventName, OffHandler]> = [];
 
 		async function init(): Promise<void> {
+			if (isCleanedUp) return; // Prevent initialization if already cleaned up
+
 			try {
 				const wk = await initOrGetWalletKit();
+				if (isCleanedUp) return; // Check again after async operation
+
 				cachedWkInstance = wk;
 
 				syncSessions(wk);
 
 				const onSessionProposal = async (proposal: WalletKitTypes.SessionProposal): Promise<void> => {
+					if (isCleanedUp) return; // Prevent handling if cleaned up
 					setError(null);
 					if (!safeIdRef.current) {
 						await wk.rejectSession({
@@ -113,6 +118,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName, onSessionProposal as OffHandler]);
 
 				const onSessionRequest = async (event: WalletKitTypes.SessionRequest): Promise<void> => {
+					if (isCleanedUp) return; // Prevent handling if cleaned up
 					setError(null);
 
 					if (isEthSendTransaction(event)) {
@@ -181,9 +187,7 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 						}
 					}
 
-					// Always respond to other WalletConnect requests
 					try {
-						console.log("Responding to WalletConnect session request", event);
 						await wk.respondSessionRequest({
 							topic: event.topic,
 							response: { id: event.id, jsonrpc: "2.0", result: null },
@@ -195,14 +199,16 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				wk.on(WALLETCONNECT_EVENTS.SESSION_REQUEST, onSessionRequest);
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName, onSessionRequest as OffHandler]);
 
-				const onSessionDelete = (): void => syncSessions();
+				const onSessionDelete = (): void => {
+					if (isCleanedUp) return; // Prevent handling if cleaned up
+					syncSessions();
+				};
 				wk.on(WALLETCONNECT_EVENTS.SESSION_DELETE, onSessionDelete);
 				listeners.push([WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName, onSessionDelete as OffHandler]);
 
 				// Initial sessions
-				syncSessions();
-
 				if (!isCleanedUp) {
+					syncSessions();
 					setWalletkit(wk);
 				}
 			} catch (err) {
