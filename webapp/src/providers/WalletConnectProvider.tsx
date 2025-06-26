@@ -134,6 +134,9 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 								const activeSessions = wk.getActiveSessions();
 								const sessionMetadata = activeSessions[event.topic];
 								const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
+								const wcAppUrl = sessionMetadata?.peer?.metadata?.url ?? "";
+								const wcAppIcon = sessionMetadata?.peer?.metadata?.icons?.[0] ?? "";
+								const wcAppDescription = sessionMetadata?.peer?.metadata?.description ?? "";
 
 								let ethValue = "0";
 								if (parsedTx.data.value) {
@@ -153,6 +156,9 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 										txData: parsedTx.data.data ?? "",
 										txValue: ethValue,
 										wcApp: wcAppName,
+										wcAppUrl,
+										wcAppIcon,
+										wcAppDescription,
 										topic: event.topic,
 										reqId: event.id.toString(),
 									},

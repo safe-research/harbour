@@ -15,7 +15,6 @@ import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
 
-// Base props shared by all flows
 interface BaseEnqueueContentProps {
 	browserProvider: BrowserProvider;
 	rpcProvider: JsonRpcApiProvider;
@@ -36,6 +35,9 @@ type EnqueueContentProps =
 			txValue?: string;
 			txData?: string;
 			wcApp: string;
+			wcAppUrl?: string;
+			wcAppIcon?: string;
+			wcAppDescription?: string;
 			topic: string;
 			reqId: string;
 	  });
@@ -45,6 +47,9 @@ export const walletConnectParamsSchema = z.object({
 	txValue: z.string().optional(),
 	txData: hexDataSchema.optional(),
 	wcApp: z.string().optional(),
+	wcAppUrl: z.string().optional(),
+	wcAppIcon: z.string().optional(),
+	wcAppDescription: z.string().optional(),
 	topic: z.string().optional(),
 	reqId: z.string().optional(),
 });
@@ -133,6 +138,9 @@ function EnqueueContent(props: EnqueueContentProps) {
 							txData={props.txData}
 							txValue={props.txValue}
 							wcApp={props.wcApp}
+							wcAppUrl={props.wcAppUrl}
+							wcAppIcon={props.wcAppIcon}
+							wcAppDescription={props.wcAppDescription}
 							topic={props.topic}
 							reqId={props.reqId}
 						/>
@@ -198,6 +206,9 @@ const enqueueSchema = safeIdSchema.extend({
 	txValue: z.string().optional(),
 	txData: z.string().optional(),
 	wcApp: z.string().optional(),
+	wcAppUrl: z.string().optional(),
+	wcAppIcon: z.string().optional(),
+	wcAppDescription: z.string().optional(),
 	// WalletConnect request identifiers
 	topic: z.string().optional(),
 	reqId: z.string().optional(),
@@ -225,6 +236,9 @@ export function EnqueuePage() {
 		txValue: searchParams.txValue,
 		txData: searchParams.txData,
 		wcApp: searchParams.wcApp,
+		wcAppUrl: searchParams.wcAppUrl,
+		wcAppIcon: searchParams.wcAppIcon,
+		wcAppDescription: searchParams.wcAppDescription,
 		topic: searchParams.topic,
 		reqId: searchParams.reqId,
 	};
@@ -233,7 +247,7 @@ export function EnqueuePage() {
 		<RequireWallet>
 			<EnqueuePageInner
 				safeAddress={searchParams.safe}
-				chainId={Number(searchParams.chainId)}
+				chainId={searchParams.chainId}
 				flow={searchParams.flow}
 				tokenAddress={searchParams.tokenAddress}
 				walletConnectParams={walletConnectParams}
@@ -266,9 +280,7 @@ function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConn
 		return <p className="text-center p-6 text-gray-600">Initializing RPC provider for chain {String(chainId)}...</p>;
 	}
 
-	// Build props based on flow type
 	if (flow === "walletconnect") {
-		// For walletconnect flow, we need to ensure required props are present
 		if (!walletConnectParams.wcApp || !walletConnectParams.topic || !walletConnectParams.reqId) {
 			return <p className="text-center p-6 text-red-600">Missing required WalletConnect parameters</p>;
 		}
@@ -283,6 +295,9 @@ function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConn
 				txValue={walletConnectParams.txValue}
 				txData={walletConnectParams.txData}
 				wcApp={walletConnectParams.wcApp}
+				wcAppUrl={walletConnectParams.wcAppUrl}
+				wcAppIcon={walletConnectParams.wcAppIcon}
+				wcAppDescription={walletConnectParams.wcAppDescription}
 				topic={walletConnectParams.topic}
 				reqId={walletConnectParams.reqId}
 			/>
@@ -302,14 +317,13 @@ function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConn
 		);
 	}
 
-	// For other flows (native, raw, batch, or undefined)
 	return (
 		<EnqueueContent
 			browserProvider={browserProvider}
 			rpcProvider={rpcProvider}
 			safeAddress={safeAddress}
 			chainId={chainId}
-			flow={flow as "native" | "raw" | "batch" | undefined}
+			flow={flow}
 		/>
 	);
 }

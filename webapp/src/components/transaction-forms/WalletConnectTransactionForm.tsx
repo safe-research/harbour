@@ -15,6 +15,9 @@ interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txValue?: string;
 	txData?: string;
 	wcApp: string;
+	wcAppUrl?: string;
+	wcAppIcon?: string;
+	wcAppDescription?: string;
 	topic: string;
 	reqId: string;
 }
@@ -28,6 +31,49 @@ const createWalletConnectFormSchema = (currentSafeNonce: string | bigint) =>
 	});
 
 type WalletConnectFormData = z.infer<ReturnType<typeof createWalletConnectFormSchema>>;
+
+interface WalletConnectAppInfoProps {
+	wcApp: string;
+	wcAppUrl?: string;
+	wcAppIcon?: string;
+	wcAppDescription?: string;
+}
+
+/**
+ * Displays information about the WalletConnect dApp making the request
+ */
+function WalletConnectAppInfo({ wcApp, wcAppUrl, wcAppIcon, wcAppDescription }: WalletConnectAppInfoProps) {
+	return (
+		<div className="mb-6 pb-6 border-b border-gray-200">
+			<div className="flex items-start space-x-4">
+				{wcAppIcon && (
+					<img
+						src={wcAppIcon}
+						alt={`${wcApp} logo`}
+						className="w-12 h-12 rounded-lg object-contain bg-gray-50 p-1"
+						onError={(e) => {
+							e.currentTarget.style.display = "none";
+						}}
+					/>
+				)}
+				<div className="flex-1">
+					<h3 className="text-lg font-semibold text-gray-900">{wcApp}</h3>
+					{wcAppUrl && (
+						<a
+							href={wcAppUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+						>
+							{wcAppUrl}
+						</a>
+					)}
+					{wcAppDescription && <p className="mt-2 text-sm text-gray-600">{wcAppDescription}</p>}
+				</div>
+			</div>
+		</div>
+	);
+}
 
 /**
  * Tailored form for transactions arriving via WalletConnect. Fields are pre-populated
@@ -43,6 +89,9 @@ export function WalletConnectTransactionForm({
 	txValue,
 	txData,
 	wcApp,
+	wcAppUrl,
+	wcAppIcon,
+	wcAppDescription,
 	topic,
 	reqId,
 }: WalletConnectFormProps) {
@@ -119,10 +168,12 @@ export function WalletConnectTransactionForm({
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 			{wcApp && (
-				<p className="mb-4 text-sm text-gray-600">
-					<strong>Origin:&nbsp;</strong>
-					{wcApp}
-				</p>
+				<WalletConnectAppInfo
+					wcApp={wcApp}
+					wcAppUrl={wcAppUrl}
+					wcAppIcon={wcAppIcon}
+					wcAppDescription={wcAppDescription}
+				/>
 			)}
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
