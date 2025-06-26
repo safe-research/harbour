@@ -122,10 +122,11 @@ Patterns:
 * Use the `satisfies` operator to keep object literals type-safe.
 * Never use boxed primitives (`Number`, `String`, …) — use lowercase keywords instead.
 * Export types separately from implementation code.
+* Prefer named exports over default exports for clarity. Only use defaults when needed, e.g. for React routes.
 
 ### React
 
-* Functional components only; one default export per `PascalCase.tsx` file.
+* Functional components only; one export per `PascalCase.tsx` file.
 * Extract when files > 300 LOC or render > 40 lines.
 * Keep state local; lift only when truly shared.
 * Derive data instead of duplicating state; consider `useReducer` / state machines for complexity.
