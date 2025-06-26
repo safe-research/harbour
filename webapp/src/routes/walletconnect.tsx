@@ -2,7 +2,7 @@ import { safeIdSchema } from "@/lib/validators";
 import { walletConnectUriSchema } from "@/lib/walletconnect";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet } from "../components/RequireWallet";
 import { SessionsList } from "../components/walletconnect/SessionsList";
@@ -43,7 +43,8 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 		}
 	}, [uriInput, pair]);
 
-	const sessionEntries = Object.values(sessions ?? {});
+	// Memoize session transformations to avoid recreating array on every render
+	const sessionEntries = useMemo(() => Object.values(sessions ?? {}), [sessions]);
 	const hasActiveSessions = sessionEntries.length > 0;
 
 	return (

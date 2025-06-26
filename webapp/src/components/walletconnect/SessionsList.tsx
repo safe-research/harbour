@@ -21,7 +21,6 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 				const accounts = Object.values(s.namespaces).flatMap(ns => ns.accounts);
 				const methods = Object.values(s.namespaces).flatMap(ns => ns.methods);
 				const chains = Object.values(s.namespaces).flatMap(ns => ns.chains || []);
-				const events = Object.values(s.namespaces).flatMap(ns => ns.events);
 
 				return (
 					<div key={s.topic} className="border border-gray-200 rounded-lg p-4 bg-white">

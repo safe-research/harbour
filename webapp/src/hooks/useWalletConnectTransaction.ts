@@ -24,12 +24,25 @@ interface WalletConnectTransactionResult {
 	isSubmitting: boolean;
 }
 
+/**
+ * Hook for handling WalletConnect transaction submissions.
+ * Manages the flow of submitting transactions to Safe and responding to WalletConnect requests.
+ * Provides clear separation between transaction success and WalletConnect notification.
+ * 
+ * @returns Object containing transaction result state and submission functions
+ */
 export function useWalletConnectTransaction() {
 	const { walletkit } = useWalletConnect();
 	const [result, setResult] = useState<WalletConnectTransactionResult>({
 		isSubmitting: false,
 	});
 
+	/**
+	 * Submits a transaction to Safe and responds to the WalletConnect session request.
+	 * Handles both success and failure cases, ensuring proper WalletConnect responses.
+	 * 
+	 * @param params - Transaction parameters including Safe details and WalletConnect session info
+	 */
 	const submitTransaction = useCallback(
 		async (params: WalletConnectTransactionParams): Promise<void> => {
 			const { safeAddress, chainId, browserProvider, to, value, data, nonce, topic, reqId } = params;
@@ -112,6 +125,10 @@ export function useWalletConnectTransaction() {
 		[walletkit],
 	);
 
+	/**
+	 * Clears the transaction result state.
+	 * Useful for resetting the form after navigation or user action.
+	 */
 	const clearResult = useCallback(() => {
 		setResult({ isSubmitting: false });
 	}, []);

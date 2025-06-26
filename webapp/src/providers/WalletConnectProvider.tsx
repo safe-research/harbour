@@ -26,6 +26,13 @@ interface WalletConnectProviderProps {
 	children: React.ReactNode;
 }
 
+/**
+ * Provider component that manages WalletConnect integration for the application.
+ * Initializes WalletKit singleton and provides context for WalletConnect operations.
+ * 
+ * @param props.router - Router instance for navigation
+ * @param props.children - Child components that need access to WalletConnect context
+ */
 function WalletConnectProvider({ router, children }: WalletConnectProviderProps): JSX.Element {
 	// WalletKit is initialized as a singleton via initOrGetWalletKit(),
 	// but we store it in React state so that our provider (and its consumers)
@@ -40,7 +47,10 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 		safeIdRef,
 	});
 
-	// Expose setter through ref to enable external registration via hook
+	/**
+	 * Registers the current Safe context (address and chainId) for WalletConnect operations.
+	 * Exposed through context to allow components to set the active Safe.
+	 */
 	const registerSafeContext = useCallback((id: SafeId) => {
 		safeIdRef.current = id;
 	}, []);

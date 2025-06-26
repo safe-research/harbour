@@ -9,7 +9,7 @@ import {
 } from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ethTransactionParamsSchema } from "@/lib/validators";
 
 interface UseWalletConnectSessionProps {
@@ -18,11 +18,23 @@ interface UseWalletConnectSessionProps {
 	safeIdRef: React.MutableRefObject<SafeId | null>;
 }
 
+/**
+ * Hook for managing WalletConnect session lifecycle and events.
+ * Handles session proposals, requests, and deletions with proper Safe context integration.
+ * 
+ * @param props.walletkit - WalletKit instance for WalletConnect operations
+ * @param props.router - Router instance for navigation
+ * @param props.safeIdRef - Ref containing current Safe context (safe address and chainId)
+ * @returns Object containing sessions, error state, and session management functions
+ */
 export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWalletConnectSessionProps) {
 	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
 	const [error, setError] = useState<string | null>(null);
 
-	// Synchronize local session state with the active sessions from WalletKit
+	/**
+	 * Synchronizes local session state with active sessions from WalletKit instance.
+	 * Can optionally accept a specific WalletKit instance to sync from.
+	 */
 	const syncSessions = useCallback(
 		(wkInstance?: WalletKitInstance): void => {
 			const instance = wkInstance ?? walletkit;
@@ -33,7 +45,15 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 		[walletkit],
 	);
 
-	// Session event handlers
+	/**
+	 * Handles incoming session proposals from dApps.
+	 * Validates Safe context availability and constructs proper namespaces for approval.
+	 * Rejects proposals if no Safe context is available.
+	 * 
+	 * @param proposal - WalletConnect session proposal from dApp
+	 * @param wk - WalletKit instance to respond with
+	 * @param isCleanedUp - Flag indicating if component is unmounted
+	 */
 	const handleSessionProposal = useCallback(
 		async (proposal: WalletKitTypes.SessionProposal, wk: WalletKitInstance, isCleanedUp: boolean): Promise<void> => {
 			if (isCleanedUp) return;
@@ -74,6 +94,15 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 		[safeIdRef, syncSessions],
 	);
 
+	/**
+	 * Handles incoming session requests from connected dApps.
+	 * Processes eth_sendTransaction requests by navigating to transaction form.
+	 * Extracts dApp metadata and transaction parameters for user approval.
+	 * 
+	 * @param event - WalletConnect session request event
+	 * @param wk - WalletKit instance to respond with
+	 * @param isCleanedUp - Flag indicating if component is unmounted
+	 */
 	const handleSessionRequest = useCallback(
 		async (event: WalletKitTypes.SessionRequest, wk: WalletKitInstance, isCleanedUp: boolean): Promise<void> => {
 			if (isCleanedUp) return;
@@ -155,6 +184,12 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 		[safeIdRef, router],
 	);
 
+	/**
+	 * Handles session deletion events from WalletConnect.
+	 * Syncs local session state when a session is deleted.
+	 * 
+	 * @param isCleanedUp - Flag indicating if component is unmounted
+	 */
 	const handleSessionDelete = useCallback(
 		(isCleanedUp: boolean): void => {
 			if (isCleanedUp) return;
