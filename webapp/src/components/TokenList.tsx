@@ -1,6 +1,8 @@
 import { ethers } from "ethers";
 import { Trash2 } from "lucide-react";
 
+import { SendButton } from "./SendButton";
+
 type Token = {
 	address: string;
 	name: string;
@@ -14,24 +16,6 @@ type TokenListProps = {
 	onSendToken: (tokenAddress: string) => void;
 	onRemoveToken: (tokenAddress: string) => void;
 };
-
-type SendButtonProps = {
-	onClick: () => void;
-	disabled: boolean;
-};
-
-function SendButton({ onClick, disabled }: SendButtonProps) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			disabled={disabled}
-			className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-		>
-			Send
-		</button>
-	);
-}
 
 /**
  * Displays a list of ERC20 tokens with balances and actions
