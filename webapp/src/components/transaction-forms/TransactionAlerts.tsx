@@ -7,7 +7,11 @@ type TransactionAlertsProps = {
 /**
  * Displays transaction status alerts including success, error, and warning messages
  */
-function TransactionAlerts({ transactionHash, error, warning }: TransactionAlertsProps) {
+function TransactionAlerts({
+	transactionHash,
+	error,
+	warning,
+}: TransactionAlertsProps) {
 	if (!transactionHash && !error && !warning) {
 		return null;
 	}
@@ -16,11 +20,16 @@ function TransactionAlerts({ transactionHash, error, warning }: TransactionAlert
 		<>
 			{transactionHash && (
 				<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-					<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
+					<h3 className="text-sm font-medium text-green-800">
+						Transaction Submitted
+					</h3>
 					<p className="mt-1 text-sm text-green-700">
-						Transaction Hash: <span className="font-mono break-all">{transactionHash}</span>
+						Transaction Hash:{" "}
+						<span className="font-mono break-all">{transactionHash}</span>
 					</p>
-					<p className="mt-1 text-sm text-green-700">It will be enqueued on Harbour and then proposed to your Safe.</p>
+					<p className="mt-1 text-sm text-green-700">
+						It will be enqueued on Harbour and then proposed to your Safe.
+					</p>
 				</div>
 			)}
 

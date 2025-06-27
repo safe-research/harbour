@@ -27,8 +27,14 @@ type UseWalletConnectSessionProps = {
  * @param props.safeIdRef - Ref containing current Safe context (safe address and chainId)
  * @returns Object containing sessions, error state, and session management functions
  */
-export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWalletConnectSessionProps) {
-	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>({});
+export function useWalletConnectSession({
+	walletkit,
+	router,
+	safeIdRef,
+}: UseWalletConnectSessionProps) {
+	const [sessions, setSessions] = useState<Record<string, SessionTypes.Struct>>(
+		{},
+	);
 	const [error, setError] = useState<string | null>(null);
 
 	/**
@@ -55,7 +61,11 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 	 * @param isCleanedUp - Flag indicating if component is unmounted
 	 */
 	const handleSessionProposal = useCallback(
-		async (proposal: WalletKitTypes.SessionProposal, wk: WalletKitInstance, isCleanedUp: boolean): Promise<void> => {
+		async (
+			proposal: WalletKitTypes.SessionProposal,
+			wk: WalletKitInstance,
+			isCleanedUp: boolean,
+		): Promise<void> => {
 			if (isCleanedUp) return;
 			setError(null);
 
@@ -69,9 +79,12 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 
 			// WORKAROUND: WalletConnect session proposals under eip155 may not include our Safe's current chain.
 			const requiredChains = proposal.params.requiredNamespaces?.eip155.chains;
-			const eip155ChainIds = [`eip155:${safeIdRef.current.chainId}`].concat(requiredChains ?? []);
+			const eip155ChainIds = [`eip155:${safeIdRef.current.chainId}`].concat(
+				requiredChains ?? [],
+			);
 			const eip155Accounts = eip155ChainIds.map(
-				(eip155ChainId) => `${eip155ChainId}:${safeIdRef.current?.safe.toLowerCase()}`,
+				(eip155ChainId) =>
+					`${eip155ChainId}:${safeIdRef.current?.safe.toLowerCase()}`,
 			);
 
 			const namespaces = {
@@ -86,7 +99,12 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 				await wk.approveSession({ id: proposal.id, namespaces });
 				syncSessions();
 			} catch (err: unknown) {
-				const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+				const msg =
+					err instanceof Error
+						? err.message
+						: typeof err === "string"
+							? err
+							: JSON.stringify(err);
 				console.error("Failed to approve WalletConnect session", err);
 				setError(`Failed to approve WalletConnect session: ${msg}`);
 			}
@@ -104,7 +122,11 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 	 * @param isCleanedUp - Flag indicating if component is unmounted
 	 */
 	const handleSessionRequest = useCallback(
-		async (event: WalletKitTypes.SessionRequest, wk: WalletKitInstance, isCleanedUp: boolean): Promise<void> => {
+		async (
+			event: WalletKitTypes.SessionRequest,
+			wk: WalletKitInstance,
+			isCleanedUp: boolean,
+		): Promise<void> => {
 			if (isCleanedUp) return;
 			setError(null);
 
@@ -112,10 +134,15 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 				const requestParams = event.params.request.params;
 
 				if (Array.isArray(requestParams) && requestParams.length > 0) {
-					const parsedTx = ethTransactionParamsSchema.safeParse(requestParams[0]);
+					const parsedTx = ethTransactionParamsSchema.safeParse(
+						requestParams[0],
+					);
 
 					if (!parsedTx.success) {
-						console.error("Invalid transaction params:", parsedTx.error.issues || parsedTx.error);
+						console.error(
+							"Invalid transaction params:",
+							parsedTx.error.issues || parsedTx.error,
+						);
 						try {
 							await wk.respondSessionRequest({
 								topic: event.topic,
@@ -137,10 +164,12 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 					if (safeIdRef.current) {
 						const activeSessions = wk.getActiveSessions();
 						const sessionMetadata = activeSessions[event.topic];
-						const wcAppName = sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
+						const wcAppName =
+							sessionMetadata?.peer?.metadata?.name ?? "Unknown dApp";
 						const wcAppUrl = sessionMetadata?.peer?.metadata?.url ?? "";
 						const wcAppIcon = sessionMetadata?.peer?.metadata?.icons?.[0] ?? "";
-						const wcAppDescription = sessionMetadata?.peer?.metadata?.description ?? "";
+						const wcAppDescription =
+							sessionMetadata?.peer?.metadata?.description ?? "";
 
 						let ethValue = "0";
 						if (parsedTx.data.value) {
@@ -178,7 +207,10 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 					response: { id: event.id, jsonrpc: "2.0", result: null },
 				});
 			} catch (err: unknown) {
-				console.error("Failed to respond to WalletConnect session request", err);
+				console.error(
+					"Failed to respond to WalletConnect session request",
+					err,
+				);
 			}
 		},
 		[safeIdRef, router],
@@ -214,13 +246,22 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 		const onSessionDelete = () => handleSessionDelete(isCleanedUp);
 
 		walletkit.on(WALLETCONNECT_EVENTS.SESSION_PROPOSAL, onSessionProposal);
-		listeners.push([WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName, onSessionProposal as OffHandler]);
+		listeners.push([
+			WALLETCONNECT_EVENTS.SESSION_PROPOSAL as OffEventName,
+			onSessionProposal as OffHandler,
+		]);
 
 		walletkit.on(WALLETCONNECT_EVENTS.SESSION_REQUEST, onSessionRequest);
-		listeners.push([WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName, onSessionRequest as OffHandler]);
+		listeners.push([
+			WALLETCONNECT_EVENTS.SESSION_REQUEST as OffEventName,
+			onSessionRequest as OffHandler,
+		]);
 
 		walletkit.on(WALLETCONNECT_EVENTS.SESSION_DELETE, onSessionDelete);
-		listeners.push([WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName, onSessionDelete as OffHandler]);
+		listeners.push([
+			WALLETCONNECT_EVENTS.SESSION_DELETE as OffEventName,
+			onSessionDelete as OffHandler,
+		]);
 
 		// Initial sync
 		syncSessions();
@@ -235,7 +276,13 @@ export function useWalletConnectSession({ walletkit, router, safeIdRef }: UseWal
 				}
 			}
 		};
-	}, [walletkit, handleSessionProposal, handleSessionRequest, handleSessionDelete, syncSessions]);
+	}, [
+		walletkit,
+		handleSessionProposal,
+		handleSessionRequest,
+		handleSessionDelete,
+		syncSessions,
+	]);
 
 	return {
 		sessions,

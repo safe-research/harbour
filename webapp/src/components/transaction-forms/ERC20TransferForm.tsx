@@ -3,7 +3,11 @@ import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethereumAddressSchema, nonceSchema, positiveAmountSchema } from "@/lib/validators";
+import {
+	ethereumAddressSchema,
+	nonceSchema,
+	positiveAmountSchema,
+} from "@/lib/validators";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
@@ -20,7 +24,9 @@ const createERC20TransferFormSchema = (currentSafeNonce: string) =>
 		nonce: nonceSchema(currentSafeNonce),
 	});
 
-type ERC20TransferFormData = z.infer<ReturnType<typeof createERC20TransferFormSchema>>;
+type ERC20TransferFormData = z.infer<
+	ReturnType<typeof createERC20TransferFormSchema>
+>;
 
 /**
  * A form component for creating and enqueuing an ERC20 token transfer transaction
@@ -46,7 +52,9 @@ export function ERC20TransferForm({
 		watch,
 		formState: { errors },
 	} = useForm<ERC20TransferFormData>({
-		resolver: zodResolver(createERC20TransferFormSchema(config.nonce.toString())),
+		resolver: zodResolver(
+			createERC20TransferFormSchema(config.nonce.toString()),
+		),
 		defaultValues: {
 			tokenAddress: initialTokenAddress || "",
 			nonce: config.nonce.toString(),
@@ -79,17 +87,23 @@ export function ERC20TransferForm({
 		setTxHash(undefined);
 
 		if (decimals === null) {
-			setError("Token decimals could not be determined. Please check the token address and network.");
+			setError(
+				"Token decimals could not be determined. Please check the token address and network.",
+			);
 			return;
 		}
 
-		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
+		const currentNonce =
+			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		try {
 			setIsSubmitting(true);
 
 			const amountInSmallestUnit = ethers.parseUnits(data.amount, decimals);
-			const encodedTransferData = encodeERC20Transfer(data.recipient, amountInSmallestUnit);
+			const encodedTransferData = encodeERC20Transfer(
+				data.recipient,
+				amountInSmallestUnit,
+			);
 
 			const transaction = getSafeTransaction({
 				chainId,
@@ -100,7 +114,10 @@ export function ERC20TransferForm({
 				nonce: currentNonce.toString(),
 			});
 
-			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
+			const receipt = await signAndEnqueueSafeTransaction(
+				browserProvider,
+				transaction,
+			);
 
 			setTxHash(receipt.transactionHash);
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
@@ -118,15 +135,27 @@ export function ERC20TransferForm({
 	const handleAddToBatch = handleSubmit((data: ERC20TransferFormData) => {
 		if (decimals === null) return;
 		const amountInSmallestUnit = ethers.parseUnits(data.amount, decimals);
-		const encodedData = encodeERC20Transfer(data.recipient, amountInSmallestUnit);
-		addTransaction({ to: data.tokenAddress, value: "0", data: encodedData, safeAddress, chainId });
+		const encodedData = encodeERC20Transfer(
+			data.recipient,
+			amountInSmallestUnit,
+		);
+		addTransaction({
+			to: data.tokenAddress,
+			value: "0",
+			data: encodedData,
+			safeAddress,
+			chainId,
+		});
 	});
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
-					<label htmlFor="tokenAddress" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="tokenAddress"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Token Contract Address
 					</label>
 					<input
@@ -136,8 +165,16 @@ export function ERC20TransferForm({
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.tokenAddress && <p className="mt-1 text-sm text-red-600">{errors.tokenAddress.message}</p>}
-					{isFetchingDetails && <p className="mt-1 text-sm text-gray-500">Fetching token details...</p>}
+					{errors.tokenAddress && (
+						<p className="mt-1 text-sm text-red-600">
+							{errors.tokenAddress.message}
+						</p>
+					)}
+					{isFetchingDetails && (
+						<p className="mt-1 text-sm text-gray-500">
+							Fetching token details...
+						</p>
+					)}
 					{fetchDetailsError && (
 						<p className="mt-1 text-sm text-red-600">
 							{fetchDetailsError instanceof Error
@@ -148,7 +185,8 @@ export function ERC20TransferForm({
 					{decimals !== null && tokenDetails && (
 						<div className="mt-1 text-sm text-green-600 space-y-1">
 							<p>
-								<strong>Token:</strong> {tokenDetails.name} ({tokenDetails.symbol})
+								<strong>Token:</strong> {tokenDetails.name} (
+								{tokenDetails.symbol})
 							</p>
 							<p>
 								<strong>Decimals:</strong> {decimals}
@@ -158,7 +196,10 @@ export function ERC20TransferForm({
 				</div>
 
 				<div>
-					<label htmlFor="recipient" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="recipient"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Recipient Address
 					</label>
 					<input
@@ -168,16 +209,24 @@ export function ERC20TransferForm({
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.recipient && <p className="mt-1 text-sm text-red-600">{errors.recipient.message}</p>}
+					{errors.recipient && (
+						<p className="mt-1 text-sm text-red-600">
+							{errors.recipient.message}
+						</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="amount"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Amount (in tokens)
 					</label>
 					{decimals !== null && tokenDetails && (
 						<p className="mt-1 text-sm text-gray-500">
-							Balance: {ethers.formatUnits(tokenDetails.balance, decimals)} {tokenDetails.symbol}
+							Balance: {ethers.formatUnits(tokenDetails.balance, decimals)}{" "}
+							{tokenDetails.symbol}
 						</p>
 					)}
 					<input
@@ -188,14 +237,24 @@ export function ERC20TransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 						disabled={decimals === null && !!isTokenAddressValid}
 					/>
-					{errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}
-					{decimals === null && isTokenAddressValid && !isFetchingDetails && !fetchDetailsError && (
-						<p className="mt-1 text-sm text-yellow-600">Enter a valid token address to enable amount input.</p>
+					{errors.amount && (
+						<p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
 					)}
+					{decimals === null &&
+						isTokenAddressValid &&
+						!isFetchingDetails &&
+						!fetchDetailsError && (
+							<p className="mt-1 text-sm text-yellow-600">
+								Enter a valid token address to enable amount input.
+							</p>
+						)}
 				</div>
 
 				<div>
-					<label htmlFor="nonce" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="nonce"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Nonce
 					</label>
 					<input
@@ -207,10 +266,13 @@ export function ERC20TransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
-						to use current Safe nonce.
+						Current Safe nonce:{" "}
+						<span className="font-medium">{config.nonce.toString()}</span> -
+						Leave blank or use this to use current Safe nonce.
 					</p>
-					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
+					{errors.nonce && (
+						<p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>
+					)}
 				</div>
 
 				<div className="pt-4 flex space-x-4">
@@ -228,7 +290,14 @@ export function ERC20TransferForm({
 									viewBox="0 0 24 24"
 								>
 									<title>Processing...</title>
-									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+									<circle
+										className="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										strokeWidth="4"
+									/>
 									<path
 										className="opacity-75"
 										fill="currentColor"
@@ -253,9 +322,12 @@ export function ERC20TransferForm({
 
 				{txHash && (
 					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
+						<h3 className="text-sm font-medium text-green-800">
+							Transaction Submitted
+						</h3>
 						<p className="mt-1 text-sm text-green-700">
-							Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+							Transaction Hash:{" "}
+							<span className="font-mono break-all">{txHash}</span>
 						</p>
 						<p className="mt-1 text-sm text-green-700">
 							It will be enqueued on Harbour and then proposed to your Safe.

@@ -31,7 +31,13 @@ function useSafeQueue({
 	maxNoncesToFetch = 5,
 }: UseSafeQueueProps): UseQueryResult<NonceGroup[], Error> {
 	return useQuery<NonceGroup[], Error, NonceGroup[], readonly unknown[]>({
-		queryKey: ["safeQueue", safeAddress, safeConfig.nonce, safeConfig.owners, maxNoncesToFetch],
+		queryKey: [
+			"safeQueue",
+			safeAddress,
+			safeConfig.nonce,
+			safeConfig.owners,
+			maxNoncesToFetch,
+		],
 		queryFn: async () => {
 			return fetchSafeQueue({
 				provider,
@@ -41,7 +47,11 @@ function useSafeQueue({
 				safeChainId,
 			});
 		},
-		enabled: !!provider && !!safeConfig && !!safeConfig.nonce && !!safeConfig.owners?.length,
+		enabled:
+			!!provider &&
+			!!safeConfig &&
+			!!safeConfig.nonce &&
+			!!safeConfig.owners?.length,
 		staleTime: 15 * 1000,
 		refetchInterval: 30 * 1000,
 		throwOnError: true,

@@ -45,7 +45,17 @@ export function useWalletConnectTransaction() {
 	 */
 	const submitTransaction = useCallback(
 		async (params: WalletConnectTransactionParams): Promise<void> => {
-			const { safeAddress, chainId, browserProvider, to, value, data, nonce, topic, reqId } = params;
+			const {
+				safeAddress,
+				chainId,
+				browserProvider,
+				to,
+				value,
+				data,
+				nonce,
+				topic,
+				reqId,
+			} = params;
 
 			setResult({ isSubmitting: true });
 
@@ -60,10 +70,15 @@ export function useWalletConnectTransaction() {
 					nonce,
 				});
 
-				const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
+				const receipt = await signAndEnqueueSafeTransaction(
+					browserProvider,
+					transaction,
+				);
 
 				// 2. Attempt to respond to WalletConnect session (separate from transaction success)
-				let wcResponseResult: { success: boolean; error?: string } = { success: true };
+				let wcResponseResult: { success: boolean; error?: string } = {
+					success: true,
+				};
 
 				if (walletkit && topic && reqId) {
 					try {
@@ -76,7 +91,10 @@ export function useWalletConnectTransaction() {
 							},
 						});
 					} catch (err: unknown) {
-						console.error("Failed to respond to WalletConnect session request", err);
+						console.error(
+							"Failed to respond to WalletConnect session request",
+							err,
+						);
 						wcResponseResult = {
 							success: false,
 							error: err instanceof Error ? err.message : "Unknown error",
@@ -94,7 +112,8 @@ export function useWalletConnectTransaction() {
 				});
 			} catch (err: unknown) {
 				// 4. Handle transaction submission errors
-				const message = err instanceof Error ? err.message : "Transaction failed";
+				const message =
+					err instanceof Error ? err.message : "Transaction failed";
 
 				// If transaction failed, still try to respond to WalletConnect with error
 				if (walletkit && topic && reqId) {
@@ -111,7 +130,10 @@ export function useWalletConnectTransaction() {
 							},
 						});
 					} catch (wcErr) {
-						console.error("Failed to respond to WalletConnect with error", wcErr);
+						console.error(
+							"Failed to respond to WalletConnect with error",
+							wcErr,
+						);
 					}
 				}
 

@@ -14,7 +14,10 @@ interface QueueTransactionItemProps {
 	signSuccessTxHash: string | null;
 	signError: string | null;
 	handleExecuteTransaction: (tx: NonceGroup["transactions"][number]) => void;
-	handleSignTransaction: (tx: NonceGroup["transactions"][number], nonce: string) => void;
+	handleSignTransaction: (
+		tx: NonceGroup["transactions"][number],
+		nonce: string,
+	) => void;
 }
 
 export function QueueTransactionItem({
@@ -32,26 +35,33 @@ export function QueueTransactionItem({
 	handleSignTransaction,
 }: QueueTransactionItemProps) {
 	const canExecute = txWithSigs.signatures.length >= safeConfig.threshold;
-	const isLoadingThisTx = isExecutionPending && executingTxHash === txWithSigs.safeTxHash;
-	const errorForThisTx = executionError && executingTxHash === txWithSigs.safeTxHash;
+	const isLoadingThisTx =
+		isExecutionPending && executingTxHash === txWithSigs.safeTxHash;
+	const errorForThisTx =
+		executionError && executingTxHash === txWithSigs.safeTxHash;
 	const successForThisTx = executionSuccessTxHash === txWithSigs.safeTxHash;
 
 	return (
 		<div className="p-5 border border-gray-200 rounded-lg bg-white shadow-sm mb-4">
 			<h3 className="text-lg font-medium text-gray-900 mb-2">Transaction</h3>
-			<p className="text-xs bg-gray-50 p-2 rounded font-mono break-all mb-3">SafeTxHash: {txWithSigs.safeTxHash}</p>
+			<p className="text-xs bg-gray-50 p-2 rounded font-mono break-all mb-3">
+				SafeTxHash: {txWithSigs.safeTxHash}
+			</p>
 			<TransactionDetails details={txWithSigs.details} />
 			<div className="mt-2">
 				<h4 className="text-md font-medium text-gray-700">
 					Signatures ({txWithSigs.signatures.length} / {safeConfig.threshold}):
 				</h4>
 				{txWithSigs.signatures.length === 0 && (
-					<p className="text-xs text-gray-500">No signatures from known owners yet.</p>
+					<p className="text-xs text-gray-500">
+						No signatures from known owners yet.
+					</p>
 				)}
 				<ul className="list-disc list-inside pl-4 text-xs text-gray-600">
 					{txWithSigs.signatures.map((sig) => (
 						<li key={sig.signer + sig.r + sig.vs} className="break-all">
-							Signer: {sig.signer} (r: {sig.r.substring(0, 10)}..., vs: {sig.vs.substring(0, 10)}...)
+							Signer: {sig.signer} (r: {sig.r.substring(0, 10)}..., vs:{" "}
+							{sig.vs.substring(0, 10)}...)
 						</li>
 					))}
 				</ul>
@@ -75,11 +85,15 @@ export function QueueTransactionItem({
 							disabled={signingTxHash === txWithSigs.safeTxHash}
 							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 disabled:opacity-50 transition-colors"
 						>
-							{signingTxHash === txWithSigs.safeTxHash ? "Signing..." : "Sign Transaction"}
+							{signingTxHash === txWithSigs.safeTxHash
+								? "Signing..."
+								: "Sign Transaction"}
 						</button>
 						{signError && signingTxHash === txWithSigs.safeTxHash && (
 							<div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3">
-								<p className="text-sm text-red-700">Signature failed: {signError}</p>
+								<p className="text-sm text-red-700">
+									Signature failed: {signError}
+								</p>
 							</div>
 						)}
 						{signSuccessTxHash === txWithSigs.safeTxHash && (
@@ -88,8 +102,13 @@ export function QueueTransactionItem({
 							</div>
 						)}
 						<p className="text-sm text-yellow-700 bg-yellow-50 px-3 py-2 rounded-md">
-							<i className="mr-1">⚠️</i> Needs {safeConfig.threshold - txWithSigs.signatures.length} more signature
-							{safeConfig.threshold - txWithSigs.signatures.length !== 1 ? "s" : ""} to execute.
+							<i className="mr-1">⚠️</i> Needs{" "}
+							{safeConfig.threshold - txWithSigs.signatures.length} more
+							signature
+							{safeConfig.threshold - txWithSigs.signatures.length !== 1
+								? "s"
+								: ""}{" "}
+							to execute.
 						</p>
 					</div>
 				)}
@@ -103,7 +122,14 @@ export function QueueTransactionItem({
 							role="img"
 							aria-label="Loading"
 						>
-							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+							<circle
+								className="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								strokeWidth="4"
+							/>
 							<path
 								className="opacity-75"
 								fill="currentColor"
@@ -115,13 +141,16 @@ export function QueueTransactionItem({
 				)}
 				{errorForThisTx && (
 					<div className="mt-2 bg-red-50 border-l-4 border-red-400 p-3">
-						<p className="text-sm text-red-700">Execution failed: {executionError?.message}</p>
+						<p className="text-sm text-red-700">
+							Execution failed: {executionError?.message}
+						</p>
 					</div>
 				)}
 				{successForThisTx && (
 					<div className="mt-2 bg-green-50 border-l-4 border-green-400 p-3">
 						<p className="text-sm text-green-700">
-							✓ Transaction successfully submitted! Monitor your wallet for confirmation.
+							✓ Transaction successfully submitted! Monitor your wallet for
+							confirmation.
 						</p>
 					</div>
 				)}

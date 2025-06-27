@@ -44,21 +44,46 @@ async function fetchERC20TokenDetails(
 		},
 	];
 	const results = await aggregateMulticall(provider, calls);
-	if (results.length !== 4) throw new Error("Unexpected multicall response length");
+	if (results.length !== 4)
+		throw new Error("Unexpected multicall response length");
 	const [nameRes, symbolRes, decRes, balRes] = results;
-	if (!nameRes.success || !symbolRes.success || !decRes.success || !balRes.success) {
+	if (
+		!nameRes.success ||
+		!symbolRes.success ||
+		!decRes.success ||
+		!balRes.success
+	) {
 		console.error(`Multicall failure for token ${tokenAddress}`);
 		return null;
 	}
 
-	const name = iface.decodeFunctionResult("name", nameRes.returnData)[0] as string;
-	const symbol = iface.decodeFunctionResult("symbol", symbolRes.returnData)[0] as string;
-	const decimalsRaw = iface.decodeFunctionResult("decimals", decRes.returnData)[0] as bigint | number;
-	const balance = iface.decodeFunctionResult("balanceOf", balRes.returnData)[0] as bigint;
+	const name = iface.decodeFunctionResult(
+		"name",
+		nameRes.returnData,
+	)[0] as string;
+	const symbol = iface.decodeFunctionResult(
+		"symbol",
+		symbolRes.returnData,
+	)[0] as string;
+	const decimalsRaw = iface.decodeFunctionResult(
+		"decimals",
+		decRes.returnData,
+	)[0] as bigint | number;
+	const balance = iface.decodeFunctionResult(
+		"balanceOf",
+		balRes.returnData,
+	)[0] as bigint;
 
-	const numericDecimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
-	if (Number.isNaN(numericDecimals) || numericDecimals < 0 || numericDecimals > 255) {
-		console.error(`Invalid decimals value from ${tokenAddress}: ${decimalsRaw}`);
+	const numericDecimals =
+		typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
+	if (
+		Number.isNaN(numericDecimals) ||
+		numericDecimals < 0 ||
+		numericDecimals > 255
+	) {
+		console.error(
+			`Invalid decimals value from ${tokenAddress}: ${decimalsRaw}`,
+		);
 		return null;
 	}
 
@@ -102,11 +127,26 @@ async function fetchBatchERC20TokenDetails(
 			return null;
 		}
 		try {
-			const name = iface.decodeFunctionResult("name", nRes.returnData)[0] as string;
-			const symbol = iface.decodeFunctionResult("symbol", sRes.returnData)[0] as string;
-			const decimalsRaw = iface.decodeFunctionResult("decimals", dRes.returnData)[0] as bigint | number;
-			const balance = iface.decodeFunctionResult("balanceOf", bRes.returnData)[0] as bigint;
-			const decimals = typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
+			const name = iface.decodeFunctionResult(
+				"name",
+				nRes.returnData,
+			)[0] as string;
+			const symbol = iface.decodeFunctionResult(
+				"symbol",
+				sRes.returnData,
+			)[0] as string;
+			const decimalsRaw = iface.decodeFunctionResult(
+				"decimals",
+				dRes.returnData,
+			)[0] as bigint | number;
+			const balance = iface.decodeFunctionResult(
+				"balanceOf",
+				bRes.returnData,
+			)[0] as bigint;
+			const decimals =
+				typeof decimalsRaw === "bigint"
+					? Number(decimalsRaw)
+					: Number(decimalsRaw);
 
 			return { address: token, name, symbol, decimals, balance };
 		} catch (e) {
@@ -128,4 +168,10 @@ function encodeERC20Transfer(recipient: string, amount: bigint): string {
 	return iface.encodeFunctionData("transfer", [recipient, amount]);
 }
 
-export { ERC20_ABI, type ERC20TokenDetails, encodeERC20Transfer, fetchBatchERC20TokenDetails, fetchERC20TokenDetails };
+export {
+	ERC20_ABI,
+	type ERC20TokenDetails,
+	encodeERC20Transfer,
+	fetchBatchERC20TokenDetails,
+	fetchERC20TokenDetails,
+};

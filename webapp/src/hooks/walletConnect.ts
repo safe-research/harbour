@@ -11,7 +11,9 @@ import { WalletConnectContext } from "../providers/WalletConnectProvider";
 function useWalletConnect() {
 	const ctx = useContext(WalletConnectContext);
 	if (!ctx) {
-		throw new Error("useWalletConnect must be used within <WalletConnectProvider>");
+		throw new Error(
+			"useWalletConnect must be used within <WalletConnectProvider>",
+		);
 	}
 
 	return ctx;

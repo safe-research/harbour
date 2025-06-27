@@ -4,7 +4,12 @@ import { switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
 import { signSafeTransaction } from "./safe";
-import type { ChainId, FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
+import type {
+	ChainId,
+	FullSafeTransaction,
+	HarbourSignature,
+	HarbourTransactionDetails,
+} from "./types";
 
 /** The chain ID where the Harbour contract is deployed. */
 const HARBOUR_CHAIN_ID = 100;
@@ -25,7 +30,11 @@ const HARBOUR_ABI = [
  * @param signature - The EIP-712 signature
  * @returns The transaction receipt
  */
-async function enqueueSafeTransaction(signer: JsonRpcSigner, transaction: FullSafeTransaction, signature: string) {
+async function enqueueSafeTransaction(
+	signer: JsonRpcSigner,
+	transaction: FullSafeTransaction,
+	signature: string,
+) {
 	const harbourContract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, signer);
 
 	const tx = await harbourContract.enqueueTransaction(
@@ -106,7 +115,11 @@ async function fetchSafeQueue({
 
 	// Batch retrieveSignatures calls
 	type SigMeta = { owner: string; nonce: string };
-	const sigCalls: Array<{ target: string; allowFailure: boolean; callData: string }> = [];
+	const sigCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
 	const sigMeta: SigMeta[] = [];
 
 	for (let i = 0; i < maxNoncesToFetch; i++) {
@@ -115,7 +128,14 @@ async function fetchSafeQueue({
 			sigCalls.push({
 				target: HARBOUR_ADDRESS,
 				allowFailure: false,
-				callData: iface.encodeFunctionData("retrieveSignatures", [owner, safeAddress, safeChainId, nonce, 0, 100]),
+				callData: iface.encodeFunctionData("retrieveSignatures", [
+					owner,
+					safeAddress,
+					safeChainId,
+					nonce,
+					0,
+					100,
+				]),
 			});
 			sigMeta.push({ owner, nonce: nonce.toString() });
 		}
@@ -129,7 +149,10 @@ async function fetchSafeQueue({
 	sigResults.forEach((res, idx) => {
 		const { owner, nonce } = sigMeta[idx];
 		if (res.returnData === "0x") return;
-		const decodedSignatures = iface.decodeFunctionResult("retrieveSignatures", res.returnData)[0];
+		const decodedSignatures = iface.decodeFunctionResult(
+			"retrieveSignatures",
+			res.returnData,
+		)[0];
 
 		for (const sig of decodedSignatures) {
 			const signature = {
@@ -162,8 +185,22 @@ async function fetchSafeQueue({
 
 	txResults.forEach((res, idx) => {
 		const txHash = txHashes[idx];
-		const decodedTx = iface.decodeFunctionResult("retrieveTransaction", res.returnData);
-		const [stored, operation, to, value, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, data] = decodedTx[0];
+		const decodedTx = iface.decodeFunctionResult(
+			"retrieveTransaction",
+			res.returnData,
+		);
+		const [
+			stored,
+			operation,
+			to,
+			value,
+			safeTxGas,
+			baseGas,
+			gasPrice,
+			gasToken,
+			refundReceiver,
+			data,
+		] = decodedTx[0];
 
 		txDetailsMap.set(txHash, {
 			to,
@@ -185,7 +222,11 @@ async function fetchSafeQueue({
 		txMap.forEach((sigs, txHash) => {
 			const details = txDetailsMap.get(txHash);
 			if (details?.stored) {
-				group.transactions.push({ details, signatures: sigs, safeTxHash: txHash });
+				group.transactions.push({
+					details,
+					signatures: sigs,
+					safeTxHash: txHash,
+				});
 			}
 		});
 		if (group.transactions.length) result.push(group);
@@ -206,7 +247,10 @@ async function fetchSafeQueue({
  * @param transaction - The complete Safe transaction to sign and enqueue
  * @returns The transaction receipt from enqueuing
  */
-async function signAndEnqueueSafeTransaction(walletProvider: JsonRpcApiProvider, transaction: FullSafeTransaction) {
+async function signAndEnqueueSafeTransaction(
+	walletProvider: JsonRpcApiProvider,
+	transaction: FullSafeTransaction,
+) {
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
 	const signer = await walletProvider.getSigner();

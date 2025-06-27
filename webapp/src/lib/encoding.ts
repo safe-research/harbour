@@ -17,7 +17,10 @@ function getChecksummedAddress(address: string): string {
  * @returns The Ethereum address derived from the bytes32 string.
  * @throws If the input is not a valid bytes32 string.
  */
-function bytes32ToAddress(bytes32: string, opts: { checksum: boolean } = { checksum: true }): string {
+function bytes32ToAddress(
+	bytes32: string,
+	opts: { checksum: boolean } = { checksum: true },
+): string {
 	if (bytes32.length !== 66) {
 		throw new Error("Invalid bytes32 length");
 	}
@@ -42,4 +45,8 @@ function compactSignatureToFullSignature(signature: HarbourSignature): string {
 	}).serialized;
 }
 
-export { bytes32ToAddress, getChecksummedAddress, compactSignatureToFullSignature };
+export {
+	bytes32ToAddress,
+	getChecksummedAddress,
+	compactSignatureToFullSignature,
+};

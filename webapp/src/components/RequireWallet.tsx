@@ -63,8 +63,13 @@ export function RequireWallet({ children }: RequireWalletProps) {
 			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
 				<div className="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center border border-gray-200">
 					<WalletIllustration />
-					<h2 className="text-2xl font-bold text-gray-900 mb-3">Connect Your Wallet</h2>
-					<p className="text-gray-700 mb-8">To get started, connect your Ethereum wallet to access the application</p>
+					<h2 className="text-2xl font-bold text-gray-900 mb-3">
+						Connect Your Wallet
+					</h2>
+					<p className="text-gray-700 mb-8">
+						To get started, connect your Ethereum wallet to access the
+						application
+					</p>
 					<button
 						type="button"
 						onClick={() => connect()}
@@ -80,7 +85,12 @@ export function RequireWallet({ children }: RequireWalletProps) {
 							aria-label="Connect wallet"
 						>
 							<title>Connect wallet</title>
-							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								strokeWidth={2}
+								d="M13 10V3L4 14h7v7l9-11h-7z"
+							/>
 						</svg>
 						Connect Wallet
 					</button>
@@ -94,14 +104,20 @@ export function RequireWallet({ children }: RequireWalletProps) {
 			<div className="min-h-screen flex items-center justify-center bg-gray-50">
 				<div className="text-center">
 					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4" />
-					<p className="text-gray-800 font-medium">Initializing your wallet...</p>
-					<p className="text-sm text-gray-600 mt-2">This should only take a moment</p>
+					<p className="text-gray-800 font-medium">
+						Initializing your wallet...
+					</p>
+					<p className="text-sm text-gray-600 mt-2">
+						This should only take a moment
+					</p>
 				</div>
 			</div>
 		);
 	}
 
-	return <WalletContext.Provider value={provider}>{children}</WalletContext.Provider>;
+	return (
+		<WalletContext.Provider value={provider}>{children}</WalletContext.Provider>
+	);
 }
 
 /**

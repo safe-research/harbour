@@ -6,7 +6,10 @@ import { useCallback, useState, useMemo } from "react";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet } from "../components/RequireWallet";
 import { SessionsList } from "../components/walletconnect/SessionsList";
-import { useRegisterSafeContext, useWalletConnect } from "../hooks/walletConnect";
+import {
+	useRegisterSafeContext,
+	useWalletConnect,
+} from "../hooks/walletConnect";
 import type { ChainId } from "../lib/types";
 
 type WalletConnectContentProps = {
@@ -44,7 +47,10 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 	}, [uriInput, pair]);
 
 	// Memoize session transformations to avoid recreating array on every render
-	const sessionEntries = useMemo(() => Object.values(sessions ?? {}), [sessions]);
+	const sessionEntries = useMemo(
+		() => Object.values(sessions ?? {}),
+		[sessions],
+	);
 	const hasActiveSessions = sessionEntries.length > 0;
 
 	return (
@@ -52,8 +58,12 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 			<div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8 space-y-8">
 				<div>
 					<BackToDashboardButton safeAddress={safe} chainId={chainId} />
-					<h1 className="text-3xl font-bold text-gray-900 mt-4">WalletConnect</h1>
-					<p className="text-gray-700 mt-2">Connect your Safe to dApps via WalletConnect</p>
+					<h1 className="text-3xl font-bold text-gray-900 mt-4">
+						WalletConnect
+					</h1>
+					<p className="text-gray-700 mt-2">
+						Connect your Safe to dApps via WalletConnect
+					</p>
 					{hasActiveSessions && (
 						<p className="text-sm text-green-600 mt-1">
 							{sessionEntries.length} active session
@@ -64,7 +74,9 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 
 				<div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 space-y-4">
 					<h2 className="font-semibold text-gray-900">Pair with dApp</h2>
-					<p className="text-sm text-gray-600 mb-2">Paste the WalletConnect URI from the dApp to connect your Safe</p>
+					<p className="text-sm text-gray-600 mb-2">
+						Paste the WalletConnect URI from the dApp to connect your Safe
+					</p>
 					<div className="flex flex-col sm:flex-row gap-2">
 						<input
 							type="text"
@@ -93,13 +105,18 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 							{isPairing ? "Connecting..." : "Connect"}
 						</button>
 					</div>
-					{validationError && <p className="text-sm text-red-600">{validationError}</p>}
+					{validationError && (
+						<p className="text-sm text-red-600">{validationError}</p>
+					)}
 					{error && <p className="text-sm text-red-600">{error}</p>}
 				</div>
 
 				<div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
 					<h2 className="font-semibold text-gray-900 mb-4">Active Sessions</h2>
-					<SessionsList sessionEntries={sessionEntries} disconnectSession={disconnectSession} />
+					<SessionsList
+						sessionEntries={sessionEntries}
+						disconnectSession={disconnectSession}
+					/>
 				</div>
 			</div>
 		</div>

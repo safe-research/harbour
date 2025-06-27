@@ -1,4 +1,8 @@
-import { addERC20TokenAddress, getERC20TokenAddresses, removeERC20TokenAddress } from "@/lib/localStorage";
+import {
+	addERC20TokenAddress,
+	getERC20TokenAddresses,
+	removeERC20TokenAddress,
+} from "@/lib/localStorage";
 import { useCallback, useState } from "react";
 
 /**
@@ -6,7 +10,9 @@ import { useCallback, useState } from "react";
  * Provides current addresses for a specific chain and functions to add/remove addresses.
  */
 function useERC20TokenAddresses(chainId: number) {
-	const [addresses, setAddresses] = useState<string[]>(() => getERC20TokenAddresses(chainId));
+	const [addresses, setAddresses] = useState<string[]>(() =>
+		getERC20TokenAddresses(chainId),
+	);
 
 	const addAddress = useCallback(
 		(address: string) => {

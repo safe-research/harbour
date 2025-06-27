@@ -1,7 +1,12 @@
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
+import {
+	ethValueSchema,
+	ethereumAddressSchema,
+	hexDataSchema,
+	nonceSchema,
+} from "@/lib/validators";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
@@ -18,14 +23,21 @@ const createRawTransactionFormSchema = (currentSafeNonce: string) =>
 		nonce: nonceSchema(currentSafeNonce),
 	});
 
-type RawTransactionFormData = z.infer<ReturnType<typeof createRawTransactionFormSchema>>;
+type RawTransactionFormData = z.infer<
+	ReturnType<typeof createRawTransactionFormSchema>
+>;
 
 /**
  * A form component for creating and enqueuing a raw, custom transaction for a Gnosis Safe.
  * Users can specify the recipient address, ETH value, data payload, and nonce.
  * It handles input validation, transaction signing, and submission to the Harbour service.
  */
-export function RawTransactionForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
+export function RawTransactionForm({
+	safeAddress,
+	chainId,
+	browserProvider,
+	config,
+}: CommonTransactionFormProps) {
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [txHash, setTxHash] = useState<string>();
@@ -37,7 +49,9 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 		handleSubmit,
 		formState: { errors },
 	} = useForm<RawTransactionFormData>({
-		resolver: zodResolver(createRawTransactionFormSchema(config.nonce.toString())),
+		resolver: zodResolver(
+			createRawTransactionFormSchema(config.nonce.toString()),
+		),
 		defaultValues: {
 			nonce: config.nonce.toString(),
 			value: "0",
@@ -49,7 +63,8 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 		setError(undefined);
 		setTxHash(undefined);
 
-		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
+		const currentNonce =
+			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -63,7 +78,10 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 				nonce: currentNonce.toString(),
 			});
 
-			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
+			const receipt = await signAndEnqueueSafeTransaction(
+				browserProvider,
+				transaction,
+			);
 
 			setTxHash(receipt.transactionHash);
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
@@ -90,7 +108,10 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
-					<label htmlFor="to" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="to"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						To Address
 					</label>
 					<input
@@ -100,11 +121,16 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.to && <p className="mt-1 text-sm text-red-600">{errors.to.message}</p>}
+					{errors.to && (
+						<p className="mt-1 text-sm text-red-600">{errors.to.message}</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="value" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="value"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Value (ETH)
 					</label>
 					<input
@@ -114,11 +140,16 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						placeholder="0.0"
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.value && <p className="mt-1 text-sm text-red-600">{errors.value.message}</p>}
+					{errors.value && (
+						<p className="mt-1 text-sm text-red-600">{errors.value.message}</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="data" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="data"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Data (Hex String)
 					</label>
 					<input
@@ -128,11 +159,16 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 font-mono text-sm"
 					/>
-					{errors.data && <p className="mt-1 text-sm text-red-600">{errors.data.message}</p>}
+					{errors.data && (
+						<p className="mt-1 text-sm text-red-600">{errors.data.message}</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="nonce" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="nonce"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Nonce
 					</label>
 					<input
@@ -144,9 +180,12 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span>
+						Current Safe nonce:{" "}
+						<span className="font-medium">{config.nonce.toString()}</span>
 					</p>
-					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
+					{errors.nonce && (
+						<p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>
+					)}
 				</div>
 
 				<div className="pt-4 flex space-x-4">
@@ -164,7 +203,14 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 									viewBox="0 0 24 24"
 								>
 									<title>Processing...</title>
-									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+									<circle
+										className="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										strokeWidth="4"
+									/>
 									<path
 										className="opacity-75"
 										fill="currentColor"
@@ -188,9 +234,12 @@ export function RawTransactionForm({ safeAddress, chainId, browserProvider, conf
 
 				{txHash && (
 					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
+						<h3 className="text-sm font-medium text-green-800">
+							Transaction Submitted
+						</h3>
 						<p className="mt-1 text-sm text-green-700">
-							Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+							Transaction Hash:{" "}
+							<span className="font-mono break-all">{txHash}</span>
 						</p>
 						<p className="mt-1 text-sm text-green-700">
 							It will be enqueued on Harbour and then proposed to your Safe.

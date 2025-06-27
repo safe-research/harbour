@@ -11,10 +11,17 @@ import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
-import { type TransactionToExecute, useExecuteTransaction } from "../hooks/useExecuteTransaction";
+import {
+	type TransactionToExecute,
+	useExecuteTransaction,
+} from "../hooks/useExecuteTransaction";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { useSafeQueue } from "../hooks/useSafeQueue";
-import { HARBOUR_CHAIN_ID, type NonceGroup, enqueueSafeTransaction } from "../lib/harbour";
+import {
+	HARBOUR_CHAIN_ID,
+	type NonceGroup,
+	enqueueSafeTransaction,
+} from "../lib/harbour";
 import { signSafeTransaction } from "../lib/safe";
 import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
@@ -51,41 +58,60 @@ interface QueueContentProps {
  * Displays transactions grouped by nonce, allowing users to sign or execute them.
  * @param {QueueContentProps} props - The component props.
  */
-function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig, chainId }: QueueContentProps) {
+function QueueContent({
+	walletProvider,
+	harbourProvider,
+	safeAddress,
+	safeConfig,
+	chainId,
+}: QueueContentProps) {
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,
 		error: queueError,
-	} = useSafeQueue({ provider: harbourProvider, safeAddress, safeConfig, safeChainId: chainId });
+	} = useSafeQueue({
+		provider: harbourProvider,
+		safeAddress,
+		safeConfig,
+		safeChainId: chainId,
+	});
 
 	// State for managing execution feedback for a specific transaction
 	const [executingTxHash, setExecutingTxHash] = useState<string | null>(null);
-	const [executionSuccessTxHash, setExecutionSuccessTxHash] = useState<string | null>(null);
+	const [executionSuccessTxHash, setExecutionSuccessTxHash] = useState<
+		string | null
+	>(null);
 	const [executionError, setExecutionError] = useState<Error | null>(null);
 
 	// State for managing signing feedback when not enough signatures
 	const [signingTxHash, setSigningTxHash] = useState<string | null>(null);
-	const [signSuccessTxHash, setSignSuccessTxHash] = useState<string | null>(null);
+	const [signSuccessTxHash, setSignSuccessTxHash] = useState<string | null>(
+		null,
+	);
 	const [signError, setSignError] = useState<string | null>(null);
 
-	const { mutate: execute, isPending: isExecutionPending } = useExecuteTransaction({
-		provider: walletProvider,
-		safeAddress,
-		chainId,
-		onSuccess: (data) => {
-			console.log("Transaction executed successfully:", data);
-			setExecutionSuccessTxHash(executingTxHash);
-			setExecutingTxHash(null);
-			setExecutionError(null);
-		},
-		onError: (err) => {
-			console.error("Transaction execution failed:", err);
-			setExecutionError(err);
-			setExecutingTxHash(null);
-		},
-	});
+	const { mutate: execute, isPending: isExecutionPending } =
+		useExecuteTransaction({
+			provider: walletProvider,
+			safeAddress,
+			chainId,
+			onSuccess: (data) => {
+				console.log("Transaction executed successfully:", data);
+				setExecutionSuccessTxHash(executingTxHash);
+				setExecutingTxHash(null);
+				setExecutionError(null);
+			},
+			onError: (err) => {
+				console.error("Transaction execution failed:", err);
+				setExecutionError(err);
+				setExecutingTxHash(null);
+			},
+		});
 
-	const handleSignTransaction = async (txWithSigs: NonceGroup["transactions"][number], nonce: string) => {
+	const handleSignTransaction = async (
+		txWithSigs: NonceGroup["transactions"][number],
+		nonce: string,
+	) => {
 		setSigningTxHash(txWithSigs.safeTxHash);
 		setSignSuccessTxHash(null);
 		setSignError(null);
@@ -113,7 +139,10 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 			await enqueueSafeTransaction(signer, fullTx, signature);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {
-			const errMsg = err instanceof Error ? err.message : "Unknown error when signing transaction";
+			const errMsg =
+				err instanceof Error
+					? err.message
+					: "Unknown error when signing transaction";
 			setSignError(errMsg);
 			console.error(err);
 		} finally {
@@ -121,7 +150,9 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 		}
 	};
 
-	const handleExecuteTransaction = (txWithSigs: NonceGroup["transactions"][number]) => {
+	const handleExecuteTransaction = (
+		txWithSigs: NonceGroup["transactions"][number],
+	) => {
 		const transactionToExecute: TransactionToExecute = {
 			...txWithSigs.details,
 			signatures: txWithSigs.signatures,
@@ -137,15 +168,22 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 			<div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
 				<div className="mb-8">
 					<BackToDashboardButton safeAddress={safeAddress} chainId={chainId} />
-					<h1 className="text-3xl font-bold text-gray-900 mt-4">Transaction Queue</h1>
+					<h1 className="text-3xl font-bold text-gray-900 mt-4">
+						Transaction Queue
+					</h1>
 					<p className="text-gray-700 mt-2">
-						Safe: <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{safeAddress}</span>
+						Safe:{" "}
+						<span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+							{safeAddress}
+						</span>
 					</p>
 				</div>
 
 				{queueError && (
 					<div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-						<p className="text-red-700">Error loading queue: {queueError.message}</p>
+						<p className="text-red-700">
+							Error loading queue: {queueError.message}
+						</p>
 					</div>
 				)}
 				{isLoadingQueue && (
@@ -162,7 +200,8 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 						{queue.length === 0 && (
 							<div className="space-y-4">
 								<p className="text-gray-600">
-									No transactions found in the queue for the next 5 nonces from known signers.
+									No transactions found in the queue for the next 5 nonces from
+									known signers.
 								</p>
 								<ActionCard
 									title="New Transaction"
@@ -175,10 +214,17 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 							</div>
 						)}
 						{queue.map((nonceGroup) => (
-							<div key={nonceGroup.nonce} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6">
-								<h2 className="text-xl font-semibold text-gray-900 mb-4">Nonce: {nonceGroup.nonce}</h2>
+							<div
+								key={nonceGroup.nonce}
+								className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6"
+							>
+								<h2 className="text-xl font-semibold text-gray-900 mb-4">
+									Nonce: {nonceGroup.nonce}
+								</h2>
 								{nonceGroup.transactions.length === 0 ? (
-									<p className="text-sm text-gray-500">No transactions for this nonce.</p>
+									<p className="text-sm text-gray-500">
+										No transactions for this nonce.
+									</p>
 								) : (
 									<div className="space-y-4">
 										{nonceGroup.transactions.map((txWithSigs) => (
@@ -237,7 +283,11 @@ function QueuePageInner({
 		error: harbourError,
 		isLoading: isLoadingHarbour,
 	} = useChainlistRpcProvider(HARBOUR_CHAIN_ID);
-	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(Number(chainId));
+	const {
+		provider: rpcProvider,
+		error: rpcError,
+		isLoading: isLoadingRpc,
+	} = useChainlistRpcProvider(Number(chainId));
 	const {
 		data: safeConfig,
 		isLoading: isLoadingConfig,
@@ -245,16 +295,28 @@ function QueuePageInner({
 	} = useSafeConfiguration(rpcProvider, safeAddress);
 
 	if (isLoadingRpc || isLoadingConfig || isLoadingHarbour) {
-		return <p className="text-center p-6 text-gray-600">Loading Safe configuration…</p>;
+		return (
+			<p className="text-center p-6 text-gray-600">
+				Loading Safe configuration…
+			</p>
+		);
 	}
 
 	const error = harbourError || rpcError || configError;
 	if (error) {
-		return <p className="text-center p-6 text-red-600">Error initializing RPC provider: {error.message}</p>;
+		return (
+			<p className="text-center p-6 text-red-600">
+				Error initializing RPC provider: {error.message}
+			</p>
+		);
 	}
 
 	if (!safeConfig || !harbourProvider) {
-		return <p className="text-center p-6 text-gray-600">Safe configuration not available.</p>;
+		return (
+			<p className="text-center p-6 text-gray-600">
+				Safe configuration not available.
+			</p>
+		);
 	}
 
 	return (

@@ -23,7 +23,11 @@ function aggregateMulticall(
 	provider: JsonRpcApiProvider,
 	calls: Array<{ target: string; allowFailure?: boolean; callData: string }>,
 ): Promise<{ success: boolean; returnData: string }[]> {
-	const contract = new ethers.Contract(MULTICALL_ADDRESS, MULTICALL_ABI, provider);
+	const contract = new ethers.Contract(
+		MULTICALL_ADDRESS,
+		MULTICALL_ABI,
+		provider,
+	);
 
 	for (const call of calls) {
 		if (call.allowFailure === undefined) {

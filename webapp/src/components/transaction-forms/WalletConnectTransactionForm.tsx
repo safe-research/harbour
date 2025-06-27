@@ -1,4 +1,9 @@
-import { ethValueSchema, ethereumAddressSchema, hexDataSchema, nonceSchema } from "@/lib/validators";
+import {
+	ethValueSchema,
+	ethereumAddressSchema,
+	hexDataSchema,
+	nonceSchema,
+} from "@/lib/validators";
 import { useWalletConnectTransaction } from "@/hooks/useWalletConnectTransaction";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
@@ -29,7 +34,9 @@ const createWalletConnectFormSchema = (currentSafeNonce: string | bigint) =>
 		nonce: nonceSchema(currentSafeNonce),
 	});
 
-type WalletConnectFormData = z.infer<ReturnType<typeof createWalletConnectFormSchema>>;
+type WalletConnectFormData = z.infer<
+	ReturnType<typeof createWalletConnectFormSchema>
+>;
 
 interface WalletConnectAppInfoProps {
 	wcApp: string;
@@ -41,7 +48,12 @@ interface WalletConnectAppInfoProps {
 /**
  * Displays information about the WalletConnect dApp making the request
  */
-function WalletConnectAppInfo({ wcApp, wcAppUrl, wcAppIcon, wcAppDescription }: WalletConnectAppInfoProps) {
+function WalletConnectAppInfo({
+	wcApp,
+	wcAppUrl,
+	wcAppIcon,
+	wcAppDescription,
+}: WalletConnectAppInfoProps) {
 	return (
 		<div className="mb-6 pb-6 border-b border-gray-200">
 			<div className="flex items-start space-x-4">
@@ -67,7 +79,9 @@ function WalletConnectAppInfo({ wcApp, wcAppUrl, wcAppIcon, wcAppDescription }: 
 							{wcAppUrl}
 						</a>
 					)}
-					{wcAppDescription && <p className="mt-2 text-sm text-gray-600">{wcAppDescription}</p>}
+					{wcAppDescription && (
+						<p className="mt-2 text-sm text-gray-600">{wcAppDescription}</p>
+					)}
 				</div>
 			</div>
 		</div>
@@ -95,10 +109,19 @@ export function WalletConnectTransactionForm({
 	reqId,
 }: WalletConnectFormProps) {
 	const navigate = useNavigate();
-	const { submitTransaction, transactionHash, error, warning, isSubmitting, clearResult } =
-		useWalletConnectTransaction();
+	const {
+		submitTransaction,
+		transactionHash,
+		error,
+		warning,
+		isSubmitting,
+		clearResult,
+	} = useWalletConnectTransaction();
 
-	const formSchema = useMemo(() => createWalletConnectFormSchema(config.nonce), [config.nonce]);
+	const formSchema = useMemo(
+		() => createWalletConnectFormSchema(config.nonce),
+		[config.nonce],
+	);
 
 	const {
 		register,
@@ -124,7 +147,8 @@ export function WalletConnectTransactionForm({
 	const onSubmit = async (data: WalletConnectFormData) => {
 		clearResult();
 
-		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
+		const currentNonce =
+			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		await submitTransaction({
 			safeAddress,
@@ -150,7 +174,11 @@ export function WalletConnectTransactionForm({
 				/>
 			)}
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-				<TransactionFormFields register={register} errors={errors} currentNonce={config.nonce} />
+				<TransactionFormFields
+					register={register}
+					errors={errors}
+					currentNonce={config.nonce}
+				/>
 
 				<div className="pt-4">
 					<button
@@ -162,7 +190,11 @@ export function WalletConnectTransactionForm({
 					</button>
 				</div>
 
-				<TransactionAlerts transactionHash={transactionHash} error={error} warning={warning} />
+				<TransactionAlerts
+					transactionHash={transactionHash}
+					error={error}
+					warning={warning}
+				/>
 			</form>
 		</div>
 	);

@@ -23,14 +23,18 @@ const WALLETCONNECT_URI_REGEX = /^wc:[a-zA-Z0-9]+@2\?/;
 /**
  * Schema for validating WalletConnect URIs
  */
-const walletConnectUriSchema = z.string().regex(WALLETCONNECT_URI_REGEX, "Invalid WalletConnect URI");
+const walletConnectUriSchema = z
+	.string()
+	.regex(WALLETCONNECT_URI_REGEX, "Invalid WalletConnect URI");
 
 /**
  * Type guard to determine if a session request is eth_sendTransaction
  */
 function isEthSendTransaction(
 	event: WKTypes.SessionRequest,
-): event is WKTypes.SessionRequest & { params: { request: { method: "eth_sendTransaction" } } } {
+): event is WKTypes.SessionRequest & {
+	params: { request: { method: "eth_sendTransaction" } };
+} {
 	return event.params?.request?.method === "eth_sendTransaction";
 }
 
@@ -52,7 +56,8 @@ async function initOrGetWalletKit(): Promise<WalletKitInstance> {
 					core,
 					metadata: {
 						name: "Harbour Safe Wallet",
-						description: "Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
+						description:
+							"Harbour dashboard acting as a WalletConnect-compatible Safe wallet",
 						url: window.location.origin,
 						icons: [],
 					},
@@ -77,7 +82,11 @@ function canUseWalletConnect(): boolean {
 	return Boolean(WALLETCONNECT_PROJECT_ID);
 }
 
-export type { WalletKitInstance, WKTypes as WalletKitTypes, SCTypes as SessionTypes };
+export type {
+	WalletKitInstance,
+	WKTypes as WalletKitTypes,
+	SCTypes as SessionTypes,
+};
 export {
 	initOrGetWalletKit,
 	WALLETCONNECT_EVENTS,
