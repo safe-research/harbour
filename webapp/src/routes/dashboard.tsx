@@ -2,15 +2,16 @@ import { BackButton } from "@/components/BackButton";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { FileCode, ScrollText } from "lucide-react";
+import { FileCode, Link2, ScrollText } from "lucide-react";
 
-import ActionCard from "../components/ActionCard";
+import { ActionCard } from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 
+import { canUseWalletConnect } from "@/lib/walletconnect";
 import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {
@@ -45,6 +46,8 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 		});
 	};
 
+	const walletConnectDisabled = !canUseWalletConnect();
+
 	return (
 		<div className="min-h-screen bg-gray-50">
 			<div className="max-w-5xl mx-auto p-6 space-y-8">
@@ -75,6 +78,16 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 								ctaText="Create Raw Tx"
 								to="/enqueue"
 								search={{ safe: safeAddress, chainId }}
+							/>
+							<ActionCard
+								title="Connect to dApp"
+								description="Use WalletConnect to connect this Safe to decentralised applications."
+								icon={Link2}
+								ctaText="WalletConnect"
+								to="/walletconnect"
+								search={{ safe: safeAddress, chainId }}
+								disabled={walletConnectDisabled}
+								disabledTooltip="WalletConnect is unavailable because VITE_WALLETCONNECT_PROJECT_ID is not set."
 							/>
 						</div>
 

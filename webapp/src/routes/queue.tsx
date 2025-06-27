@@ -6,7 +6,7 @@ import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
 
-import ActionCard from "../components/ActionCard";
+import { ActionCard } from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
@@ -174,12 +174,9 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 								/>
 							</div>
 						)}
-						{queue.map((nonceGroup: NonceGroup) => (
-							<div
-								key={nonceGroup.nonce.toString()}
-								className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6"
-							>
-								<h2 className="text-xl font-semibold text-gray-900 mb-4">Nonce: {nonceGroup.nonce.toString()}</h2>
+						{queue.map((nonceGroup) => (
+							<div key={nonceGroup.nonce} className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 mb-6">
+								<h2 className="text-xl font-semibold text-gray-900 mb-4">Nonce: {nonceGroup.nonce}</h2>
 								{nonceGroup.transactions.length === 0 ? (
 									<p className="text-sm text-gray-500">No transactions for this nonce.</p>
 								) : (
@@ -188,7 +185,7 @@ function QueueContent({ walletProvider, harbourProvider, safeAddress, safeConfig
 											<QueueTransactionItem
 												key={txWithSigs.safeTxHash}
 												txWithSigs={txWithSigs}
-												nonce={nonceGroup.nonce.toString()}
+												nonce={nonceGroup.nonce}
 												safeConfig={safeConfig}
 												executingTxHash={executingTxHash}
 												executionSuccessTxHash={executionSuccessTxHash}

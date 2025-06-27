@@ -2,9 +2,12 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
+import { WalletConnectProvider } from "./providers/WalletConnectProvider";
 
 import { routeTree } from "./routeTree.gen";
+// Import the onboard library so it initializes correctly
 import "./lib/onboard";
 
 import "./styles.css";
@@ -35,14 +38,15 @@ declare module "@tanstack/react-router" {
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
 	const root = ReactDOM.createRoot(rootElement);
-	/**
-	 * Renders the main application component tree into the DOM.
-	 * It sets up StrictMode, the TanStack Query Provider, and the TanStack RouterProvider.
-	 */
+
 	root.render(
 		<StrictMode>
 			<TanstackQuery.Provider>
-				<RouterProvider router={router} />
+				<ErrorBoundary>
+					<WalletConnectProvider router={router}>
+						<RouterProvider router={router} />
+					</WalletConnectProvider>
+				</ErrorBoundary>
 			</TanstackQuery.Provider>
 		</StrictMode>,
 	);

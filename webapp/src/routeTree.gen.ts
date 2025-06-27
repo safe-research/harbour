@@ -11,12 +11,19 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as WalletconnectImport } from './routes/walletconnect'
 import { Route as QueueImport } from './routes/queue'
 import { Route as EnqueueImport } from './routes/enqueue'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as IndexImport } from './routes/index'
 
 // Create/Update Routes
+
+const WalletconnectRoute = WalletconnectImport.update({
+  id: '/walletconnect',
+  path: '/walletconnect',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const QueueRoute = QueueImport.update({
   id: '/queue',
@@ -74,6 +81,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QueueImport
       parentRoute: typeof rootRoute
     }
+    '/walletconnect': {
+      id: '/walletconnect'
+      path: '/walletconnect'
+      fullPath: '/walletconnect'
+      preLoaderRoute: typeof WalletconnectImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -84,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/enqueue': typeof EnqueueRoute
   '/queue': typeof QueueRoute
+  '/walletconnect': typeof WalletconnectRoute
 }
 
 export interface FileRoutesByTo {
@@ -91,6 +106,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/enqueue': typeof EnqueueRoute
   '/queue': typeof QueueRoute
+  '/walletconnect': typeof WalletconnectRoute
 }
 
 export interface FileRoutesById {
@@ -99,14 +115,15 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/enqueue': typeof EnqueueRoute
   '/queue': typeof QueueRoute
+  '/walletconnect': typeof WalletconnectRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/enqueue' | '/queue'
+  fullPaths: '/' | '/dashboard' | '/enqueue' | '/queue' | '/walletconnect'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/enqueue' | '/queue'
-  id: '__root__' | '/' | '/dashboard' | '/enqueue' | '/queue'
+  to: '/' | '/dashboard' | '/enqueue' | '/queue' | '/walletconnect'
+  id: '__root__' | '/' | '/dashboard' | '/enqueue' | '/queue' | '/walletconnect'
   fileRoutesById: FileRoutesById
 }
 
@@ -115,6 +132,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EnqueueRoute: typeof EnqueueRoute
   QueueRoute: typeof QueueRoute
+  WalletconnectRoute: typeof WalletconnectRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -122,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EnqueueRoute: EnqueueRoute,
   QueueRoute: QueueRoute,
+  WalletconnectRoute: WalletconnectRoute,
 }
 
 export const routeTree = rootRoute
@@ -137,7 +156,8 @@ export const routeTree = rootRoute
         "/",
         "/dashboard",
         "/enqueue",
-        "/queue"
+        "/queue",
+        "/walletconnect"
       ]
     },
     "/": {
@@ -151,6 +171,9 @@ export const routeTree = rootRoute
     },
     "/queue": {
       "filePath": "queue.tsx"
+    },
+    "/walletconnect": {
+      "filePath": "walletconnect.tsx"
     }
   }
 }

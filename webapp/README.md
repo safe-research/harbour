@@ -92,13 +92,16 @@ This app interacts with the [`SafeInternationalHarbour.sol`](../contracts/src/Sa
 
 ## Environment Variables
 
-You can configure the `base` path for the application using the `VITE_BASE_PATH` environment variable. By default, it falls back to `/harbour/` for GitHub Pages nested routes.
-
-Create a `.env` file in the `webapp` directory (or at project root) with the following content:
+- The app consumes environment variables via Vite (`import.meta.env`).
+- Copy `webapp/.env.example` to `.env` (or `.env.local`) and adjust the values.
+- The following variables are recognised:
 
 ```bash
-# .env
+# Where the app will be served (prefixing route paths). Useful for GitHub Pages
 VITE_BASE_PATH=/harbour/
+
+# WalletConnect Cloud project ID (get one at https://cloud.walletconnect.com)
+VITE_WALLETCONNECT_PROJECT_ID=<your WC Cloud project-id>
 ```
 
-Vite will automatically load this variable on build and serve.
+> **Tip**: For development you can leave `VITE_BASE_PATH` at `/`.
