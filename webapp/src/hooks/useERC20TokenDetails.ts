@@ -28,6 +28,10 @@ export function useERC20TokenDetails(
 	return useQuery<ERC20TokenDetails | null, Error>({
 		queryKey: ["erc20TokenDetails", chainId, tokenAddress, ownerAddress],
 		queryFn: () => fetchERC20TokenDetails(provider, tokenAddress, ownerAddress),
-		enabled: Boolean(provider) && Boolean(tokenAddress) && tokenAddress !== "" && Boolean(ownerAddress),
+		enabled:
+			Boolean(provider) &&
+			Boolean(tokenAddress) &&
+			tokenAddress !== "" &&
+			Boolean(ownerAddress),
 	});
 }

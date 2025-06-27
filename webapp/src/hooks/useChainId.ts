@@ -9,7 +9,9 @@ import type { JsonRpcApiProvider } from "ethers";
  * @param {JsonRpcApiProvider | null} provider - An Ethers.js JsonRpcApiProvider instance. The query is disabled if null.
  * @returns {UseQueryResult<ChainId, Error>} The result object from React Query, containing the chain ID, error, and loading states.
  */
-export function useChainId(provider: JsonRpcApiProvider | null): UseQueryResult<ChainId, Error> {
+export function useChainId(
+	provider: JsonRpcApiProvider | null,
+): UseQueryResult<ChainId, Error> {
 	return useQuery<ChainId, Error>({
 		queryKey: ["chainId", provider],
 		queryFn: async () => {

@@ -9,7 +9,9 @@ const ETHEREUM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 /**
  * Zod schema for validating Ethereum addresses
  */
-const ethereumAddressSchema = z.string().regex(ETHEREUM_ADDRESS_REGEX, "Invalid Ethereum address");
+const ethereumAddressSchema = z
+	.string()
+	.regex(ETHEREUM_ADDRESS_REGEX, "Invalid Ethereum address");
 
 /**
  * Zod schema for validating Safe addresses

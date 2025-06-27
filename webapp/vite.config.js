@@ -22,7 +22,11 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		base: basePath,
-		plugins: [TanStackRouterVite({ autoCodeSplitting: true }), viteReact(), tailwindcss()],
+		plugins: [
+			TanStackRouterVite({ autoCodeSplitting: true }),
+			viteReact(),
+			tailwindcss(),
+		],
 		test: {
 			globals: true,
 			environment: "jsdom",

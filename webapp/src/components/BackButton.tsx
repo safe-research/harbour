@@ -21,7 +21,11 @@ interface BackButtonProps {
  */
 function BackButton({ to, search, children, className = "" }: BackButtonProps) {
 	return (
-		<Link to={to} search={search} className={`inline-flex items-center text-black hover:underline ${className}`}>
+		<Link
+			to={to}
+			search={search}
+			className={`inline-flex items-center text-black hover:underline ${className}`}
+		>
 			← {children}
 		</Link>
 	);
@@ -32,7 +36,13 @@ function BackButton({ to, search, children, className = "" }: BackButtonProps) {
  * @param {{ safeAddress: string; chainId: ChainId }} props - Props containing the Safe address and chain ID for the dashboard link.
  * @returns JSX element representing the back to dashboard button.
  */
-function BackToDashboardButton({ safeAddress, chainId }: { safeAddress: string; chainId: ChainId }) {
+function BackToDashboardButton({
+	safeAddress,
+	chainId,
+}: {
+	safeAddress: string;
+	chainId: ChainId;
+}) {
 	return (
 		<BackButton to="/dashboard" search={{ safe: safeAddress, chainId }}>
 			Back to Dashboard

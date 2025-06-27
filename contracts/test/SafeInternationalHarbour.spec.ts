@@ -3,7 +3,7 @@ import { expect } from "chai";
 import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
-import { EIP712_SAFE_TX_TYPE, type SafeTransaction, getSafeTransactionHash } from "./utils/safeTx";
+import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
 describe("SafeInternationalHarbour", () => {
@@ -243,7 +243,7 @@ describe("SafeInternationalHarbour", () => {
 	it("should not support malleable signatures", async () => {
 		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = ethers.Wallet.createRandom();
-		const signerAddress = signerWallet.address;
+
 		const safeTx: SafeTransaction = {
 			to: ethers.Wallet.createRandom().address,
 			value: 0n,
@@ -256,7 +256,7 @@ describe("SafeInternationalHarbour", () => {
 			refundReceiver: ethers.ZeroAddress,
 			nonce: 0n,
 		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+
 		const signature1 = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
 			EIP712_SAFE_TX_TYPE,

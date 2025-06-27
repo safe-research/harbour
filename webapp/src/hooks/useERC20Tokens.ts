@@ -1,4 +1,7 @@
-import { type ERC20TokenDetails, fetchBatchERC20TokenDetails } from "@/lib/erc20";
+import {
+	type ERC20TokenDetails,
+	fetchBatchERC20TokenDetails,
+} from "@/lib/erc20";
 import type { JsonRpcApiProvider } from "ethers";
 import { useERC20TokenAddresses } from "./useERC20TokenAddresses";
 import { useQuery } from "@tanstack/react-query";
@@ -14,14 +17,28 @@ import { useQuery } from "@tanstack/react-query";
  * @param safeAddress Safe contract address
  * @param chainId Chain identifier to re-run the query on network change
  */
-function useERC20Tokens(provider: JsonRpcApiProvider, safeAddress: string, chainId: number) {
-	const { addresses, addAddress, removeAddress } = useERC20TokenAddresses(chainId);
+function useERC20Tokens(
+	provider: JsonRpcApiProvider,
+	safeAddress: string,
+	chainId: number,
+) {
+	const { addresses, addAddress, removeAddress } =
+		useERC20TokenAddresses(chainId);
 	const queryKey = ["erc20Tokens", safeAddress, chainId, addresses];
 	const queryFn = async () => {
-		if (!provider || !safeAddress || chainId == null || addresses.length === 0) {
+		if (
+			!provider ||
+			!safeAddress ||
+			chainId == null ||
+			addresses.length === 0
+		) {
 			return [] as ERC20TokenDetails[];
 		}
-		const results = await fetchBatchERC20TokenDetails(provider, addresses, safeAddress);
+		const results = await fetchBatchERC20TokenDetails(
+			provider,
+			addresses,
+			safeAddress,
+		);
 		return results.filter((r): r is ERC20TokenDetails => r !== null);
 	};
 	const {

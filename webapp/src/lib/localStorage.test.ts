@@ -51,7 +51,9 @@ describe("localStorage ERC20 Token Management", () => {
 		const newAddress = "0x1234567890123456789012345678901234567890";
 		addERC20TokenAddress(newAddress, chainId);
 		expect(getERC20TokenAddresses(chainId)).toEqual([newAddress]);
-		const rawStoredValue = localStorageMock.getItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY);
+		const rawStoredValue = localStorageMock.getItem(
+			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+		);
 		expect(rawStoredValue).toBe(JSON.stringify({ [chainId]: [newAddress] }));
 	});
 
@@ -102,7 +104,10 @@ describe("localStorage ERC20 Token Management", () => {
 	});
 
 	it("should return an empty array and log an error when local storage contains invalid JSON", () => {
-		localStorageMock.setItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY, "this is not json");
+		localStorageMock.setItem(
+			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+			"this is not json",
+		);
 		expect(getERC20TokenAddresses(1)).toEqual([]);
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
 			"Error parsing ERC20 token addresses from local storage:",
@@ -111,7 +116,10 @@ describe("localStorage ERC20 Token Management", () => {
 	});
 
 	it("should return an empty array when local storage contains a non-array (but valid JSON)", () => {
-		localStorageMock.setItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY, JSON.stringify({ not: "an array" }));
+		localStorageMock.setItem(
+			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+			JSON.stringify({ not: "an array" }),
+		);
 		expect(getERC20TokenAddresses(1)).toEqual([]);
 		// No console error is expected here by the current implementation, as it's a valid JSON but not the expected type.
 		// The function handles this by returning [], but doesn't log an error for it.
@@ -119,7 +127,10 @@ describe("localStorage ERC20 Token Management", () => {
 	});
 
 	it("should return an empty array when local storage contains an array with non-string elements", () => {
-		localStorageMock.setItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY, JSON.stringify(["0x123", 12345]));
+		localStorageMock.setItem(
+			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+			JSON.stringify(["0x123", 12345]),
+		);
 		expect(getERC20TokenAddresses(1)).toEqual([]);
 		// No console error is expected here by the current implementation
 	});

@@ -1,5 +1,5 @@
 /* Import Inter font family */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
 
 @import "tailwindcss";
 /* Tailwind layers */
@@ -9,21 +9,24 @@
 
 /* Global base styles */
 @layer base {
-  html, body {
-    margin: 0;
-    padding: 0;
-    background-color: white;
-    color: black;
-    font-family: 'Inter', sans-serif;
-  }
-  *, *::before, *::after {
-    outline: none;
-  }
+	html,
+	body {
+		margin: 0;
+		padding: 0;
+		background-color: white;
+		color: black;
+		font-family: "Inter", sans-serif;
+	}
+	*,
+	*::before,
+	*::after {
+		outline: none;
+	}
 }
 
 code {
-	font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-		monospace;
+	font-family:
+		source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
 :root {

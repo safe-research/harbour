@@ -21,7 +21,10 @@ type ErrorBoundaryState = {
  *
  * @see https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+	ErrorBoundaryProps,
+	ErrorBoundaryState
+> {
 	constructor(props: ErrorBoundaryProps) {
 		super(props);
 		this.state = { hasError: false, error: null };
@@ -45,8 +48,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 			return (
 				<div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
 					<div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full">
-						<h2 className="text-lg font-semibold text-red-600 mb-2">Something went wrong</h2>
-						<p className="text-gray-600 text-sm mb-4">{this.state.error?.message || "An unexpected error occurred"}</p>
+						<h2 className="text-lg font-semibold text-red-600 mb-2">
+							Something went wrong
+						</h2>
+						<p className="text-gray-600 text-sm mb-4">
+							{this.state.error?.message || "An unexpected error occurred"}
+						</p>
 						<button
 							type="button"
 							onClick={() => window.location.reload()}

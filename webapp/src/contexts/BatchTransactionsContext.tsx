@@ -18,7 +18,11 @@ interface BatchedTransaction extends MetaTransaction {
 interface BatchContextValue {
 	batches: Record<string, BatchedTransaction[]>;
 	addTransaction: (tx: BatchedTransaction) => void;
-	removeTransaction: (safeAddress: string, chainId: number, index: number) => void;
+	removeTransaction: (
+		safeAddress: string,
+		chainId: number,
+		index: number,
+	) => void;
 	clearBatch: (safeAddress: string, chainId: number) => void;
 	getBatch: (safeAddress: string, chainId: number) => BatchedTransaction[];
 	totalCount: number;
@@ -41,19 +45,23 @@ const batchedTransactionSchema = z.object({
 const batchesSchema = z.record(z.array(batchedTransactionSchema));
 
 function BatchProvider({ children }: { children: ReactNode }) {
-	const [batches, setBatches] = useState<Record<string, BatchedTransaction[]>>(() => {
-		if (typeof window === "undefined") return {};
-		try {
-			const stored = localStorage.getItem(STORAGE_KEY);
-			if (!stored) return {};
-			const parsed = JSON.parse(stored);
-			const validation = batchesSchema.safeParse(parsed);
-			return validation.success ? (validation.data as Record<string, BatchedTransaction[]>) : {};
-		} catch {
-			// In case of malformed JSON or other errors, fall back to empty state
-			return {};
-		}
-	});
+	const [batches, setBatches] = useState<Record<string, BatchedTransaction[]>>(
+		() => {
+			if (typeof window === "undefined") return {};
+			try {
+				const stored = localStorage.getItem(STORAGE_KEY);
+				if (!stored) return {};
+				const parsed = JSON.parse(stored);
+				const validation = batchesSchema.safeParse(parsed);
+				return validation.success
+					? (validation.data as Record<string, BatchedTransaction[]>)
+					: {};
+			} catch {
+				// In case of malformed JSON or other errors, fall back to empty state
+				return {};
+			}
+		},
+	);
 
 	useEffect(() => {
 		try {
@@ -63,7 +71,8 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		}
 	}, [batches]);
 
-	const getKey = (safeAddress: string, chainId: number) => `${safeAddress}-${chainId}`;
+	const getKey = (safeAddress: string, chainId: number) =>
+		`${safeAddress}-${chainId}`;
 
 	const addTransaction = (tx: BatchedTransaction) => {
 		const key = getKey(tx.safeAddress, tx.chainId);
@@ -73,7 +82,11 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		});
 	};
 
-	const removeTransaction = (safeAddress: string, chainId: number, index: number) => {
+	const removeTransaction = (
+		safeAddress: string,
+		chainId: number,
+		index: number,
+	) => {
 		const key = getKey(safeAddress, chainId);
 		setBatches((prev) => {
 			const existing = prev[key] ?? [];
@@ -95,15 +108,30 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		});
 	};
 
-	const getBatch = (safeAddress: string, chainId: number): BatchedTransaction[] => {
+	const getBatch = (
+		safeAddress: string,
+		chainId: number,
+	): BatchedTransaction[] => {
 		const key = getKey(safeAddress, chainId);
 		return batches[key] ?? [];
 	};
 
-	const totalCount = Object.values(batches).reduce((sum, arr) => sum + arr.length, 0);
+	const totalCount = Object.values(batches).reduce(
+		(sum, arr) => sum + arr.length,
+		0,
+	);
 
 	return (
-		<BatchContext.Provider value={{ batches, addTransaction, removeTransaction, clearBatch, getBatch, totalCount }}>
+		<BatchContext.Provider
+			value={{
+				batches,
+				addTransaction,
+				removeTransaction,
+				clearBatch,
+				getBatch,
+				totalCount,
+			}}
+		>
 			{children}
 		</BatchContext.Provider>
 	);

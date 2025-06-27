@@ -14,10 +14,14 @@ export function TransactionDetails({ details }: TransactionDetailsProps) {
 				<strong>Value:</strong> {details.value} wei
 			</p>
 			<p className="break-all">
-				<strong>Data:</strong> {details.data === "0x" || details.data === "" ? "0x (No data)" : details.data}
+				<strong>Data:</strong>{" "}
+				{details.data === "0x" || details.data === ""
+					? "0x (No data)"
+					: details.data}
 			</p>
 			<p>
-				<strong>Operation:</strong> {details.operation === 0 ? "CALL" : "DELEGATECALL"}
+				<strong>Operation:</strong>{" "}
+				{details.operation === 0 ? "CALL" : "DELEGATECALL"}
 			</p>
 		</div>
 	);

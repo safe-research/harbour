@@ -1,6 +1,24 @@
 {
+	"root": false,
 	"extends": ["../biome.json"],
 	"files": {
-		"ignore": ["src/routeTree.gen.ts"]
+		"includes": ["**", "!**/src/routeTree.gen.ts", "!**/dist/**"],
+		"maxSize": 2000000
+	},
+	"linter": {
+		"rules": {
+			"style": {
+				"noParameterAssign": "error",
+				"useAsConstAssertion": "error",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
+				"noUnusedTemplateLiteral": "error",
+				"useNumberNamespace": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
+			}
+		}
 	}
 }

@@ -6,7 +6,11 @@ interface SendButtonProps {
 	className?: string;
 }
 
-export function SendButton({ onClick, disabled = false, className = "" }: SendButtonProps) {
+export function SendButton({
+	onClick,
+	disabled = false,
+	className = "",
+}: SendButtonProps) {
 	return (
 		<button
 			type="button"

@@ -2,7 +2,11 @@ import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethereumAddressSchema, nonceSchema, positiveAmountSchema } from "@/lib/validators";
+import {
+	ethereumAddressSchema,
+	nonceSchema,
+	positiveAmountSchema,
+} from "@/lib/validators";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
@@ -18,7 +22,9 @@ const createNativeTransferFormSchema = (currentSafeNonce: string) =>
 		nonce: nonceSchema(currentSafeNonce),
 	});
 
-type NativeTransferFormData = z.infer<ReturnType<typeof createNativeTransferFormSchema>>;
+type NativeTransferFormData = z.infer<
+	ReturnType<typeof createNativeTransferFormSchema>
+>;
 
 /**
  * A form component for creating and enqueuing a native currency (ETH) transfer transaction
@@ -43,7 +49,9 @@ export function NativeTransferForm({
 		handleSubmit,
 		formState: { errors },
 	} = useForm<NativeTransferFormData>({
-		resolver: zodResolver(createNativeTransferFormSchema(config.nonce.toString())),
+		resolver: zodResolver(
+			createNativeTransferFormSchema(config.nonce.toString()),
+		),
 		defaultValues: {
 			nonce: config.nonce.toString(),
 		},
@@ -70,7 +78,8 @@ export function NativeTransferForm({
 		setError(undefined);
 		setTxHash(undefined);
 
-		const currentNonce = data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
+		const currentNonce =
+			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
 
 		try {
 			setIsSubmitting(true);
@@ -83,7 +92,10 @@ export function NativeTransferForm({
 				nonce: currentNonce.toString(),
 			});
 
-			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
+			const receipt = await signAndEnqueueSafeTransaction(
+				browserProvider,
+				transaction,
+			);
 
 			setTxHash(receipt.transactionHash);
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
@@ -99,7 +111,10 @@ export function NativeTransferForm({
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 				<div>
-					<label htmlFor="recipient" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="recipient"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Recipient Address
 					</label>
 					<input
@@ -109,18 +124,33 @@ export function NativeTransferForm({
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.recipient && <p className="mt-1 text-sm text-red-600">{errors.recipient.message}</p>}
+					{errors.recipient && (
+						<p className="mt-1 text-sm text-red-600">
+							{errors.recipient.message}
+						</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="amount"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Amount (ETH)
 					</label>
 					{balance !== undefined && (
-						<p className="mt-1 text-sm text-gray-500">Balance: {ethers.formatEther(balance)} ETH</p>
+						<p className="mt-1 text-sm text-gray-500">
+							Balance: {ethers.formatEther(balance)} ETH
+						</p>
 					)}
-					{isLoadingBalance && <p className="mt-1 text-sm text-gray-500">Loading balance...</p>}
-					{balanceError && <p className="mt-1 text-sm text-red-600">Error loading balance: {balanceError.message}</p>}
+					{isLoadingBalance && (
+						<p className="mt-1 text-sm text-gray-500">Loading balance...</p>
+					)}
+					{balanceError && (
+						<p className="mt-1 text-sm text-red-600">
+							Error loading balance: {balanceError.message}
+						</p>
+					)}
 					<input
 						id="amount"
 						type="text"
@@ -128,11 +158,16 @@ export function NativeTransferForm({
 						placeholder="0.0"
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}
+					{errors.amount && (
+						<p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>
+					)}
 				</div>
 
 				<div>
-					<label htmlFor="nonce" className="block text-sm font-medium text-gray-700 mb-1">
+					<label
+						htmlFor="nonce"
+						className="block text-sm font-medium text-gray-700 mb-1"
+					>
 						Nonce
 					</label>
 					<input
@@ -144,10 +179,13 @@ export function NativeTransferForm({
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
 					<p className="mt-1 text-sm text-gray-500">
-						Current Safe nonce: <span className="font-medium">{config.nonce.toString()}</span> - Leave blank or use this
-						to use current Safe nonce.
+						Current Safe nonce:{" "}
+						<span className="font-medium">{config.nonce.toString()}</span> -
+						Leave blank or use this to use current Safe nonce.
 					</p>
-					{errors.nonce && <p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>}
+					{errors.nonce && (
+						<p className="mt-1 text-sm text-red-600">{errors.nonce.message}</p>
+					)}
 				</div>
 
 				<div className="pt-4 flex space-x-4">
@@ -165,7 +203,14 @@ export function NativeTransferForm({
 									viewBox="0 0 24 24"
 								>
 									<title>Processing...</title>
-									<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+									<circle
+										className="opacity-25"
+										cx="12"
+										cy="12"
+										r="10"
+										stroke="currentColor"
+										strokeWidth="4"
+									/>
 									<path
 										className="opacity-75"
 										fill="currentColor"
@@ -189,9 +234,12 @@ export function NativeTransferForm({
 
 				{txHash && (
 					<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-						<h3 className="text-sm font-medium text-green-800">Transaction Submitted</h3>
+						<h3 className="text-sm font-medium text-green-800">
+							Transaction Submitted
+						</h3>
 						<p className="mt-1 text-sm text-green-700">
-							Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+							Transaction Hash:{" "}
+							<span className="font-mono break-all">{txHash}</span>
 						</p>
 						<p className="mt-1 text-sm text-green-700">
 							It will be enqueued on Harbour and then proposed to your Safe.

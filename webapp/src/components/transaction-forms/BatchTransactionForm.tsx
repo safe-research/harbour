@@ -11,7 +11,12 @@ import type { CommonTransactionFormProps } from "./types";
 /**
  * Component for displaying and enqueuing a batch of transactions via the multisend contract.
  */
-export function BatchTransactionForm({ safeAddress, chainId, browserProvider, config }: CommonTransactionFormProps) {
+export function BatchTransactionForm({
+	safeAddress,
+	chainId,
+	browserProvider,
+	config,
+}: CommonTransactionFormProps) {
 	const { getBatch, removeTransaction, clearBatch } = useBatch();
 	const navigate = useNavigate();
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -46,12 +51,16 @@ export function BatchTransactionForm({ safeAddress, chainId, browserProvider, co
 				nonce: config.nonce.toString(),
 			});
 
-			const receipt = await signAndEnqueueSafeTransaction(browserProvider, transaction);
+			const receipt = await signAndEnqueueSafeTransaction(
+				browserProvider,
+				transaction,
+			);
 			setTxHash(receipt.transactionHash);
 			clearBatch(safeAddress, chainId);
 			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
 		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Batch enqueue failed";
+			const message =
+				err instanceof Error ? err.message : "Batch enqueue failed";
 			setError(message);
 		} finally {
 			setIsSubmitting(false);
@@ -85,10 +94,12 @@ export function BatchTransactionForm({ safeAddress, chainId, browserProvider, co
 									<span className="font-medium">To:</span> {tx.to}
 								</p>
 								<p>
-									<span className="font-medium">Value:</span> {ethers.formatEther(tx.value)}{" "}
-									{tx.value !== "0" ? "ETH" : ""}
+									<span className="font-medium">Value:</span>{" "}
+									{ethers.formatEther(tx.value)} {tx.value !== "0" ? "ETH" : ""}
 								</p>
-								{tx.data && tx.data !== "0x" && <p className="font-mono text-xs break-all">{tx.data}</p>}
+								{tx.data && tx.data !== "0x" && (
+									<p className="font-mono text-xs break-all">{tx.data}</p>
+								)}
 							</div>
 							<button
 								type="button"
@@ -115,7 +126,8 @@ export function BatchTransactionForm({ safeAddress, chainId, browserProvider, co
 				<div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
 					<h3 className="text-sm font-medium text-green-800">Batch Enqueued</h3>
 					<p className="mt-1 text-sm text-green-700">
-						Transaction Hash: <span className="font-mono break-all">{txHash}</span>
+						Transaction Hash:{" "}
+						<span className="font-mono break-all">{txHash}</span>
 					</p>
 				</div>
 			)}

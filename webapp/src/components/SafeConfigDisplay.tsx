@@ -12,11 +12,21 @@ interface SafeConfigDisplayProps {
  * @returns JSX element representing the Safe configuration display.
  */
 export default function SafeConfigDisplay({ config }: SafeConfigDisplayProps) {
-	const { owners, threshold, fallbackHandler, nonce, modules, guard, singleton } = config;
+	const {
+		owners,
+		threshold,
+		fallbackHandler,
+		nonce,
+		modules,
+		guard,
+		singleton,
+	} = config;
 	return (
 		<div className="space-y-6">
 			<div className="bg-white border border-gray-200 rounded-lg p-6">
-				<h2 className="text-lg font-semibold mb-5 text-black">Basic Configuration</h2>
+				<h2 className="text-lg font-semibold mb-5 text-black">
+					Basic Configuration
+				</h2>
 				<dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
 					<div className="sm:col-span-2">
 						<dt className="font-medium text-gray-700">Safe Singleton</dt>
@@ -42,7 +52,9 @@ export default function SafeConfigDisplay({ config }: SafeConfigDisplayProps) {
 			</div>
 
 			<div className="bg-white border border-gray-200 rounded-lg p-6">
-				<h2 className="text-lg font-semibold mb-5 text-black">Owners ({owners.length})</h2>
+				<h2 className="text-lg font-semibold mb-5 text-black">
+					Owners ({owners.length})
+				</h2>
 				<ul className="list-disc list-inside text-black space-y-2">
 					{owners.map((owner) => (
 						<li key={owner} className="text-blue-600 break-all">
@@ -53,7 +65,9 @@ export default function SafeConfigDisplay({ config }: SafeConfigDisplayProps) {
 			</div>
 
 			<div className="bg-white border border-gray-200 rounded-lg p-6">
-				<h2 className="text-lg font-semibold mb-5 text-black">Modules ({modules.length})</h2>
+				<h2 className="text-lg font-semibold mb-5 text-black">
+					Modules ({modules.length})
+				</h2>
 				{modules.length > 0 ? (
 					<ul className="list-disc list-inside text-black space-y-2">
 						{modules.map((mod) => (

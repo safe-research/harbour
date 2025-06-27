@@ -4,7 +4,11 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useKeyNav } from "../hooks/useKeyNav";
 import { useOutsideClick } from "../hooks/useOutsideClick";
-import { type ChainSearchResult, resolveChainIdFromInput, searchChainsByName } from "../lib/chains";
+import {
+	type ChainSearchResult,
+	resolveChainIdFromInput,
+	searchChainsByName,
+} from "../lib/chains";
 import { safeAddressSchema } from "../lib/validators";
 
 const safeAddressFormSchema = z.object({
@@ -62,21 +66,30 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 	const { index, onKey, reset } = useKeyNav(suggestions.length);
 
 	const selectSuggestion = (suggestion: ChainSearchResult) => {
-		setValue("chainIdOrName", suggestion.chainId.toString(), { shouldValidate: true });
+		setValue("chainIdOrName", suggestion.chainId.toString(), {
+			shouldValidate: true,
+		});
 		reset();
 		inputRef.current?.focus();
 	};
 
 	// Destructure register to handle ref conflict
-	const { ref: chainInputRef, ...chainRegisterProps } = register("chainIdOrName");
+	const { ref: chainInputRef, ...chainRegisterProps } =
+		register("chainIdOrName");
 
 	// Merge our ref with react-hook-form's ref
 	useImperativeHandle(chainInputRef, () => inputRef.current);
 
-	const onSubmitForm = ({ safeAddress, chainIdOrName }: SafeAddressFormData) => {
+	const onSubmitForm = ({
+		safeAddress,
+		chainIdOrName,
+	}: SafeAddressFormData) => {
 		const chainId = resolveChainIdFromInput(chainIdOrName);
 		if (!chainId) {
-			setError("chainIdOrName", { type: "manual", message: "Invalid chain ID or chain name" });
+			setError("chainIdOrName", {
+				type: "manual",
+				message: "Invalid chain ID or chain name",
+			});
 			return;
 		}
 		onSubmit(safeAddress, chainId);
@@ -95,7 +108,9 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 					placeholder="0x..."
 					className="mt-1 block w-full border border-gray-200 bg-white text-black placeholder-gray-400 rounded-md px-3 py-2 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
 				/>
-				{errors.safeAddress && <p className="text-red-600">{errors.safeAddress.message}</p>}
+				{errors.safeAddress && (
+					<p className="text-red-600">{errors.safeAddress.message}</p>
+				)}
 			</div>
 
 			<div className="relative">
@@ -137,13 +152,17 @@ export default function SafeAddressForm({ onSubmit }: SafeAddressFormProps) {
 								onMouseEnter={() => reset()}
 							>
 								<div className="font-medium">{suggestion.name}</div>
-								<div className="text-gray-500 text-xs">Chain ID: {suggestion.chainId}</div>
+								<div className="text-gray-500 text-xs">
+									Chain ID: {suggestion.chainId}
+								</div>
 							</button>
 						))}
 					</div>
 				)}
 
-				{errors.chainIdOrName && <p className="text-red-600">{errors.chainIdOrName.message}</p>}
+				{errors.chainIdOrName && (
+					<p className="text-red-600">{errors.chainIdOrName.message}</p>
+				)}
 			</div>
 
 			<button

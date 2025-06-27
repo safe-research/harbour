@@ -12,7 +12,10 @@ export default function Header() {
 	const location = useLocation();
 	const { safe: rawSafe, chainId: rawChainId } = location.search;
 	const { safeAddressParam, chainIdParamNum } = useMemo(() => {
-		const parseResult = safeIdSchema.safeParse({ safe: rawSafe, chainId: rawChainId });
+		const parseResult = safeIdSchema.safeParse({
+			safe: rawSafe,
+			chainId: rawChainId,
+		});
 		if (!parseResult.success) {
 			return { safeAddressParam: undefined, chainIdParamNum: undefined };
 		}
@@ -34,7 +37,10 @@ export default function Header() {
 	return (
 		<header className="sticky top-0 z-50 w-full flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
 			<nav className="flex flex-row">
-				<Link to="/" className="text-xl font-semibold text-black hover:opacity-75 transition">
+				<Link
+					to="/"
+					className="text-xl font-semibold text-black hover:opacity-75 transition"
+				>
 					Harbour
 				</Link>
 			</nav>
@@ -43,7 +49,11 @@ export default function Header() {
 				{totalCount > 0 && safeAddressParam && chainIdParamNum && (
 					<Link
 						to="/enqueue"
-						search={{ safe: safeAddressParam, chainId: chainIdParamNum, flow: "batch" }}
+						search={{
+							safe: safeAddressParam,
+							chainId: chainIdParamNum,
+							flow: "batch",
+						}}
 						className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition"
 					>
 						Batch ({totalCount})
@@ -51,7 +61,9 @@ export default function Header() {
 				)}
 				{primaryWallet ? (
 					<div className="flex items-center gap-2">
-						{chainId && <span className="font-mono text-sm text-gray-600">{chainId}</span>}
+						{chainId && (
+							<span className="font-mono text-sm text-gray-600">{chainId}</span>
+						)}
 						{address && (
 							<span className="font-mono text-sm text-gray-900">
 								{address.slice(0, 6)}...{address.slice(-4)}

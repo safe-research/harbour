@@ -1,4 +1,8 @@
-import { ethereumAddressSchema, hexDataSchema, safeIdSchema } from "@/lib/validators";
+import {
+	ethereumAddressSchema,
+	hexDataSchema,
+	safeIdSchema,
+} from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
@@ -110,7 +114,9 @@ function EnqueueContent(props: EnqueueContentProps) {
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
-						tokenAddress={props.flow === "erc20" ? props.tokenAddress : undefined}
+						tokenAddress={
+							props.flow === "erc20" ? props.tokenAddress : undefined
+						}
 					/>
 				);
 				break;
@@ -167,24 +173,34 @@ function EnqueueContent(props: EnqueueContentProps) {
 					<BackToDashboardButton safeAddress={safeAddress} chainId={chainId} />
 					<h1 className="text-3xl font-bold text-gray-900 mt-4">{pageTitle}</h1>
 					<p className="text-gray-700 mt-2">
-						Safe: <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">{safeAddress}</span>
+						Safe:{" "}
+						<span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+							{safeAddress}
+						</span>
 					</p>
 				</div>
 
 				{configError && (
 					<div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-						<p className="text-red-700">Error loading Safe configuration: {configError.message}</p>
+						<p className="text-red-700">
+							Error loading Safe configuration: {configError.message}
+						</p>
 					</div>
 				)}
 
 				{isLoadingConfig ? (
 					<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 						<div className="animate-pulse space-y-4">
-							<div className="h-4 bg-gray-200 rounded w-1/4" /> {/* Simulates title area */}
-							<div className="h-10 bg-gray-200 rounded w-3/4" /> {/* Simulates an input field */}
-							<div className="h-10 bg-gray-200 rounded w-full" /> {/* Simulates another input field */}
+							<div className="h-4 bg-gray-200 rounded w-1/4" />{" "}
+							{/* Simulates title area */}
+							<div className="h-10 bg-gray-200 rounded w-3/4" />{" "}
+							{/* Simulates an input field */}
+							<div className="h-10 bg-gray-200 rounded w-full" />{" "}
+							{/* Simulates another input field */}
 						</div>
-						<p className="text-center mt-4 text-gray-600">Loading Safe configuration...</p>
+						<p className="text-center mt-4 text-gray-600">
+							Loading Safe configuration...
+						</p>
 					</div>
 				) : (
 					formComponent
@@ -195,7 +211,10 @@ function EnqueueContent(props: EnqueueContentProps) {
 }
 
 // Added new "walletconnect" flow to support WalletConnect transaction requests
-const flowSchema = z.enum(["native", "erc20", "raw", "batch", "walletconnect"]).optional().default("raw");
+const flowSchema = z
+	.enum(["native", "erc20", "raw", "batch", "walletconnect"])
+	.optional()
+	.default("raw");
 
 // Additional optional params used to pre-populate forms when the walletconnect flow is chosen.
 const enqueueSchema = safeIdSchema.extend({
@@ -268,21 +287,47 @@ interface EnqueuePageInnerProps {
 /**
  * Inner component for the enqueue page, rendered if wallet and providers are ready.
  */
-function EnqueuePageInner({ safeAddress, chainId, flow, tokenAddress, walletConnectParams }: EnqueuePageInnerProps) {
+function EnqueuePageInner({
+	safeAddress,
+	chainId,
+	flow,
+	tokenAddress,
+	walletConnectParams,
+}: EnqueuePageInnerProps) {
 	const browserProvider = useWalletProvider();
-	const { provider: rpcProvider, error: rpcError, isLoading: isLoadingRpc } = useChainlistRpcProvider(chainId);
+	const {
+		provider: rpcProvider,
+		error: rpcError,
+		isLoading: isLoadingRpc,
+	} = useChainlistRpcProvider(chainId);
 
 	if (rpcError) {
-		return <p className="text-center p-6 text-red-600">Error initializing RPC provider: {rpcError.message}</p>;
+		return (
+			<p className="text-center p-6 text-red-600">
+				Error initializing RPC provider: {rpcError.message}
+			</p>
+		);
 	}
 	if (isLoadingRpc || !rpcProvider) {
 		// Added a more specific loading message for the provider
-		return <p className="text-center p-6 text-gray-600">Initializing RPC provider for chain {String(chainId)}...</p>;
+		return (
+			<p className="text-center p-6 text-gray-600">
+				Initializing RPC provider for chain {String(chainId)}...
+			</p>
+		);
 	}
 
 	if (flow === "walletconnect") {
-		if (!walletConnectParams.wcApp || !walletConnectParams.topic || !walletConnectParams.reqId) {
-			return <p className="text-center p-6 text-red-600">Missing required WalletConnect parameters</p>;
+		if (
+			!walletConnectParams.wcApp ||
+			!walletConnectParams.topic ||
+			!walletConnectParams.reqId
+		) {
+			return (
+				<p className="text-center p-6 text-red-600">
+					Missing required WalletConnect parameters
+				</p>
+			);
 		}
 		return (
 			<EnqueueContent

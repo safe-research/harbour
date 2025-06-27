@@ -2,13 +2,19 @@ import { switchToChain } from "@/lib/chains";
 import { type UseMutationResult, useMutation } from "@tanstack/react-query";
 import type { JsonRpcApiProvider, TransactionResponse } from "ethers";
 import { executeTransaction } from "../lib/safe";
-import type { ChainId, HarbourSignature, HarbourTransactionDetails } from "../lib/types";
+import type {
+	ChainId,
+	HarbourSignature,
+	HarbourTransactionDetails,
+} from "../lib/types";
 
 /**
  * Represents the combined transaction details and signatures required for execution.
  * This is the type expected by the `executeTransaction` function.
  */
-export type TransactionToExecute = HarbourTransactionDetails & { signatures: HarbourSignature[] };
+export type TransactionToExecute = HarbourTransactionDetails & {
+	signatures: HarbourSignature[];
+};
 
 /**
  * Variables for the execute transaction mutation.
@@ -44,7 +50,11 @@ export function useExecuteTransaction({
 	chainId,
 	onSuccess,
 	onError,
-}: UseExecuteTransactionProps): UseMutationResult<TransactionResponse, Error, ExecuteTransactionVariables> {
+}: UseExecuteTransactionProps): UseMutationResult<
+	TransactionResponse,
+	Error,
+	ExecuteTransactionVariables
+> {
 	return useMutation<TransactionResponse, Error, ExecuteTransactionVariables>({
 		mutationFn: async ({ transaction }: ExecuteTransactionVariables) => {
 			await switchToChain(provider, chainId);

@@ -5,11 +5,18 @@ type SessionsListProps = {
 	disconnectSession: (topic: string) => void;
 };
 
-function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) {
+function SessionsList({
+	sessionEntries,
+	disconnectSession,
+}: SessionsListProps) {
 	return sessionEntries.length === 0 ? (
 		<div className="text-center py-8">
-			<p className="text-gray-600 text-sm mb-2">No active WalletConnect sessions</p>
-			<p className="text-gray-500 text-xs">Connect to a dApp using the form above</p>
+			<p className="text-gray-600 text-sm mb-2">
+				No active WalletConnect sessions
+			</p>
+			<p className="text-gray-500 text-xs">
+				Connect to a dApp using the form above
+			</p>
 		</div>
 	) : (
 		<div className="space-y-4">
@@ -18,12 +25,19 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 				const isExpired = expiryDate < new Date();
 
 				// Extract session details
-				const accounts = Object.values(s.namespaces).flatMap((ns) => ns.accounts);
+				const accounts = Object.values(s.namespaces).flatMap(
+					(ns) => ns.accounts,
+				);
 				const methods = Object.values(s.namespaces).flatMap((ns) => ns.methods);
-				const chains = Object.values(s.namespaces).flatMap((ns) => ns.chains || []);
+				const chains = Object.values(s.namespaces).flatMap(
+					(ns) => ns.chains || [],
+				);
 
 				return (
-					<div key={s.topic} className="border border-gray-200 rounded-lg p-4 bg-white">
+					<div
+						key={s.topic}
+						className="border border-gray-200 rounded-lg p-4 bg-white"
+					>
 						<div className="flex items-start justify-between mb-3">
 							<div className="flex items-center space-x-3">
 								{s.peer.metadata.icons?.[0] && (
@@ -37,7 +51,9 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 									/>
 								)}
 								<div>
-									<h3 className="font-medium text-gray-900">{s.peer.metadata.name}</h3>
+									<h3 className="font-medium text-gray-900">
+										{s.peer.metadata.name}
+									</h3>
 									{s.peer.metadata.url && (
 										<a
 											href={s.peer.metadata.url}
@@ -59,12 +75,18 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 							</button>
 						</div>
 
-						{s.peer.metadata.description && <p className="text-sm text-gray-600 mb-3">{s.peer.metadata.description}</p>}
+						{s.peer.metadata.description && (
+							<p className="text-sm text-gray-600 mb-3">
+								{s.peer.metadata.description}
+							</p>
+						)}
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
 							{accounts.length > 0 && (
 								<div>
-									<h4 className="font-medium text-gray-700 mb-1">Connected Accounts</h4>
+									<h4 className="font-medium text-gray-700 mb-1">
+										Connected Accounts
+									</h4>
 									<div className="space-y-1">
 										{accounts.map((account) => {
 											const [chain, address] = account.split(":").slice(-2);
@@ -83,12 +105,17 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 
 							{chains.length > 0 && (
 								<div>
-									<h4 className="font-medium text-gray-700 mb-1">Supported Networks</h4>
+									<h4 className="font-medium text-gray-700 mb-1">
+										Supported Networks
+									</h4>
 									<div className="flex flex-wrap gap-1">
 										{chains.map((chain) => {
 											const chainId = chain.split(":")[1];
 											return (
-												<span key={chain} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+												<span
+													key={chain}
+													className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+												>
 													{chainId}
 												</span>
 											);
@@ -99,10 +126,15 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 
 							{methods.length > 0 && (
 								<div className="md:col-span-2">
-									<h4 className="font-medium text-gray-700 mb-1">Supported Methods</h4>
+									<h4 className="font-medium text-gray-700 mb-1">
+										Supported Methods
+									</h4>
 									<div className="flex flex-wrap gap-1">
 										{methods.slice(0, 8).map((method) => (
-											<span key={method} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+											<span
+												key={method}
+												className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs"
+											>
 												{method}
 											</span>
 										))}
@@ -123,8 +155,12 @@ function SessionsList({ sessionEntries, disconnectSession }: SessionsListProps) 
 									{s.topic.slice(0, 8)}...{s.topic.slice(-8)}
 								</span>
 							</span>
-							<span className={`${isExpired ? "text-red-500" : "text-gray-500"}`}>
-								{isExpired ? "Expired" : `Expires ${expiryDate.toLocaleString()}`}
+							<span
+								className={`${isExpired ? "text-red-500" : "text-gray-500"}`}
+							>
+								{isExpired
+									? "Expired"
+									: `Expires ${expiryDate.toLocaleString()}`}
 							</span>
 						</div>
 					</div>

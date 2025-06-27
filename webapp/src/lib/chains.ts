@@ -28,7 +28,11 @@ interface ChainsJsonEntry {
 	 * List of explorers for the chain.
 	 * The "& {}" is a workaround for string literal type autocomplete.
 	 */
-	explorers: { name: string; url: string; standard: EtherscanExplorerStandard | (string & {}) }[];
+	explorers: {
+		name: string;
+		url: string;
+		standard: EtherscanExplorerStandard | (string & {});
+	}[];
 	/** List of RPC endpoints for the chain. */
 	rpc: { url: string }[];
 }
@@ -77,7 +81,9 @@ const chainsFuse = new Fuse(chainsJson as ChainsJsonEntry[], {
  * @throws {Error} When no chain with the given ID exists in `chains.json`.
  */
 function getChainDataByChainId(chainId: number): ChainsJsonEntry {
-	const entry = (chainsJson as ChainsJsonEntry[]).find((e) => e.chainId === chainId);
+	const entry = (chainsJson as ChainsJsonEntry[]).find(
+		(e) => e.chainId === chainId,
+	);
 	if (!entry) {
 		throw new Error(`no chain with id ${chainId} in chains.json`);
 	}
@@ -93,7 +99,9 @@ function getChainDataByChainId(chainId: number): ChainsJsonEntry {
  * @param entry - The chain data entry retrieved from `chains.json`.
  * @returns The parameters for adding the chain to a wallet provider.
  */
-function mapChainDataToWalletAddEthereumChainParams(entry: ChainsJsonEntry): WalletAddEthereumChainParams {
+function mapChainDataToWalletAddEthereumChainParams(
+	entry: ChainsJsonEntry,
+): WalletAddEthereumChainParams {
 	return {
 		chainId: `0x${entry.chainId.toString(16)}`,
 		chainName: entry.name,
@@ -119,7 +127,10 @@ function mapChainDataToWalletAddEthereumChainParams(entry: ChainsJsonEntry): Wal
  * @returns A Promise that resolves to the first valid RPC URL for the chain.
  * @throws {Error} When the `chainId` is not present, no URLs configured, or none respond correctly.
  */
-async function getRpcUrlByChainId(chainId: number, verify = true): Promise<string> {
+async function getRpcUrlByChainId(
+	chainId: number,
+	verify = true,
+): Promise<string> {
 	const entry = getChainDataByChainId(chainId);
 	if (!entry.rpc || entry.rpc.length === 0) {
 		throw new Error(`no rpc URLs configured for chain ${chainId}`);
@@ -149,7 +160,9 @@ async function getRpcUrlByChainId(chainId: number, verify = true): Promise<strin
 						params: [],
 					}),
 				}),
-				new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 3000)),
+				new Promise((_, rej) =>
+					setTimeout(() => rej(new Error("timeout")), 3000),
+				),
 			])) as Response;
 
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -175,7 +188,9 @@ async function getRpcUrlByChainId(chainId: number, verify = true): Promise<strin
  * @param chainId - The numeric chain ID to look up in the native currency details list.
  * @returns The native currency details for the chain, or the Ether details if not found.
  */
-function getNativeCurrencyByChainId(chainId: number): ChainsJsonEntry["nativeCurrency"] {
+function getNativeCurrencyByChainId(
+	chainId: number,
+): ChainsJsonEntry["nativeCurrency"] {
 	const entry = getChainDataByChainId(chainId);
 	return (
 		entry?.nativeCurrency || {
@@ -199,7 +214,10 @@ function getNativeCurrencyByChainId(chainId: number): ChainsJsonEntry["nativeCur
  * @throws Will rethrow the original error if switching fails for reasons other than
  *        a missing chain (error code 4902).
  */
-async function switchToChain(provider: JsonRpcApiProvider, chainId: ChainId): Promise<void> {
+async function switchToChain(
+	provider: JsonRpcApiProvider,
+	chainId: ChainId,
+): Promise<void> {
 	const eip1193Provider = getEIP1193ProviderFromRPCProvider(provider);
 
 	try {
@@ -208,7 +226,9 @@ async function switchToChain(provider: JsonRpcApiProvider, chainId: ChainId): Pr
 			params: [{ chainId: `0x${chainId.toString(16)}` }],
 		});
 	} catch (error: unknown) {
-		const chainData = mapChainDataToWalletAddEthereumChainParams(getChainDataByChainId(chainId));
+		const chainData = mapChainDataToWalletAddEthereumChainParams(
+			getChainDataByChainId(chainId),
+		);
 		if ((error as { code?: number }).code === 4902) {
 			await eip1193Provider.request({
 				method: "wallet_addEthereumChain",
@@ -228,7 +248,10 @@ async function switchToChain(provider: JsonRpcApiProvider, chainId: ChainId): Pr
  * @param maxResults - Maximum number of results to return (default: 10)
  * @returns Array of matching chains with their display names
  */
-export function searchChainsByName(query: string, maxResults = 10): ChainSearchResult[] {
+export function searchChainsByName(
+	query: string,
+	maxResults = 10,
+): ChainSearchResult[] {
 	if (!query.trim()) {
 		return [];
 	}
@@ -279,7 +302,9 @@ export function resolveChainIdFromInput(input: string): number | null {
 
 	// Otherwise, search by name
 	const normalizedInput = trimmedInput.toLowerCase();
-	const matchingChain = chains.find((chain) => chain.name.toLowerCase() === normalizedInput);
+	const matchingChain = chains.find(
+		(chain) => chain.name.toLowerCase() === normalizedInput,
+	);
 
 	return matchingChain ? matchingChain.chainId : null;
 }

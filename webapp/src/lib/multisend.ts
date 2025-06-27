@@ -1,7 +1,8 @@
 import { ethers } from "ethers";
 import type { MetaTransaction } from "./types";
 
-const MULTISEND_CALL_ONLY_ADDRESS = "0x9641d764fc13c8B624c04430C7356C1C7C8102e2";
+const MULTISEND_CALL_ONLY_ADDRESS =
+	"0x9641d764fc13c8B624c04430C7356C1C7C8102e2";
 
 function encodeMetaTransaction(tx: MetaTransaction): string {
 	const data = ethers.getBytes(tx.data);

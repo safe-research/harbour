@@ -1,8 +1,21 @@
 import type { SafeId } from "@/lib/validators";
-import { type SessionTypes, type WalletKitInstance, getSdkError, initOrGetWalletKit } from "@/lib/walletconnect";
+import {
+	type SessionTypes,
+	type WalletKitInstance,
+	getSdkError,
+	initOrGetWalletKit,
+} from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
 import type React from "react";
-import { type JSX, createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type JSX,
+	createContext,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useWalletConnectSession } from "@/hooks/useWalletConnectSession";
 
 type WalletConnectContextValue = {
@@ -14,7 +27,9 @@ type WalletConnectContextValue = {
 	disconnectSession: (topic: string) => Promise<void>;
 };
 
-const WalletConnectContext = createContext<WalletConnectContextValue | null>(null);
+const WalletConnectContext = createContext<WalletConnectContextValue | null>(
+	null,
+);
 
 type WalletConnectProviderProps = {
 	router: AnyRouter;
@@ -28,7 +43,10 @@ type WalletConnectProviderProps = {
  * @param props.router - Router instance for navigation
  * @param props.children - Child components that need access to WalletConnect context
  */
-function WalletConnectProvider({ router, children }: WalletConnectProviderProps): JSX.Element {
+function WalletConnectProvider({
+	router,
+	children,
+}: WalletConnectProviderProps): JSX.Element {
 	// WalletKit is initialized as a singleton via initOrGetWalletKit(),
 	// but we store it in React state so that our provider (and its consumers)
 	// re-render as soon as the instance is ready.
@@ -84,7 +102,12 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 				try {
 					await walletkit.pair({ uri });
 				} catch (err: unknown) {
-					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					const msg =
+						err instanceof Error
+							? err.message
+							: typeof err === "string"
+								? err
+								: JSON.stringify(err);
 					console.error("Pairing failed", err);
 					setError(`Pairing failed: ${msg}`);
 				}
@@ -98,10 +121,18 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 			async (topic: string): Promise<void> => {
 				if (!walletkit) return;
 				try {
-					await walletkit.disconnectSession({ topic, reason: getSdkError("USER_DISCONNECTED") });
+					await walletkit.disconnectSession({
+						topic,
+						reason: getSdkError("USER_DISCONNECTED"),
+					});
 					syncSessions();
 				} catch (err: unknown) {
-					const msg = err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);
+					const msg =
+						err instanceof Error
+							? err.message
+							: typeof err === "string"
+								? err
+								: JSON.stringify(err);
 					console.error("Failed to disconnect session", err);
 					setError(`Disconnect session failed: ${msg}`);
 				}
@@ -121,7 +152,11 @@ function WalletConnectProvider({ router, children }: WalletConnectProviderProps)
 		[walletkit, sessions, error, pair, disconnectSession, registerSafeContext],
 	);
 
-	return <WalletConnectContext.Provider value={value}>{children}</WalletConnectContext.Provider>;
+	return (
+		<WalletConnectContext.Provider value={value}>
+			{children}
+		</WalletConnectContext.Provider>
+	);
 }
 
 export { WalletConnectContext, WalletConnectProvider };

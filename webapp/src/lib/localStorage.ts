@@ -19,13 +19,18 @@ function getERC20TokenAddresses(chainId: number): string[] {
 				const chainAddresses = parsedData[chainId.toString()];
 				if (
 					Array.isArray(chainAddresses) &&
-					chainAddresses.every((addr) => Boolean(ethereumAddressSchema.parse(addr)))
+					chainAddresses.every((addr) =>
+						Boolean(ethereumAddressSchema.parse(addr)),
+					)
 				) {
 					return chainAddresses;
 				}
 			}
 		} catch (error) {
-			console.error("Error parsing ERC20 token addresses from local storage:", error);
+			console.error(
+				"Error parsing ERC20 token addresses from local storage:",
+				error,
+			);
 			// Fallback to returning an empty array if parsing fails
 			return [];
 		}
@@ -50,7 +55,10 @@ function addERC20TokenAddress(address: string, chainId: number): void {
 				parsedData = parsed;
 			}
 		} catch (error) {
-			console.error("Error parsing existing ERC20 token addresses from local storage:", error);
+			console.error(
+				"Error parsing existing ERC20 token addresses from local storage:",
+				error,
+			);
 		}
 	}
 
@@ -59,7 +67,10 @@ function addERC20TokenAddress(address: string, chainId: number): void {
 
 	if (!currentAddresses.includes(address)) {
 		parsedData[chainKey] = [...currentAddresses, address];
-		localStorage.setItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY, JSON.stringify(parsedData));
+		localStorage.setItem(
+			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+			JSON.stringify(parsedData),
+		);
 	}
 }
 
@@ -79,7 +90,10 @@ function removeERC20TokenAddress(address: string, chainId: number): void {
 				parsedData = parsed;
 			}
 		} catch (error) {
-			console.error("Error parsing existing ERC20 token addresses from local storage:", error);
+			console.error(
+				"Error parsing existing ERC20 token addresses from local storage:",
+				error,
+			);
 			return;
 		}
 	}
@@ -94,7 +108,15 @@ function removeERC20TokenAddress(address: string, chainId: number): void {
 		parsedData[chainKey] = newAddresses;
 	}
 
-	localStorage.setItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY, JSON.stringify(parsedData));
+	localStorage.setItem(
+		ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+		JSON.stringify(parsedData),
+	);
 }
 
-export { getERC20TokenAddresses, addERC20TokenAddress, removeERC20TokenAddress, ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY };
+export {
+	getERC20TokenAddresses,
+	addERC20TokenAddress,
+	removeERC20TokenAddress,
+	ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
+};

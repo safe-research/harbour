@@ -2,7 +2,11 @@ import { ethers } from "ethers";
 import type { JsonRpcSigner } from "ethers";
 import { bytes32ToAddress, compactSignatureToFullSignature } from "./encoding";
 import { aggregateMulticall } from "./multicall";
-import type { FullSafeTransaction, HarbourSignature, HarbourTransactionDetails } from "./types";
+import type {
+	FullSafeTransaction,
+	HarbourSignature,
+	HarbourTransactionDetails,
+} from "./types";
 
 /**
  * Interface representing the configuration of a Safe contract.
@@ -34,8 +38,10 @@ const SAFE_ABI = [
 ];
 const SAFE_INTERFACE = new ethers.Interface(SAFE_ABI);
 
-const FALLBACK_SLOT = "0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5";
-const GUARD_SLOT = "0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8";
+const FALLBACK_SLOT =
+	"0x6c9a6c4a39284e37ed1cf53d337577d14212a4870fb976a4366c693b939918d5";
+const GUARD_SLOT =
+	"0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8";
 const SINGLETON_SLOT = ethers.zeroPadBytes(ethers.toBeHex(0), 32);
 const SENTINEL = "0x0000000000000000000000000000000000000001";
 
@@ -62,7 +68,10 @@ async function getSafeConfiguration(
 		},
 		{
 			target: safeAddress,
-			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [FALLBACK_SLOT, 1]),
+			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [
+				FALLBACK_SLOT,
+				1,
+			]),
 		},
 		{
 			target: safeAddress,
@@ -70,26 +79,63 @@ async function getSafeConfiguration(
 		},
 		{
 			target: safeAddress,
-			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [GUARD_SLOT, 1]),
+			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [
+				GUARD_SLOT,
+				1,
+			]),
 		},
 		{
 			target: safeAddress,
-			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [SINGLETON_SLOT, 1]),
+			callData: SAFE_INTERFACE.encodeFunctionData("getStorageAt", [
+				SINGLETON_SLOT,
+				1,
+			]),
 		},
 		{
 			target: safeAddress,
-			callData: SAFE_INTERFACE.encodeFunctionData("getModulesPaginated", [SENTINEL, options.modulePageSize]),
+			callData: SAFE_INTERFACE.encodeFunctionData("getModulesPaginated", [
+				SENTINEL,
+				options.modulePageSize,
+			]),
 		},
 	];
 	const results = await aggregateMulticall(provider, calls);
 	const configuration: SafeConfiguration = {
-		owners: SAFE_INTERFACE.decodeFunctionResult("getOwners", results[0].returnData)[0],
-		threshold: Number(SAFE_INTERFACE.decodeFunctionResult("getThreshold", results[1].returnData)[0]),
-		fallbackHandler: bytes32ToAddress(SAFE_INTERFACE.decodeFunctionResult("getStorageAt", results[2].returnData)[0]),
-		nonce: String(SAFE_INTERFACE.decodeFunctionResult("nonce", results[3].returnData)[0]),
-		guard: bytes32ToAddress(SAFE_INTERFACE.decodeFunctionResult("getStorageAt", results[4].returnData)[0]),
-		singleton: bytes32ToAddress(SAFE_INTERFACE.decodeFunctionResult("getStorageAt", results[5].returnData)[0]),
-		modules: SAFE_INTERFACE.decodeFunctionResult("getModulesPaginated", results[6].returnData)[0],
+		owners: SAFE_INTERFACE.decodeFunctionResult(
+			"getOwners",
+			results[0].returnData,
+		)[0],
+		threshold: Number(
+			SAFE_INTERFACE.decodeFunctionResult(
+				"getThreshold",
+				results[1].returnData,
+			)[0],
+		),
+		fallbackHandler: bytes32ToAddress(
+			SAFE_INTERFACE.decodeFunctionResult(
+				"getStorageAt",
+				results[2].returnData,
+			)[0],
+		),
+		nonce: String(
+			SAFE_INTERFACE.decodeFunctionResult("nonce", results[3].returnData)[0],
+		),
+		guard: bytes32ToAddress(
+			SAFE_INTERFACE.decodeFunctionResult(
+				"getStorageAt",
+				results[4].returnData,
+			)[0],
+		),
+		singleton: bytes32ToAddress(
+			SAFE_INTERFACE.decodeFunctionResult(
+				"getStorageAt",
+				results[5].returnData,
+			)[0],
+		),
+		modules: SAFE_INTERFACE.decodeFunctionResult(
+			"getModulesPaginated",
+			results[6].returnData,
+		)[0],
 	};
 
 	return configuration;
@@ -143,7 +189,10 @@ async function executeTransaction(
  * @param transaction - The transaction request parameters
  * @returns The signature string
  */
-async function signSafeTransaction(signer: JsonRpcSigner, transaction: FullSafeTransaction): Promise<string> {
+async function signSafeTransaction(
+	signer: JsonRpcSigner,
+	transaction: FullSafeTransaction,
+): Promise<string> {
 	const domain = {
 		chainId: transaction.chainId,
 		verifyingContract: transaction.safeAddress,
@@ -215,6 +264,11 @@ function getSafeTransaction(params: {
 	};
 }
 
-export { getSafeConfiguration, executeTransaction, signSafeTransaction, getSafeTransaction };
+export {
+	getSafeConfiguration,
+	executeTransaction,
+	signSafeTransaction,
+	getSafeTransaction,
+};
 
 export type { SafeConfiguration };

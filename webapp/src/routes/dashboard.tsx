@@ -28,8 +28,16 @@ interface DashboardContentProps {
  * @param {DashboardContentProps} props - The component props.
  * @returns JSX element representing the dashboard content.
  */
-function DashboardContent({ provider, safeAddress, chainId }: DashboardContentProps) {
-	const { data: config, isLoading: isLoadingConfig, error: errorConfig } = useSafeConfiguration(provider, safeAddress);
+function DashboardContent({
+	provider,
+	safeAddress,
+	chainId,
+}: DashboardContentProps) {
+	const {
+		data: config,
+		isLoading: isLoadingConfig,
+		error: errorConfig,
+	} = useSafeConfiguration(provider, safeAddress);
 	const navigate = useNavigate();
 
 	const handleSendNative = () => {
@@ -54,11 +62,17 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 				<div>
 					<BackButton to="/">Back to home</BackButton>
 					<h1 className="text-3xl font-bold text-gray-900">Safe Dashboard</h1>
-					<p className="text-gray-600">Manage your Safe and execute transactions</p>
+					<p className="text-gray-600">
+						Manage your Safe and execute transactions
+					</p>
 				</div>
 
-				{isLoadingConfig && <p className="text-gray-600">Loading configuration…</p>}
-				{errorConfig && <p className="text-red-600">Error: {errorConfig.message}</p>}
+				{isLoadingConfig && (
+					<p className="text-gray-600">Loading configuration…</p>
+				)}
+				{errorConfig && (
+					<p className="text-red-600">Error: {errorConfig.message}</p>
+				)}
 
 				{config && (
 					<>
@@ -100,7 +114,9 @@ function DashboardContent({ provider, safeAddress, chainId }: DashboardContentPr
 						/>
 
 						<div className="mt-10">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">Safe Configuration</h2>
+							<h2 className="text-xl font-semibold text-gray-900 mb-4">
+								Safe Configuration
+							</h2>
 							<div className="bg-white p-6 border border-gray-200 rounded-lg">
 								<SafeConfigDisplay config={config} />
 							</div>
@@ -154,6 +170,13 @@ function DashboardPageInner({
 	const { provider, error, isLoading } = useChainlistRpcProvider(chainId);
 
 	if (error) return <p className="text-red-600">Error: {error.message}</p>;
-	if (isLoading || !provider) return <p className="text-gray-600">Initializing provider…</p>;
-	return <DashboardContent provider={provider} safeAddress={safeAddress} chainId={chainId} />;
+	if (isLoading || !provider)
+		return <p className="text-gray-600">Initializing provider…</p>;
+	return (
+		<DashboardContent
+			provider={provider}
+			safeAddress={safeAddress}
+			chainId={chainId}
+		/>
+	);
 }

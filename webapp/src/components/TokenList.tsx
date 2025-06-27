@@ -36,10 +36,15 @@ function TokenList({ tokens, onSendToken, onRemoveToken }: TokenListProps) {
 						<p className="font-semibold text-gray-800">
 							{token.name} ({token.symbol})
 						</p>
-						<p className="text-sm text-gray-600">{ethers.formatUnits(token.balance, token.decimals)}</p>
+						<p className="text-sm text-gray-600">
+							{ethers.formatUnits(token.balance, token.decimals)}
+						</p>
 					</div>
 					<div className="flex items-center space-x-2">
-						<SendButton onClick={() => onSendToken(token.address)} disabled={token.balance === 0n} />
+						<SendButton
+							onClick={() => onSendToken(token.address)}
+							disabled={token.balance === 0n}
+						/>
 						<button
 							type="button"
 							onClick={() => onRemoveToken(token.address)}
