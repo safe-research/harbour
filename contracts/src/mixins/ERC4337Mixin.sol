@@ -93,7 +93,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             !_signerSignedTx(safeTxHash, signer),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
-        
+
         _verifySignature(safeTxHash, userOp.signature, signer, r, vs);
 
         uint256 nonce = getNonce(signer);

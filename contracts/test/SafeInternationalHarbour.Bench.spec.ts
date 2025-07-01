@@ -1,4 +1,4 @@
-import { ZeroAddress, type Signer, type TransactionReceipt } from "ethers";
+import { type Signer, type TransactionReceipt, ZeroAddress } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";

@@ -1,12 +1,12 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
-import { BaseContract, Wallet, ZeroAddress, ZeroHash, type Signer } from "ethers";
+import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
+import { buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
-import { AddressOne } from "@safe-global/safe-contracts";
-import { buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 
 describe("SafeInternationalHarbour.4337", () => {
 	async function deployFixture() {
@@ -21,29 +21,28 @@ describe("SafeInternationalHarbour.4337", () => {
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint };
 	}
 
-	function error(contract: BaseContract, name: string, values: any[] = []): string {
-		return contract.interface.encodeErrorResult(name, values)
+	function error(contract: BaseContract, name: string, values: unknown[] = []): string {
+		return contract.interface.encodeErrorResult(name, values);
 	}
 
-	const INVALID_SIG = "0x".padEnd(128, "a") + "1f"
+	const INVALID_SIG = `${"0x".padEnd(128, "a")}1f`;
 
 	it("should revert if validateUserOp is not called from EntryPoint", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx()
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0)
-		await expect(
-			harbour.validateUserOp(
-				userOp, ZeroHash, 0
-			),
-		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
+		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		await expect(harbour.validateUserOp(userOp, ZeroHash, 0)).to.be.revertedWithCustomError(
+			harbour,
+			"InvalidEntryPoint",
+		);
 	});
 
 	it("should revert if storeTransaction is not called from EntryPoint", async () => {
 		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx()
-		console.log({safeTx})
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0)
-		console.log({userOp})
+		const safeTx = buildSafeTx();
+		console.log({ safeTx });
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		console.log({ userOp });
 		await expect(
 			harbour.storeTransaction(
 				ZeroHash,
@@ -61,47 +60,44 @@ describe("SafeInternationalHarbour.4337", () => {
 				ethers.ZeroAddress, // refundReceiver
 				ethers.ZeroAddress,
 				ZeroHash,
-				ZeroHash
+				ZeroHash,
 			),
 		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
 	});
 
 	it.skip("should revert if paymaster is set", async () => {
-		const { deployer, harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx()
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0)
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", "0xea42a443");
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", "0xea42a443");
 	});
 
 	it("should revert if signature length is not 65 bytes", async () => {
-		const { deployer, harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx()
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0)
-		userOp.signature = INVALID_SIG // This is the compact representation which is too short
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", error(harbour, "InvalidECDSASignatureLength"));
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		userOp.signature = INVALID_SIG; // This is the compact representation which is too short
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidECDSASignatureLength"));
 	});
 
 	it("should revert if provided signature is invalid (ecrecover yields zero address)", async () => {
-		const { deployer, entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const zeroSignature = `0x${"00".repeat(65)}`;
-		const safeTx = buildSafeTx()
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0)
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
 		userOp.signature = zeroSignature;
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignature"));
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignature"));
 	});
 
 	it("should revert if invalid UserOp nonce is provided", async () => {
-		const { deployer, entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx()
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
 		const signerWallet = ethers.Wallet.createRandom();
 		const signerAddress = await signerWallet.getAddress();
 		const signature = await signerWallet.signTypedData(
@@ -110,24 +106,21 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx,
 		);
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature, 0);
-		
+
 		const userOpNonce = await harbour.getNonce(signerAddress);
-		await expect(
-			entryPoint.handleOps([userOp], ZeroAddress),
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedNonce", [userOpNonce]));
+		await expect(entryPoint.handleOps([userOp], ZeroAddress))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedNonce", [userOpNonce]));
 	});
 
 	it("should emit SignatureStored event with correct parameters on first enqueue", async () => {
 		const { deployer, harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const signerWallet = Wallet.createRandom();
 		const signerAddress = await signerWallet.getAddress();
-		const safeTx = buildSafeTx({ to: deployer.address })
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx)
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		)
+		const safeTx = buildSafeTx({ to: deployer.address });
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.emit(harbour, "SignatureStored")
 			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, safeTx.nonce, 0);
 	});
@@ -148,10 +141,10 @@ describe("SafeInternationalHarbour.4337", () => {
 			nonce: 123n,
 		};
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
-		
-		await entryPoint.handleOps([userOp], AddressOne)
-		
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx)
+
+		await entryPoint.handleOps([userOp], AddressOne);
+
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
 		expect(storedTx.to).to.equal(safeTx.to);
 		expect(storedTx.value).to.equal(safeTx.value);
@@ -272,11 +265,10 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const userOpNonce = await harbour.getNonce(signerWallet.address);
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature1, userOpNonce);
-		userOp.signature = signature2
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignatureSValue"));
+		userOp.signature = signature2;
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignatureSValue"));
 	});
 
 	it("should store signatures from different signers separately", async () => {
@@ -288,9 +280,21 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const safeTx = buildSafeTx({ to: Wallet.createRandom().address, nonce: 5n });
 
-		const { userOp: userOp1, signature: sig1 } = await buildSignedUserOp(harbour, signer1Wallet, chainId, safeAddress, safeTx)
-		const { userOp: userOp2, signature: sig2 } = await buildSignedUserOp(harbour, signer2Wallet, chainId, safeAddress, safeTx)
-		await entryPoint.handleOps([userOp1, userOp2], AddressOne)
+		const { userOp: userOp1, signature: sig1 } = await buildSignedUserOp(
+			harbour,
+			signer1Wallet,
+			chainId,
+			safeAddress,
+			safeTx,
+		);
+		const { userOp: userOp2, signature: sig2 } = await buildSignedUserOp(
+			harbour,
+			signer2Wallet,
+			chainId,
+			safeAddress,
+			safeTx,
+		);
+		await entryPoint.handleOps([userOp1, userOp2], AddressOne);
 
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const count1 = await harbour.retrieveSignaturesCount(signer1Address, safeAddress, chainId, safeTx.nonce);
@@ -320,17 +324,16 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		
-		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
+
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 		// First call stores signature
-		await entryPoint.handleOps([userOp1], AddressOne)
+		await entryPoint.handleOps([userOp1], AddressOne);
 
 		// Second call should revert
-		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		await expect(
-			entryPoint.handleOps([userOp2], AddressOne)
-		).to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-		.withArgs(0, "AA23 reverted", error(harbour, "SignerAlreadySignedTransaction", [signerAddress, safeTxHash]));
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		await expect(entryPoint.handleOps([userOp2], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "SignerAlreadySignedTransaction", [signerAddress, safeTxHash]));
 	});
 
 	it("should retrieve full transaction details via retrieveTransaction", async () => {
@@ -350,9 +353,9 @@ describe("SafeInternationalHarbour.4337", () => {
 			nonce: 99n,
 		};
 
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 		// First call stores signature
-		await entryPoint.handleOps([userOp], AddressOne)
+		await entryPoint.handleOps([userOp], AddressOne);
 
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
@@ -383,9 +386,9 @@ describe("SafeInternationalHarbour.4337", () => {
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
 				nonce,
 			});
-			const { userOp, signature } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
+			const { userOp, signature } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 			// First call stores signature
-			await entryPoint.handleOps([userOp], AddressOne)
+			await entryPoint.handleOps([userOp], AddressOne);
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 			signatures.push(signature);
 			txHashes.push(safeTxHash);
@@ -437,11 +440,11 @@ describe("SafeInternationalHarbour.4337", () => {
 		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 8n;
-		const safeTx: SafeTransaction = buildSafeTx({ to: ethers.Wallet.createRandom().address, nonce })
+		const safeTx: SafeTransaction = buildSafeTx({ to: ethers.Wallet.createRandom().address, nonce });
 
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 		// First call stores signature
-		await entryPoint.handleOps([userOp], AddressOne)
+		await entryPoint.handleOps([userOp], AddressOne);
 
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(1);
@@ -475,9 +478,9 @@ describe("SafeInternationalHarbour.4337", () => {
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
 				nonce,
 			});
-			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 			// First call stores signature
-			await entryPoint.handleOps([userOp], AddressOne)
+			await entryPoint.handleOps([userOp], AddressOne);
 		}
 
 		// Check count after adding
@@ -513,11 +516,11 @@ describe("SafeInternationalHarbour.4337", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress, chainId2, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes must differ due to chainId in domain
 
-		const { userOp: userOpChainId1 } = await buildSignedUserOp(harbour, signerWallet, chainId1, safeAddress, safeTx1)
-		await entryPoint.handleOps([userOpChainId1], AddressOne)
+		const { userOp: userOpChainId1 } = await buildSignedUserOp(harbour, signerWallet, chainId1, safeAddress, safeTx1);
+		await entryPoint.handleOps([userOpChainId1], AddressOne);
 
-		const { userOp: userOpChainId2 } = await buildSignedUserOp(harbour, signerWallet, chainId2, safeAddress, safeTx2)
-		await entryPoint.handleOps([userOpChainId2], AddressOne)
+		const { userOp: userOpChainId2 } = await buildSignedUserOp(harbour, signerWallet, chainId2, safeAddress, safeTx2);
+		await entryPoint.handleOps([userOpChainId2], AddressOne);
 
 		// Retrieve and verify counts and data for chainId1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId1, nonce);
@@ -574,11 +577,11 @@ describe("SafeInternationalHarbour.4337", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress, chainId, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes must differ due to nonce in struct
 
-		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx1)
-		await entryPoint.handleOps([userOp1], AddressOne)
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx1);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
-		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx2)
-		await entryPoint.handleOps([userOp2], AddressOne)
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx2);
+		await entryPoint.handleOps([userOp2], AddressOne);
 
 		// Verify counts and signatures for nonce1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce1);
@@ -628,11 +631,11 @@ describe("SafeInternationalHarbour.4337", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress2, chainId, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes differ due to safeAddress in domain
 
-		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress1, safeTx1)
-		await entryPoint.handleOps([userOp1], AddressOne)
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress1, safeTx1);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
-		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress2, safeTx2)
-		await entryPoint.handleOps([userOp2], AddressOne)
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress2, safeTx2);
+		await entryPoint.handleOps([userOp2], AddressOne);
 
 		// Verify counts and signatures for safeAddress1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress1, chainId, nonce);
@@ -669,9 +672,9 @@ describe("SafeInternationalHarbour.4337", () => {
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
 				nonce,
 			});
-			
-			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-			await entryPoint.handleOps([userOp], AddressOne)
+
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			await entryPoint.handleOps([userOp], AddressOne);
 		}
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(2);
@@ -712,9 +715,9 @@ describe("SafeInternationalHarbour.4337", () => {
 			to: ethers.Wallet.createRandom().address,
 			nonce: knownNonce,
 		});
-		
-		const { userOp } = await buildSignedUserOp(harbour, knownSigner, chainId, safeAddress, safeTx)
-		await entryPoint.handleOps([userOp], AddressOne)
+
+		const { userOp } = await buildSignedUserOp(harbour, knownSigner, chainId, safeAddress, safeTx);
+		await entryPoint.handleOps([userOp], AddressOne);
 
 		expect(await harbour.retrieveSignaturesCount(knownSignerAddr, safeAddress, chainId, knownNonce)).to.equal(1);
 
@@ -739,11 +742,9 @@ describe("SafeInternationalHarbour.4337", () => {
 				nonce,
 			});
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		
-			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-			await expect(
-				entryPoint.handleOps([userOp], AddressOne),
-			)
+
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			await expect(entryPoint.handleOps([userOp], AddressOne))
 				.to.emit(harbour, "SignatureStored")
 				.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
 		}
@@ -755,12 +756,10 @@ describe("SafeInternationalHarbour.4337", () => {
 	it("should emit NewTransaction event with correct parameters on first enqueue", async () => {
 		const { entryPoint, deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = Wallet.createRandom();
-		const safeTx: SafeTransaction = buildSafeTx({to: deployer.address})
+		const safeTx: SafeTransaction = buildSafeTx({ to: deployer.address });
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		await expect(
-			entryPoint.handleOps([userOp], AddressOne),
-		)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.emit(harbour, "NewTransaction")
 			.withArgs(
 				safeTxHash,

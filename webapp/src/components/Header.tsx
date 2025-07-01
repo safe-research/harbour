@@ -1,8 +1,8 @@
-import { useBatch } from "@/contexts/BatchTransactionsContext";
-import { safeIdSchema } from "@/lib/validators";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
+import { safeIdSchema } from "@/lib/validators";
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();

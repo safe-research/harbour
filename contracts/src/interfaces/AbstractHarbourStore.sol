@@ -11,7 +11,7 @@ abstract contract IHarbourStore {
     function _signerSignedTx(
         bytes32 safeTxHash,
         address signer
-    ) internal view virtual returns(bool signed);
+    ) internal view virtual returns (bool signed);
 
     /**
      * @dev Internal function to store a signature after validation.

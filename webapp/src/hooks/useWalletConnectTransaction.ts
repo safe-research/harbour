@@ -1,9 +1,9 @@
+import type { BrowserProvider } from "ethers";
+import { ethers } from "ethers";
+import { useCallback, useState } from "react";
 import { useWalletConnect } from "@/hooks/walletConnect";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { ethers } from "ethers";
-import { useCallback, useState } from "react";
-import type { BrowserProvider } from "ethers";
 
 type WalletConnectTransactionParams = {
 	safeAddress: string;

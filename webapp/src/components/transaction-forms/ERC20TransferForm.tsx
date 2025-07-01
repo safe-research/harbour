@@ -1,3 +1,9 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate } from "@tanstack/react-router";
+import { ethers } from "ethers";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
 import { encodeERC20Transfer } from "@/lib/erc20";
@@ -8,12 +14,6 @@ import {
 	nonceSchema,
 	positiveAmountSchema,
 } from "@/lib/validators";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "@tanstack/react-router";
-import { ethers } from "ethers";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import type { ERC20TransferFormProps } from "./types";
 
 const createERC20TransferFormSchema = (currentSafeNonce: string) =>

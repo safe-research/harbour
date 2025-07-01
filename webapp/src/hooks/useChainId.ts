@@ -1,6 +1,6 @@
-import type { ChainId } from "@/lib/types";
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
+import type { ChainId } from "@/lib/types";
 
 /**
  * React hook to retrieve the current chain ID from a given Ethers.js provider.

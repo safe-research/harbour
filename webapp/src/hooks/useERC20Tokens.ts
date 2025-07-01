@@ -1,10 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
+import type { JsonRpcApiProvider } from "ethers";
 import {
 	type ERC20TokenDetails,
 	fetchBatchERC20TokenDetails,
 } from "@/lib/erc20";
-import type { JsonRpcApiProvider } from "ethers";
 import { useERC20TokenAddresses } from "./useERC20TokenAddresses";
-import { useQuery } from "@tanstack/react-query";
 
 /**
  * Hook to fetch ERC20 token details for addresses managed in localStorage.

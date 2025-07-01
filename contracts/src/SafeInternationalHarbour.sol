@@ -52,7 +52,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(bytes32 safeTxHash => mapping(address signer => bool))
         private _hasSignerSignedTx;
 
-    constructor(address _entryPoint) ERC4337Mixin(_entryPoint) {}    
+    constructor(address _entryPoint) ERC4337Mixin(_entryPoint) {}
 
     // ------------------------------------------------------------------
     // External & public write functions
@@ -247,7 +247,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     function _signerSignedTx(
         bytes32 safeTxHash,
         address signer
-    ) internal view override returns(bool signed) {
+    ) internal view override returns (bool signed) {
         signed = _hasSignerSignedTx[safeTxHash][signer];
     }
 

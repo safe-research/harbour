@@ -1,9 +1,8 @@
-import { Wallet, ZeroAddress, type Signer, type TransactionReceipt } from "ethers";
+import { AddressOne } from "@safe-global/safe-contracts";
+import { type Signer, type TransactionReceipt, Wallet } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";
 import { buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
-import { AddressOne } from "@safe-global/safe-contracts";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {
 	if (!tx || !tx.gasUsed) {
@@ -34,8 +33,8 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const { entryPoint, deployer, harbour, chainId, safeAddress } = await deployFixture();
 		const signerWallet = Wallet.createRandom();
 		const safeTx = buildSafeTx({ to: deployer.address });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		const tx = await entryPoint.handleOps([userOp], AddressOne)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("native_transfer_0b", receipt);
 	});
@@ -48,8 +47,8 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const erc20Iface = new ethers.Interface(["function transfer(address to,uint256 amount)"]);
 		const data = erc20Iface.encodeFunctionData("transfer", [recipient, amount]);
 		const safeTx = buildSafeTx({ to: recipient, data });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		const tx = await entryPoint.handleOps([userOp], AddressOne)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("erc20_transfer_68b", receipt);
 	});
@@ -59,8 +58,8 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const signerWallet = Wallet.createRandom();
 		const data = `0x${"ff".repeat(1024)}`;
 		const safeTx = buildSafeTx({ to: deployer.address, data });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx)
-		const tx = await entryPoint.handleOps([userOp], AddressOne)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("large_tx_data_1024b", receipt);
 	});
@@ -69,12 +68,12 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const { entryPoint, deployer, harbour, chainId, safeAddress } = await deployFixture();
 		const signerWallet1 = Wallet.createRandom();
 		const safeTx = buildSafeTx({ to: deployer.address });
-		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet1, chainId, safeAddress, safeTx)
-		await entryPoint.handleOps([userOp1], AddressOne)
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet1, chainId, safeAddress, safeTx);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
 		const signerWallet2 = Wallet.createRandom();
-		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet2, chainId, safeAddress, safeTx)
-		const tx = await entryPoint.handleOps([userOp2], AddressOne)
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet2, chainId, safeAddress, safeTx);
+		const tx = await entryPoint.handleOps([userOp2], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("append_sig_same_tx", receipt);
 	});
