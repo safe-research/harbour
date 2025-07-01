@@ -1,0 +1,67 @@
+import { AddressLike, BaseWallet, recoverAddress, Signature, toBeHex, ZeroAddress, ZeroHash, type BigNumberish } from "ethers";
+import { ERC4337Mixin__factory, SafeInternationalHarbour } from "../../typechain-types";
+import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
+import { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
+
+    export function buildUserOp(harbour: AddressLike, safe: string, chainId: bigint, tx: SafeTransaction, signatureBytes: string, entryPointNonce: BigNumberish): PackedUserOperationStruct {
+        const safeTxHash = getSafeTransactionHash(safe, chainId, tx)
+        const signature = Signature.from(signatureBytes)
+        const signer = recoverAddress(safeTxHash, signature)
+        const callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
+            safeTxHash,
+            safe,
+            chainId,
+            tx.nonce,
+            tx.to,
+            tx.value,
+            tx.data,
+            tx.operation,
+            tx.safeTxGas,
+            tx.baseGas,
+            tx.gasPrice,
+            tx.gasToken,
+            tx.refundReceiver,
+            signer,
+            signature.r,
+            signature.yParityAndS
+        ])
+        return {
+            sender: harbour,
+            nonce: entryPointNonce,
+            initCode: "0x",
+            callData,
+            accountGasLimits: toBeHex(2_000_000, 16) + toBeHex(2_000_000, 16).slice(2),
+            preVerificationGas: 0,
+            gasFees: ZeroHash,
+            paymasterAndData: "0x",
+            signature: signature.serialized
+        }
+    }
+
+    export function buildSafeTx(params: Partial<SafeTransaction> = {}): SafeTransaction {
+        return {
+            nonce: params.nonce || 0n,
+            to: params.to || ZeroAddress,
+            value: params.value || 0n,
+            data: params.data || "0x",
+            operation: params.operation || 0,
+            safeTxGas: params.safeTxGas || 0n,
+            baseGas: params.baseGas || 0n,
+            gasPrice: params.gasPrice || 0n,
+            gasToken: params.gasToken || ZeroAddress,
+            refundReceiver: params.refundReceiver || ZeroAddress,
+        }
+    }
+
+    export async function buildSignedUserOp(harbour: SafeInternationalHarbour, signerWallet: BaseWallet, chainId: bigint, safeAddress: string, safeTx: SafeTransaction): Promise<{userOp: PackedUserOperationStruct, signature: string}> {
+        const signature = await signerWallet.signTypedData(
+            { chainId, verifyingContract: safeAddress },
+            EIP712_SAFE_TX_TYPE,
+            safeTx,
+        );
+        const userOpNonce = await harbour.getNonce(signerWallet.address);
+        return {
+            userOp: buildUserOp(harbour, safeAddress, chainId, safeTx, signature, userOpNonce),
+            signature
+        };
+    }
