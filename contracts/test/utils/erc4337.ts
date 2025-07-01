@@ -1,9 +1,11 @@
 import {
 	type AddressLike,
-	type BaseWallet,
 	type BigNumberish,
+	ethers,
+	hexlify,
 	recoverAddress,
 	Signature,
+	type Signer,
 	toBeHex,
 	ZeroAddress,
 	ZeroHash,
@@ -71,7 +73,7 @@ export function buildSafeTx(params: Partial<SafeTransaction> = {}): SafeTransact
 
 export async function buildSignedUserOp(
 	harbour: SafeInternationalHarbour,
-	signerWallet: BaseWallet,
+	signerWallet: Signer,
 	chainId: bigint,
 	safeAddress: string,
 	safeTx: SafeTransaction,
@@ -81,9 +83,56 @@ export async function buildSignedUserOp(
 		EIP712_SAFE_TX_TYPE,
 		safeTx,
 	);
-	const userOpNonce = await harbour.getNonce(signerWallet.address);
+	const userOpNonce = await harbour.getNonce(await signerWallet.getAddress());
 	return {
 		userOp: buildUserOp(harbour, safeAddress, chainId, safeTx, signature, userOpNonce),
 		signature,
+	};
+}
+
+export type UserOpRequest = {
+	sender: string;
+	nonce: string;
+
+	// initCode: BytesLike;
+	// factory: string | undefined;
+	// factoryData: string | undefined;
+
+	callData: string;
+
+	// accountGasLimits: BytesLike;
+	callGasLimit: string;
+	verificationGasLimit: string;
+
+	preVerificationGas: string;
+
+	// gasFees: BytesLike;
+	maxFeePerGas: string;
+	maxPriorityFeePerGas: string;
+
+	// paymasterAndData: BytesLike;
+	// paymaster: string | undefined;
+	// paymasterVerificationGasLimit: string | undefined;
+	// paymasterPostOpGasLimit: string | undefined;
+	// paymasterData: string | undefined;
+
+	signature: string;
+};
+
+export async function serialize(userOp: PackedUserOperationStruct): Promise<UserOpRequest> {
+	if (hexlify(userOp.initCode) !== "0x") throw Error("Unsupported initCode");
+	if (hexlify(userOp.paymasterAndData) !== "0x") throw Error("Unsupported paymasterAndData");
+	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
+	const gasFees = ethers.zeroPadValue(userOp.gasFees, 32).slice(2);
+	return {
+		sender: await ethers.resolveAddress(userOp.sender),
+		nonce: ethers.toBeHex(userOp.nonce),
+		callData: hexlify(userOp.callData),
+		callGasLimit: `0x${gasLimits.slice(0, 32)}`,
+		verificationGasLimit: `0x${gasLimits.slice(32)}`,
+		preVerificationGas: ethers.toBeHex(userOp.preVerificationGas),
+		maxFeePerGas: `0x${gasFees.slice(0, 32)}`,
+		maxPriorityFeePerGas: `0x${gasFees.slice(32)}`,
+		signature: hexlify(userOp.signature),
 	};
 }

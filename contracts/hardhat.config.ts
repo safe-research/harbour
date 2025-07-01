@@ -7,6 +7,7 @@ import * as dotenv from "dotenv";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 
 import "./tasks/deployAndVerify";
+import "./tasks/submitSignature";
 
 dotenv.config();
 
@@ -40,6 +41,10 @@ const SOLC_CONFIGURATION_WITHOUT_IR_PIPELINE = SOLC_CONFIGURATION(false);
 
 const config: HardhatUserConfig = {
 	networks: {
+		sepolia: {
+			...sharedNetworkConfig,
+			url: "https://sepolia.drpc.org",
+		},
 		gnosis: {
 			...sharedNetworkConfig,
 			url: "https://rpc.gnosischain.com",
