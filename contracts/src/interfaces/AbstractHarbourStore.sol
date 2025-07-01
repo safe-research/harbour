@@ -3,6 +3,17 @@ pragma solidity ^0.8.29;
 
 abstract contract IHarbourStore {
     /**
+     * @dev Internal function to store the transaction data and signature after validation.
+     *
+     * @param safeTxHash    EIP-712 digest of the transaction.
+     * @param signer        Signer address to be checked.
+     */
+    function _signerSignedTx(
+        bytes32 safeTxHash,
+        address signer
+    ) internal view virtual returns(bool signed);
+
+    /**
      * @dev Internal function to store a signature after validation.
      *
      * @param signer        Address that signed the transaction.

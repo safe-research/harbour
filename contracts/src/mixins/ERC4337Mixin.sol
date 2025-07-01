@@ -29,7 +29,11 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
     /**
      * @notice The address of the EntryPoint contract supported by this module.
      */
-    address public immutable SUPPORTED_ENTRYPOINT = address(0);
+    address public immutable SUPPORTED_ENTRYPOINT;
+
+    constructor(address _entryPoint) {
+        SUPPORTED_ENTRYPOINT = _entryPoint;
+    }
 
     /**
      * Return the account nonce.
@@ -82,6 +86,14 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             bytes32 r,
             bytes32 vs
         ) = _verifySafeTxHash(userOp.callData[4:]);
+
+        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
+        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
+        require(
+            !_signerSignedTx(safeTxHash, signer),
+            SignerAlreadySignedTransaction(signer, safeTxHash)
+        );
+        
         _verifySignature(safeTxHash, userOp.signature, signer, r, vs);
 
         uint256 nonce = getNonce(signer);
@@ -98,7 +110,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             (success);
         }
 
-        return _packValidationData(true, 0, 0);
+        return _packValidationData(false, 0, 0);
     }
 
     function _verifySafeTxHash(

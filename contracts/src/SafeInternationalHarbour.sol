@@ -52,6 +52,8 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(bytes32 safeTxHash => mapping(address signer => bool))
         private _hasSignerSignedTx;
 
+    constructor(address _entryPoint) ERC4337Mixin(_entryPoint) {}    
+
     // ------------------------------------------------------------------
     // External & public write functions
     // ------------------------------------------------------------------
@@ -134,6 +136,13 @@ contract SafeInternationalHarbour is ERC4337Mixin {
             gasPrice,
             gasToken,
             refundReceiver
+        );
+
+        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
+        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
+        require(
+            !_signerSignedTx(safeTxHash, signer),
+            SignerAlreadySignedTransaction(signer, safeTxHash)
         );
         return
             _storeSignature(
@@ -223,6 +232,23 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         uint256 nonce
     ) external view returns (uint256 count) {
         count = _sigData[signerAddress][safeAddress][chainId][nonce].length;
+    }
+
+    // ------------------------------------------------------------------
+    // Internal functions
+    // ------------------------------------------------------------------
+
+    /**
+     * @dev Internal function to store the transaction data and signature after validation.
+     *
+     * @param safeTxHash    EIP-712 digest of the transaction.
+     * @param signer        Signer address to be checked.
+     */
+    function _signerSignedTx(
+        bytes32 safeTxHash,
+        address signer
+    ) internal view override returns(bool signed) {
+        signed = _hasSignerSignedTx[safeTxHash][signer];
     }
 
     /**
@@ -328,13 +354,6 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         bytes32 r,
         bytes32 vs
     ) internal override returns (uint256 listIndex) {
-        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
-        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        require(
-            !_hasSignerSignedTx[safeTxHash][signer],
-            SignerAlreadySignedTransaction(signer, safeTxHash)
-        );
-
         _hasSignerSignedTx[safeTxHash][signer] = true;
 
         SignatureDataWithTxHashIndex[] storage list = _sigData[signer][

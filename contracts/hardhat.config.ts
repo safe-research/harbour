@@ -35,6 +35,7 @@ const SOLC_CONFIGURATION = (viaIR = true) => ({
       enabled: true,
       runs: 10_000_000,
     },
+    evmVersion: `cancun`,
     viaIR,
   },
 });
