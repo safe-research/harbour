@@ -87,6 +87,6 @@ export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
 	console.log({ gasFee });
 	const limits = await getUserOpGasLimits(supportedEntryPoint, userOp);
 	console.log({ limits });
-	const userOpHash = await sendUserOp(supportedEntryPoint, userOp, gasFee, limits);
-	console.log({ userOpHash });
+	//const userOpHash = await sendUserOp(supportedEntryPoint, userOp, gasFee, limits);
+	//console.log({ userOpHash });
 };

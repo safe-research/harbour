@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { buildFeeConfig, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -15,7 +15,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await HarbourFactory.deploy(entryPoint);
+		const harbour = await HarbourFactory.deploy(entryPoint, buildFeeConfig());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint };

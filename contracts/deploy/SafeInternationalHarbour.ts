@@ -1,4 +1,5 @@
 import type { DeployFunction } from "hardhat-deploy/types";
+import { buildFeeConfig } from "../test/utils/erc4337";
 
 const func: DeployFunction = async ({ getNamedAccounts, deployments }) => {
 	const { deterministic, log } = deployments;
@@ -6,7 +7,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments }) => {
 
 	const result = await deterministic("SafeInternationalHarbour", {
 		from: deployer,
-		args: ["0x4337084d9e255ff0702461cf8895ce9e3b5ff108"],
+		args: ["0x4337084d9e255ff0702461cf8895ce9e3b5ff108", buildFeeConfig()],
 		log: true,
 	});
 

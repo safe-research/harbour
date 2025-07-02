@@ -22,6 +22,17 @@ import "../interfaces/AbstractHarbourStore.sol";
 import "../libs/CoreLib.sol";
 
 abstract contract ERC4337Mixin is IAccount, IHarbourStore {
+
+    using UserOperationLib for PackedUserOperation;
+
+    struct FeeConfigParams {
+        uint256 maxPriorityFee;
+        uint256 preVerificationGasPerByte;
+        uint256 preVerificationBaseGas;
+        uint256 verificationGasPerByte;
+        uint256 callGasPerByte;
+    }
+
     // ------------------------------------------------------------------
     // 4337 functions
     // ------------------------------------------------------------------
@@ -30,9 +41,23 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
      * @notice The address of the EntryPoint contract supported by this module.
      */
     address public immutable SUPPORTED_ENTRYPOINT;
+    // TODO evaluate if this should be upgradable
+    uint256 public immutable MAX_PRIORITY_FEE;
+    uint256 public immutable PRE_VERIFICATION_GAS_PER_BYTE;
+    uint256 public immutable PRE_VERIFICATION_BASE_GAS;
+    uint256 public immutable VERIFICATION_GAS_PER_BYTE;
+    uint256 public immutable CALL_GAS_PER_BYTE;
 
-    constructor(address _entryPoint) {
+    constructor(
+        address _entryPoint, 
+        FeeConfigParams memory _feeConfigParams
+    ) {
         SUPPORTED_ENTRYPOINT = _entryPoint;
+        MAX_PRIORITY_FEE = _feeConfigParams.maxPriorityFee;
+        PRE_VERIFICATION_GAS_PER_BYTE= _feeConfigParams.preVerificationGasPerByte;
+        PRE_VERIFICATION_BASE_GAS= _feeConfigParams.preVerificationBaseGas;
+        VERIFICATION_GAS_PER_BYTE= _feeConfigParams.verificationGasPerByte;
+        CALL_GAS_PER_BYTE= _feeConfigParams.callGasPerByte;
     }
 
     /**
@@ -51,7 +76,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
     function validateUserOp(
         PackedUserOperation calldata userOp,
         bytes32,
-        uint256 missingAccountFunds
+        uint256
     ) external override returns (uint256 validationData) {
         // Assumption:
         //   - UserOp signature is SafeTx signature
@@ -99,19 +124,33 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         uint256 nonce = getNonce(signer);
         require(userOp.nonce == nonce, UnexpectedNonce(nonce));
 
-        // We trust the entry point to set the correct prefund value, based on the operation params
-        // We need to perform this even if the signature is not valid, else the simulation function of the entry point will not work.
-        if (missingAccountFunds != 0) {
-            // We intentionally ignore errors in paying the missing account funds, as the entry point is responsible for
-            // verifying the prefund has been paid. This behaviour matches the reference base account implementation.
-            (bool success, ) = payable(msg.sender).call{
-                value: missingAccountFunds
-            }("");
-            (success);
-        }
+        // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
 
-        return _packValidationData(false, 0, 0);
+        bool validationFailed = !_validGasFees(userOp) || !_validGasLimits(userOp);
+        return _packValidationData(validationFailed, 0, 0);
     }
+
+    function _validGasFees(
+        PackedUserOperation calldata userOp
+    ) private view returns (bool) {
+        uint256 maxPriorityFeePerGas = userOp.unpackMaxPriorityFeePerGas();
+        return maxPriorityFeePerGas <= MAX_PRIORITY_FEE;
+    }
+
+    function _validGasLimits(
+        PackedUserOperation calldata userOp
+    ) private view returns (bool) {
+        // Base calculations of gas limits on calldata size, this is a simple workaround for now
+        //      -> an alernative for verificationGas could be to do internal gas metering
+        // Employ a maximum gas limit based on locked tokens
+        if (userOp.preVerificationGas > userOp.callData.length * PRE_VERIFICATION_GAS_PER_BYTE + PRE_VERIFICATION_BASE_GAS) return false;
+        uint256 verificationGasLimit = userOp.unpackVerificationGasLimit();
+        if (verificationGasLimit > userOp.callData.length * VERIFICATION_GAS_PER_BYTE) return false;
+        uint256 callGasLimit = userOp.unpackCallGasLimit();
+        if (callGasLimit > userOp.callData.length * CALL_GAS_PER_BYTE) return false;
+        return true;
+    }
+
 
     function _verifySafeTxHash(
         bytes calldata callData

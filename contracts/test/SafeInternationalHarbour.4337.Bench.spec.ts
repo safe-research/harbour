@@ -2,7 +2,7 @@ import { AddressOne } from "@safe-global/safe-contracts";
 import { type Signer, type TransactionReceipt, Wallet } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
+import { buildFeeConfig, buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {
 	if (!tx || !tx.gasUsed) {
@@ -23,7 +23,7 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await HarbourFactory.deploy(entryPoint);
+		const harbour = await HarbourFactory.deploy(entryPoint, buildFeeConfig());
 
 		const safeAddress = await alice.getAddress();
 		return { entryPoint, deployer, alice, harbour, chainId, safeAddress };

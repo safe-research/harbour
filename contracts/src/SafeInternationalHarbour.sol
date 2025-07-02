@@ -52,7 +52,10 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(bytes32 safeTxHash => mapping(address signer => bool))
         private _hasSignerSignedTx;
 
-    constructor(address _entryPoint) ERC4337Mixin(_entryPoint) {}
+    constructor(
+        address _entryPoint,
+        FeeConfigParams memory _feeConfigParams
+    ) ERC4337Mixin(_entryPoint, _feeConfigParams) {}
 
     // ------------------------------------------------------------------
     // External & public write functions
