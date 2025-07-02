@@ -11,6 +11,7 @@
     "typechain-types"
   ],
   "dependencies": {
+    "@account-abstraction/contracts": "^0.8.0",
     "@safe-global/safe-contracts": "^1.4.1-2",
     "@safe-global/safe-singleton-factory": "^1.0.44",
     "yargs": "^18.0.0"

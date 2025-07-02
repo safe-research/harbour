@@ -1,9 +1,9 @@
+import { useCallback, useState } from "react";
 import {
 	addERC20TokenAddress,
 	getERC20TokenAddresses,
 	removeERC20TokenAddress,
 } from "@/lib/localStorage";
-import { useCallback, useState } from "react";
 
 /**
  * Hook to manage ERC20 token addresses persisted in localStorage by chain ID.

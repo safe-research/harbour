@@ -1,4 +1,4 @@
-import type { Signer, TransactionReceipt } from "ethers";
+import { type Signer, type TransactionReceipt, ZeroAddress } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";
@@ -20,7 +20,7 @@ describe("SafeInternationalHarbour [@bench]", () => {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
 		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy();
+		const harbour = await Factory.deploy(ZeroAddress);
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress };

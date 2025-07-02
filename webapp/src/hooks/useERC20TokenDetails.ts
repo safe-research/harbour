@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
-import { fetchERC20TokenDetails, type ERC20TokenDetails } from "@/lib/erc20";
+import { type ERC20TokenDetails, fetchERC20TokenDetails } from "@/lib/erc20";
 
 /**
  * Hook to fetch ERC20 token details (name, symbol, decimals, balance) for a given token and owner.

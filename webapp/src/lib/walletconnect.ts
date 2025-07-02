@@ -1,4 +1,4 @@
-import { type WalletKitTypes as WKTypes, WalletKit } from "@reown/walletkit";
+import { WalletKit, type WalletKitTypes as WKTypes } from "@reown/walletkit";
 import { Core } from "@walletconnect/core";
 import type { SessionTypes as SCTypes } from "@walletconnect/types";
 import { getSdkError } from "@walletconnect/utils";

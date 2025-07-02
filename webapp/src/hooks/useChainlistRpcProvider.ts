@@ -1,5 +1,5 @@
-import { JsonRpcProvider } from "ethers";
 import type { JsonRpcApiProvider, JsonRpcApiProviderOptions } from "ethers";
+import { JsonRpcProvider } from "ethers";
 import { useEffect, useState } from "react";
 import { getRpcUrlByChainId } from "../lib/chains";
 

@@ -1,10 +1,9 @@
 import type { JsonRpcApiProvider } from "ethers";
 import Fuse from "fuse.js";
-import type { ChainId } from "./types";
-
 import { shuffle } from "./arrays";
 import chainsJson from "./chains.json" with { type: "json" };
 import { getEIP1193ProviderFromRPCProvider } from "./providers";
+import type { ChainId } from "./types";
 
 /** Type representing the standard for Etherscan-like explorers. */
 type EtherscanExplorerStandard = "EIP3091";
