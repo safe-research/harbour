@@ -27,7 +27,7 @@ library CoreLib {
      * @param refundReceiver Address to receive gas refunds.
      * @return safeTxHash Keccak256 digest of the EIP-712 encoded SafeTx.
      */
-    function _computeSafeTxHash(
+    function computeSafeTxHash(
         address safeAddress,
         uint256 chainId,
         uint256 nonce,
@@ -42,11 +42,11 @@ library CoreLib {
         address refundReceiver
     ) internal pure returns (bytes32 safeTxHash) {
         bytes32 domainSeparator = keccak256(
-            abi.encode(_DOMAIN_TYPEHASH, chainId, safeAddress)
+            abi.encode(DOMAIN_TYPEHASH, chainId, safeAddress)
         );
         bytes32 structHash = keccak256(
             abi.encode(
-                _SAFE_TX_TYPEHASH,
+                SAFE_TX_TYPEHASH,
                 to,
                 value,
                 keccak256(data),
@@ -73,7 +73,7 @@ library CoreLib {
      * @return vs Compact representation of s and v coming from EIP-2098.
      * @dev Supports both EIP-712 and eth_sign flows by detecting v > 30 and applying the Ethereum Signed Message prefix.
      */
-    function _recoverSigner(
+    function recoverSigner(
         bytes32 digest,
         bytes calldata sig
     ) internal pure returns (address signer, bytes32 r, bytes32 vs) {
@@ -98,7 +98,7 @@ library CoreLib {
         }
     }
 
-    function _safeCastUint256ToUint128(
+    function safeCastUint256ToUint128(
         uint256 value
     ) internal pure returns (uint128) {
         require(value <= type(uint128).max, ValueDoesNotFitInUint128());

@@ -154,7 +154,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
                     bytes32
                 )
             );
-        bytes32 computedSafeTxHash = CoreLib._computeSafeTxHash(
+        bytes32 computedSafeTxHash = CoreLib.computeSafeTxHash(
             safeAddress,
             chainId,
             nonce,
@@ -187,7 +187,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             address recoveredSigner,
             bytes32 extractedR,
             bytes32 extractedVS
-        ) = CoreLib._recoverSigner(safeTxHash, signature);
+        ) = CoreLib.recoverSigner(safeTxHash, signature);
         require(signer == recoveredSigner, UnexpectedSigner(signer));
         require(r == extractedR, UnexpectedSignatureR(r));
         require(vs == extractedVS, UnexpectedSignatureVS(vs));
