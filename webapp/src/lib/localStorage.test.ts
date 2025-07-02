@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 import {
-	ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 	addERC20TokenAddress,
+	ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 	getERC20TokenAddresses,
 	removeERC20TokenAddress,
 } from "./localStorage";

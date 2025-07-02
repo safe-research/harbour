@@ -20,7 +20,7 @@ Install dependencies and compile the contracts:
 
 ```bash
 npm install
-npm run compile
+npm run build
 ```
 
 Run tests:

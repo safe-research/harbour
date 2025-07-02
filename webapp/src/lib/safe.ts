@@ -1,5 +1,5 @@
-import { ethers } from "ethers";
 import type { JsonRpcSigner } from "ethers";
+import { ethers } from "ethers";
 import { bytes32ToAddress, compactSignatureToFullSignature } from "./encoding";
 import { aggregateMulticall } from "./multicall";
 import type {

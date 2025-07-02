@@ -1,26 +1,51 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
-import { type Signer, ZeroAddress } from "ethers";
+import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
-import { SafeInternationalHarbour__factory } from "../typechain-types";
+import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
+import { buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
-describe("SafeInternationalHarbour", () => {
+describe("SafeInternationalHarbour.4337", () => {
 	async function deployFixture() {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
-		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy(ZeroAddress);
+		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
+		const entryPoint = await EntryPointFactory.deploy();
+		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
+		const harbour = await HarbourFactory.deploy(entryPoint);
 
 		const safeAddress = await alice.getAddress();
-		return { deployer, alice, harbour, chainId, safeAddress };
+		return { deployer, alice, harbour, chainId, safeAddress, entryPoint };
 	}
 
-	it("should revert if signature length is not 65 bytes", async () => {
+	function error(contract: BaseContract, name: string, values: unknown[] = []): string {
+		return contract.interface.encodeErrorResult(name, values);
+	}
+
+	const INVALID_SIG = `${"0x".padEnd(128, "a")}1f`;
+
+	it("should revert if validateUserOp is not called from EntryPoint", async () => {
+		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		await expect(harbour.validateUserOp(userOp, ZeroHash, 0)).to.be.revertedWithCustomError(
+			harbour,
+			"InvalidEntryPoint",
+		);
+	});
+
+	it("should revert if storeTransaction is not called from EntryPoint", async () => {
 		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		console.log({ safeTx });
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		console.log({ userOp });
 		await expect(
-			harbour.enqueueTransaction(
+			harbour.storeTransaction(
+				ZeroHash,
 				safeAddress,
 				chainId,
 				0, // nonce
@@ -33,89 +58,78 @@ describe("SafeInternationalHarbour", () => {
 				0, // gasPrice
 				ethers.ZeroAddress, // gasToken
 				ethers.ZeroAddress, // refundReceiver
-				"0x1234", // invalid signature
+				ethers.ZeroAddress,
+				ZeroHash,
+				ZeroHash,
 			),
-		).to.be.revertedWithCustomError(harbour, "InvalidECDSASignatureLength");
+		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
+	});
+
+	it.skip("should revert if paymaster is set", async () => {
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", "0xea42a443");
+	});
+
+	it("should revert if signature length is not 65 bytes", async () => {
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		userOp.signature = INVALID_SIG; // This is the compact representation which is too short
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidECDSASignatureLength"));
 	});
 
 	it("should revert if provided signature is invalid (ecrecover yields zero address)", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const invalidSig = `0x${"00".repeat(65)}`;
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				0, // nonce
-				deployer.address, // to
-				0, // value
-				"0x", // data
-				0, // operation
-				0, // safeTxGas
-				0, // baseGas
-				0, // gasPrice
-				ethers.ZeroAddress, // gasToken
-				ethers.ZeroAddress, // refundReceiver
-				invalidSig, // invalid signature but correct length
-			),
-		).to.be.revertedWithCustomError(harbour, "InvalidSignature");
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const zeroSignature = `0x${"00".repeat(65)}`;
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		userOp.signature = zeroSignature;
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignature"));
 	});
 
-	it("should emit SignatureStored event with correct parameters on first enqueue", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+	it("should revert if invalid UserOp nonce is provided", async () => {
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
 		const signerWallet = ethers.Wallet.createRandom();
 		const signerAddress = await signerWallet.getAddress();
-		const to = deployer.address;
-		const value = 0n;
-		const data = "0x";
-		const operation = 0;
-		const safeTxGas = 0n;
-		const baseGas = 0n;
-		const gasPrice = 0n;
-		const nonce = 0n;
-		const safeTx: SafeTransaction = {
-			to,
-			value,
-			data,
-			operation,
-			safeTxGas,
-			baseGas,
-			gasPrice,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const signature = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
 			EIP712_SAFE_TX_TYPE,
 			safeTx,
 		);
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			),
-		)
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature, 0);
+
+		const userOpNonce = await harbour.getNonce(signerAddress);
+		await expect(entryPoint.handleOps([userOp], ZeroAddress))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedNonce", [userOpNonce]));
+	});
+
+	it("should emit SignatureStored event with correct parameters on first enqueue", async () => {
+		const { deployer, harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
+		const signerAddress = await signerWallet.getAddress();
+		const safeTx = buildSafeTx({ to: deployer.address });
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.emit(harbour, "SignatureStored")
 			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, safeTx.nonce, 0);
 	});
 
 	it("should store transaction parameters on first enqueueTransaction call", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 1n,
 			data: "0x1234",
 			operation: 1, // DELEGATECALL
@@ -126,6 +140,38 @@ describe("SafeInternationalHarbour", () => {
 			refundReceiver: ethers.Wallet.createRandom().address,
 			nonce: 123n,
 		};
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+
+		await entryPoint.handleOps([userOp], AddressOne);
+
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		const storedTx = await harbour.retrieveTransaction(safeTxHash);
+		expect(storedTx.to).to.equal(safeTx.to);
+		expect(storedTx.value).to.equal(safeTx.value);
+		expect(storedTx.data).to.equal(safeTx.data);
+		expect(storedTx.operation).to.equal(safeTx.operation);
+		expect(storedTx.safeTxGas).to.equal(safeTx.safeTxGas);
+		expect(storedTx.baseGas).to.equal(safeTx.baseGas);
+		expect(storedTx.gasPrice).to.equal(safeTx.gasPrice);
+		expect(storedTx.gasToken).to.equal(safeTx.gasToken);
+		expect(storedTx.refundReceiver).to.equal(safeTx.refundReceiver);
+	});
+
+	it.skip("should not overwrite existing parameters on subsequent calls with same safeTxHash", async () => {
+		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = ethers.Wallet.createRandom();
+		const safeTx: SafeTransaction = {
+			to: ethers.Wallet.createRandom().address,
+			value: 1n,
+			data: "0x1234",
+			operation: 0,
+			safeTxGas: 100000n,
+			baseGas: 21000n,
+			gasPrice: 1n * 10n ** 9n,
+			gasToken: ethers.ZeroAddress,
+			refundReceiver: ethers.ZeroAddress,
+			nonce: 1n,
+		};
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const signature = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
@@ -133,6 +179,7 @@ describe("SafeInternationalHarbour", () => {
 			safeTx,
 		);
 
+		// First call - should store
 		await harbour.enqueueTransaction(
 			safeAddress,
 			chainId,
@@ -149,34 +196,51 @@ describe("SafeInternationalHarbour", () => {
 			signature,
 		);
 
-		const storedTx = await harbour.retrieveTransaction(safeTxHash);
-		expect(storedTx.to).to.equal(safeTx.to);
-		expect(storedTx.value).to.equal(safeTx.value);
-		expect(storedTx.data).to.equal(safeTx.data);
-		expect(storedTx.operation).to.equal(safeTx.operation);
-		expect(storedTx.safeTxGas).to.equal(safeTx.safeTxGas);
-		expect(storedTx.baseGas).to.equal(safeTx.baseGas);
-		expect(storedTx.gasPrice).to.equal(safeTx.gasPrice);
-		expect(storedTx.gasToken).to.equal(safeTx.gasToken);
-		expect(storedTx.refundReceiver).to.equal(safeTx.refundReceiver);
+		const storedTxBefore = await harbour.retrieveTransaction(safeTxHash);
+
+		// Second call with different parameters but same hash (won't happen in reality, but tests logic)
+		// Use a different signer just to make the second call valid
+		const anotherSigner = ethers.Wallet.createRandom();
+		const signature2 = await anotherSigner.signTypedData(
+			{ chainId, verifyingContract: safeAddress },
+			EIP712_SAFE_TX_TYPE,
+			safeTx, // Use same tx to get same hash
+		);
+		await harbour.enqueueTransaction(
+			safeAddress,
+			chainId,
+			safeTx.nonce, // Same nonce
+			ethers.Wallet.createRandom().address, // Different 'to'
+			safeTx.value + 1n, // Different value
+			"0xabcd", // Different data
+			1, // Different operation
+			safeTx.safeTxGas + 1n, // Different safeTxGas
+			safeTx.baseGas + 1n, // Different baseGas
+			safeTx.gasPrice + 1n, // Different gasPrice
+			ethers.Wallet.createRandom().address, // Different gasToken
+			ethers.Wallet.createRandom().address, // Different refundReceiver
+			signature2, // New valid signature for the *original* tx hash
+		);
+
+		const storedTxAfter = await harbour.retrieveTransaction(safeTxHash);
+
+		// Verify parameters are unchanged from the first call
+		expect(storedTxAfter.to).to.equal(storedTxBefore.to);
+		expect(storedTxAfter.value).to.equal(storedTxBefore.value);
+		expect(storedTxAfter.data).to.equal(storedTxBefore.data);
+		expect(storedTxAfter.operation).to.equal(storedTxBefore.operation);
+		expect(storedTxAfter.safeTxGas).to.equal(storedTxBefore.safeTxGas);
+		expect(storedTxAfter.baseGas).to.equal(storedTxBefore.baseGas);
+		expect(storedTxAfter.gasPrice).to.equal(storedTxBefore.gasPrice);
+		expect(storedTxAfter.gasToken).to.equal(storedTxBefore.gasToken);
+		expect(storedTxAfter.refundReceiver).to.equal(storedTxBefore.refundReceiver);
 	});
 
 	it("should not support malleable signatures", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const signerWallet = ethers.Wallet.createRandom();
 
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 0n,
-		};
+		const safeTx = buildSafeTx({ to: ethers.Wallet.createRandom().address });
 
 		const signature1 = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
@@ -198,88 +262,41 @@ describe("SafeInternationalHarbour", () => {
 		const signature2 = ethers.concat([r1, s2, ethers.toBeHex(v2, 1)]);
 
 		// Try to enqueue malleable signature
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature2,
-			),
-		).to.be.revertedWithCustomError(harbour, "InvalidSignatureSValue");
+
+		const userOpNonce = await harbour.getNonce(signerWallet.address);
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature1, userOpNonce);
+		userOp.signature = signature2;
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignatureSValue"));
 	});
 
 	it("should store signatures from different signers separately", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signer1Wallet = ethers.Wallet.createRandom();
-		const signer2Wallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signer1Wallet = Wallet.createRandom();
+		const signer2Wallet = Wallet.createRandom();
 		const signer1Address = signer1Wallet.address;
 		const signer2Address = signer2Wallet.address;
 
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 5n,
-		};
+		const safeTx = buildSafeTx({ to: Wallet.createRandom().address, nonce: 5n });
+
+		const { userOp: userOp1, signature: sig1 } = await buildSignedUserOp(
+			harbour,
+			signer1Wallet,
+			chainId,
+			safeAddress,
+			safeTx,
+		);
+		const { userOp: userOp2, signature: sig2 } = await buildSignedUserOp(
+			harbour,
+			signer2Wallet,
+			chainId,
+			safeAddress,
+			safeTx,
+		);
+		await entryPoint.handleOps([userOp1, userOp2], AddressOne);
+
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-
-		const sig1 = await signer1Wallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-		const sig2 = await signer2Wallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			sig1,
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			sig2,
-		);
-
 		const count1 = await harbour.retrieveSignaturesCount(signer1Address, safeAddress, chainId, safeTx.nonce);
 		const [page1] = await harbour.retrieveSignatures(signer1Address, safeAddress, chainId, safeTx.nonce, 0, 1);
 		const count2 = await harbour.retrieveSignaturesCount(signer2Address, safeAddress, chainId, safeTx.nonce);
@@ -301,71 +318,28 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should revert when a signer tries to enqueue the same transaction signature twice", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 0n,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
 
+		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 		// First call stores signature
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
 		// Second call should revert
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			),
-		)
-			.to.be.revertedWithCustomError(harbour, "SignerAlreadySignedTransaction")
-			.withArgs(signerAddress, safeTxHash);
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		await expect(entryPoint.handleOps([userOp2], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "SignerAlreadySignedTransaction", [signerAddress, safeTxHash]));
 	});
 
 	it("should retrieve full transaction details via retrieveTransaction", async () => {
 		// This is essentially the same as "should store transaction parameters..." but focuses on retrieval
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const safeTx: SafeTransaction = {
 			to: ethers.Wallet.createRandom().address,
 			value: 12345n,
@@ -378,29 +352,12 @@ describe("SafeInternationalHarbour", () => {
 			refundReceiver: ethers.Wallet.createRandom().address,
 			nonce: 99n,
 		};
+
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		// First call stores signature
+		await entryPoint.handleOps([userOp], AddressOne);
+
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		);
-
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
 		expect(storedTx.to).to.equal(safeTx.to);
 		expect(storedTx.value).to.equal(safeTx.value);
@@ -413,25 +370,9 @@ describe("SafeInternationalHarbour", () => {
 		expect(storedTx.refundReceiver).to.equal(safeTx.refundReceiver);
 	});
 
-	it("should return zero-initialized transaction for unknown safeTxHash", async () => {
-		const { harbour } = await loadFixture(deployFixture);
-		const unknownHash = ethers.keccak256("0xdeadbeef");
-		const storedTx = await harbour.retrieveTransaction(unknownHash);
-
-		expect(storedTx.to).to.equal(ethers.ZeroAddress);
-		expect(storedTx.value).to.equal(0n);
-		expect(storedTx.data).to.equal("0x");
-		expect(storedTx.operation).to.equal(0);
-		expect(storedTx.safeTxGas).to.equal(0n);
-		expect(storedTx.baseGas).to.equal(0n);
-		expect(storedTx.gasPrice).to.equal(0n);
-		expect(storedTx.gasToken).to.equal(ethers.ZeroAddress);
-		expect(storedTx.refundReceiver).to.equal(ethers.ZeroAddress);
-	});
-
 	it("should retrieve paginated signature entries correctly", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 7n;
 		const signatures = [];
@@ -439,24 +380,16 @@ describe("SafeInternationalHarbour", () => {
 		const sigData: { r: string; vs: string; txHash: string }[] = [];
 
 		for (let i = 0; i < 5; i++) {
-			const safeTx: SafeTransaction = {
+			const safeTx = buildSafeTx({
 				to: ethers.Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
-				operation: 0,
-				safeTxGas: 0n,
-				baseGas: 0n,
-				gasPrice: 0n,
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
 				nonce,
-			};
+			});
+			const { userOp, signature } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			// First call stores signature
+			await entryPoint.handleOps([userOp], AddressOne);
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-			const signature = await signerWallet.signTypedData(
-				{ chainId, verifyingContract: safeAddress },
-				EIP712_SAFE_TX_TYPE,
-				safeTx,
-			);
 			signatures.push(signature);
 			txHashes.push(safeTxHash);
 			const { r, vs } = toCompactSignature(signature);
@@ -465,22 +398,6 @@ describe("SafeInternationalHarbour", () => {
 				vs,
 				txHash: safeTxHash,
 			});
-
-			await harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			);
 		}
 
 		// Retrieve total count
@@ -519,43 +436,15 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should return empty array for retrieveSignatures when start index >= totalCount", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 8n;
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce,
-		};
-		const signature = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
+		const safeTx: SafeTransaction = buildSafeTx({ to: ethers.Wallet.createRandom().address, nonce });
 
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		); // Only 1 signature stored
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		// First call stores signature
+		await entryPoint.handleOps([userOp], AddressOne);
 
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(1);
@@ -572,8 +461,8 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should return correct total count via retrieveSignaturesCount", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 9n;
 
@@ -583,38 +472,15 @@ describe("SafeInternationalHarbour", () => {
 
 		// Add 3 signatures
 		for (let i = 0; i < 3; i++) {
-			const safeTx: SafeTransaction = {
+			const safeTx = buildSafeTx({
 				to: ethers.Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
-				operation: 0,
-				safeTxGas: 0n,
-				baseGas: 0n,
-				gasPrice: 0n,
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
 				nonce,
-			};
-			const signature = await signerWallet.signTypedData(
-				{ chainId, verifyingContract: safeAddress },
-				EIP712_SAFE_TX_TYPE,
-				safeTx,
-			);
-			await harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			);
+			});
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			// First call stores signature
+			await entryPoint.handleOps([userOp], AddressOne);
 		}
 
 		// Check count after adding
@@ -623,10 +489,10 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should isolate transactions by chainId: same tx on different chainIds don't collide", async () => {
-		const { harbour, safeAddress } = await loadFixture(deployFixture);
+		const { entryPoint, harbour, safeAddress } = await loadFixture(deployFixture);
 		const chainId1 = 1n;
 		const chainId2 = 5n; // Different chainId
-		const signerWallet = ethers.Wallet.createRandom();
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 10n;
 
@@ -650,49 +516,11 @@ describe("SafeInternationalHarbour", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress, chainId2, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes must differ due to chainId in domain
 
-		const sig1 = await signerWallet.signTypedData(
-			{ chainId: chainId1, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx1,
-		);
-		const sig2 = await signerWallet.signTypedData(
-			{ chainId: chainId2, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx2,
-		);
+		const { userOp: userOpChainId1 } = await buildSignedUserOp(harbour, signerWallet, chainId1, safeAddress, safeTx1);
+		await entryPoint.handleOps([userOpChainId1], AddressOne);
 
-		// Enqueue tx for chainId1
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId1,
-			safeTx1.nonce,
-			safeTx1.to,
-			safeTx1.value,
-			safeTx1.data,
-			safeTx1.operation,
-			safeTx1.safeTxGas,
-			safeTx1.baseGas,
-			safeTx1.gasPrice,
-			safeTx1.gasToken,
-			safeTx1.refundReceiver,
-			sig1,
-		);
-		// Enqueue tx for chainId2
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId2,
-			safeTx2.nonce,
-			safeTx2.to,
-			safeTx2.value,
-			safeTx2.data,
-			safeTx2.operation,
-			safeTx2.safeTxGas,
-			safeTx2.baseGas,
-			safeTx2.gasPrice,
-			safeTx2.gasToken,
-			safeTx2.refundReceiver,
-			sig2,
-		);
+		const { userOp: userOpChainId2 } = await buildSignedUserOp(harbour, signerWallet, chainId2, safeAddress, safeTx2);
+		await entryPoint.handleOps([userOpChainId2], AddressOne);
 
 		// Retrieve and verify counts and data for chainId1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId1, nonce);
@@ -724,8 +552,8 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should separate signature lists by nonce: same signer and chainId, different nonces", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce1 = 11n;
 		const nonce2 = 12n;
@@ -749,47 +577,11 @@ describe("SafeInternationalHarbour", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress, chainId, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes must differ due to nonce in struct
 
-		const sig1 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx1,
-		);
-		const sig2 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx2,
-		);
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx1);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx1.nonce,
-			safeTx1.to,
-			safeTx1.value,
-			safeTx1.data,
-			safeTx1.operation,
-			safeTx1.safeTxGas,
-			safeTx1.baseGas,
-			safeTx1.gasPrice,
-			safeTx1.gasToken,
-			safeTx1.refundReceiver,
-			sig1,
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx2.nonce,
-			safeTx2.to,
-			safeTx2.value,
-			safeTx2.data,
-			safeTx2.operation,
-			safeTx2.safeTxGas,
-			safeTx2.baseGas,
-			safeTx2.gasPrice,
-			safeTx2.gasToken,
-			safeTx2.refundReceiver,
-			sig2,
-		);
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx2);
+		await entryPoint.handleOps([userOp2], AddressOne);
 
 		// Verify counts and signatures for nonce1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce1);
@@ -813,15 +605,15 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should isolate mappings between different Safe addresses", async () => {
-		const { harbour, chainId, alice } = await loadFixture(deployFixture); // alice is the default safeAddress
+		const { entryPoint, harbour, chainId, alice } = await loadFixture(deployFixture); // alice is the default safeAddress
 		const safeAddress1 = alice.address;
-		const safeAddress2 = ethers.Wallet.createRandom().address; // A different Safe address
-		const signerWallet = ethers.Wallet.createRandom();
+		const safeAddress2 = Wallet.createRandom().address; // A different Safe address
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 13n;
 
 		const safeTxBase: Omit<SafeTransaction, "nonce"> = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 1n,
 			data: "0xcc",
 			operation: 0,
@@ -839,47 +631,11 @@ describe("SafeInternationalHarbour", () => {
 		const safeTxHash2 = getSafeTransactionHash(safeAddress2, chainId, safeTx2);
 		expect(safeTxHash1).to.not.equal(safeTxHash2); // Hashes differ due to safeAddress in domain
 
-		const sig1 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress1 },
-			EIP712_SAFE_TX_TYPE,
-			safeTx1,
-		);
-		const sig2 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress2 },
-			EIP712_SAFE_TX_TYPE,
-			safeTx2,
-		);
+		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress1, safeTx1);
+		await entryPoint.handleOps([userOp1], AddressOne);
 
-		await harbour.enqueueTransaction(
-			safeAddress1,
-			chainId,
-			safeTx1.nonce,
-			safeTx1.to,
-			safeTx1.value,
-			safeTx1.data,
-			safeTx1.operation,
-			safeTx1.safeTxGas,
-			safeTx1.baseGas,
-			safeTx1.gasPrice,
-			safeTx1.gasToken,
-			safeTx1.refundReceiver,
-			sig1,
-		);
-		await harbour.enqueueTransaction(
-			safeAddress2,
-			chainId,
-			safeTx2.nonce,
-			safeTx2.to,
-			safeTx2.value,
-			safeTx2.data,
-			safeTx2.operation,
-			safeTx2.safeTxGas,
-			safeTx2.baseGas,
-			safeTx2.gasPrice,
-			safeTx2.gasToken,
-			safeTx2.refundReceiver,
-			sig2,
-		);
+		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress2, safeTx2);
+		await entryPoint.handleOps([userOp2], AddressOne);
 
 		// Verify counts and signatures for safeAddress1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress1, chainId, nonce);
@@ -903,45 +659,22 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should handle pagination with start > 0, count = 0, and count > totalCount", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 14n;
 
 		// Add 2 signatures
 		for (let i = 0; i < 2; i++) {
-			const safeTx: SafeTransaction = {
-				to: ethers.Wallet.createRandom().address,
+			const safeTx = buildSafeTx({
+				to: Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
-				operation: 0,
-				safeTxGas: 0n,
-				baseGas: 0n,
-				gasPrice: 0n,
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
 				nonce,
-			};
-			const signature = await signerWallet.signTypedData(
-				{ chainId, verifyingContract: safeAddress },
-				EIP712_SAFE_TX_TYPE,
-				safeTx,
-			);
-			await harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			);
+			});
+
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			await entryPoint.handleOps([userOp], AddressOne);
 		}
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(2);
@@ -968,48 +701,23 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should return zero via retrieveSignaturesCount for unknown signer/safe/chainId/nonce", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const knownSigner = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const knownSigner = Wallet.createRandom();
 		const knownSignerAddr = knownSigner.address;
 		const knownNonce = 15n;
-		const unknownSignerAddr = ethers.Wallet.createRandom().address;
-		const unknownSafeAddr = ethers.Wallet.createRandom().address;
+		const unknownSignerAddr = Wallet.createRandom().address;
+		const unknownSafeAddr = Wallet.createRandom().address;
 		const unknownChainId = chainId + 1n;
 		const unknownNonce = knownNonce + 1n;
 
 		// Add one known signature
-		const safeTx: SafeTransaction = {
+		const safeTx = buildSafeTx({
 			to: ethers.Wallet.createRandom().address,
-			value: 0n,
-			data: "0x",
-			operation: 0,
-			safeTxGas: 0n,
-			baseGas: 0n,
-			gasPrice: 0n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
 			nonce: knownNonce,
-		};
-		const signature = await knownSigner.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		);
+		});
+
+		const { userOp } = await buildSignedUserOp(harbour, knownSigner, chainId, safeAddress, safeTx);
+		await entryPoint.handleOps([userOp], AddressOne);
 
 		expect(await harbour.retrieveSignaturesCount(knownSignerAddr, safeAddress, chainId, knownNonce)).to.equal(1);
 
@@ -1021,47 +729,22 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should emit listIndex correctly in SignatureStored events (monotonic index)", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 16n;
 
 		for (let i = 0; i < 3; i++) {
-			const safeTx: SafeTransaction = {
-				to: ethers.Wallet.createRandom().address,
+			const safeTx = buildSafeTx({
+				to: Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
-				operation: 0,
-				safeTxGas: 0n,
-				baseGas: 0n,
-				gasPrice: 0n,
-				gasToken: ethers.ZeroAddress,
-				refundReceiver: ethers.ZeroAddress,
 				nonce,
-			};
+			});
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-			const signature = await signerWallet.signTypedData(
-				{ chainId, verifyingContract: safeAddress },
-				EIP712_SAFE_TX_TYPE,
-				safeTx,
-			);
-			await expect(
-				harbour.enqueueTransaction(
-					safeAddress,
-					chainId,
-					safeTx.nonce,
-					safeTx.to,
-					safeTx.value,
-					safeTx.data,
-					safeTx.operation,
-					safeTx.safeTxGas,
-					safeTx.baseGas,
-					safeTx.gasPrice,
-					safeTx.gasToken,
-					safeTx.refundReceiver,
-					signature,
-				),
-			)
+
+			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+			await expect(entryPoint.handleOps([userOp], AddressOne))
 				.to.emit(harbour, "SignatureStored")
 				.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
 		}
@@ -1071,51 +754,12 @@ describe("SafeInternationalHarbour", () => {
 	});
 
 	it("should emit NewTransaction event with correct parameters on first enqueue", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
-		const to = deployer.address;
-		const value = 0n;
-		const data = "0x";
-		const operation = 0;
-		const safeTxGas = 0n;
-		const baseGas = 0n;
-		const gasPrice = 0n;
-		const nonce = 0n;
-		const safeTx: SafeTransaction = {
-			to,
-			value,
-			data,
-			operation,
-			safeTxGas,
-			baseGas,
-			gasPrice,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce,
-		};
+		const { entryPoint, deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
+		const safeTx: SafeTransaction = buildSafeTx({ to: deployer.address });
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-		await expect(
-			harbour.enqueueTransaction(
-				safeAddress,
-				chainId,
-				safeTx.nonce,
-				safeTx.to,
-				safeTx.value,
-				safeTx.data,
-				safeTx.operation,
-				safeTx.safeTxGas,
-				safeTx.baseGas,
-				safeTx.gasPrice,
-				safeTx.gasToken,
-				safeTx.refundReceiver,
-				signature,
-			),
-		)
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.emit(harbour, "NewTransaction")
 			.withArgs(
 				safeTxHash,

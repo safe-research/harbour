@@ -1,6 +1,6 @@
-import type { ChainId } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
 import type { ToPathOption } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
+import type { ChainId } from "@/lib/types";
 
 interface BackButtonProps {
 	/** The path to link to. Should be a registered route. */

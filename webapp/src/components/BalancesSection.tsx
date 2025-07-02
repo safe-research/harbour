@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type JsonRpcApiProvider, ethers } from "ethers";
+import { ethers, type JsonRpcApiProvider } from "ethers";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";

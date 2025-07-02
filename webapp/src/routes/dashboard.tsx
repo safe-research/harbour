@@ -1,17 +1,15 @@
-import { BackButton } from "@/components/BackButton";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, Link2, ScrollText } from "lucide-react";
-
+import { BackButton } from "@/components/BackButton";
+import { canUseWalletConnect } from "@/lib/walletconnect";
 import { ActionCard } from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
 import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
-
-import { canUseWalletConnect } from "@/lib/walletconnect";
 import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {

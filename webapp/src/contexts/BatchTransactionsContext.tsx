@@ -1,7 +1,7 @@
-import type { MetaTransaction } from "@/lib/types";
-import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { z } from "zod";
+import type { MetaTransaction } from "@/lib/types";
 import {
 	chainIdSchema,
 	ethereumAddressSchema,

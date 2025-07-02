@@ -1,4 +1,4 @@
-import type { JsonRpcApiProvider, Eip1193Provider } from "ethers";
+import type { Eip1193Provider, JsonRpcApiProvider } from "ethers";
 
 function getEIP1193ProviderFromRPCProvider(
 	browserProvider: JsonRpcApiProvider,

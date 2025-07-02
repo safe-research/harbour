@@ -1,7 +1,6 @@
+import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import type { SafeConfiguration } from "@/lib/safe";
 import type { ChainId } from "@/lib/types";
-import type { JsonRpcApiProvider } from "ethers";
-import type { BrowserProvider } from "ethers";
 
 interface CommonTransactionFormProps {
 	/** The address of the Safe contract. */

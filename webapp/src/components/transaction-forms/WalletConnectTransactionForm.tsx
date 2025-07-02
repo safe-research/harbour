@@ -1,18 +1,18 @@
-import {
-	ethValueSchema,
-	ethereumAddressSchema,
-	hexDataSchema,
-	nonceSchema,
-} from "@/lib/validators";
-import { useWalletConnectTransaction } from "@/hooks/useWalletConnectTransaction";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import type { CommonTransactionFormProps } from "./types";
-import { TransactionFormFields } from "./TransactionFormFields";
+import { useWalletConnectTransaction } from "@/hooks/useWalletConnectTransaction";
+import {
+	ethereumAddressSchema,
+	ethValueSchema,
+	hexDataSchema,
+	nonceSchema,
+} from "@/lib/validators";
 import { TransactionAlerts } from "./TransactionAlerts";
+import { TransactionFormFields } from "./TransactionFormFields";
+import type { CommonTransactionFormProps } from "./types";
 
 interface WalletConnectFormProps extends CommonTransactionFormProps {
 	txTo?: string;

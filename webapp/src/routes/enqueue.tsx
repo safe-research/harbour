@@ -1,13 +1,13 @@
-import {
-	ethereumAddressSchema,
-	hexDataSchema,
-	safeIdSchema,
-} from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import type { ReactNode } from "react";
 import z from "zod";
+import {
+	ethereumAddressSchema,
+	hexDataSchema,
+	safeIdSchema,
+} from "@/lib/validators";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { BatchTransactionForm } from "../components/transaction-forms/BatchTransactionForm";
