@@ -7,6 +7,7 @@ import "./interfaces/Types.sol";
 import "./interfaces/Events.sol";
 import "./libs/CoreLib.sol";
 import "./mixins/ERC4337Mixin.sol";
+import "./mixins/QuotaMixin.sol";
 
 /**
  * @title SafeInternationalHarbour
@@ -29,7 +30,7 @@ import "./mixins/ERC4337Mixin.sol";
  * @dev The {SignatureStored} event is the only hook required by indexers; however, the contract is
  *      fully functional without any off‑chain infrastructure.
  */
-contract SafeInternationalHarbour is ERC4337Mixin {
+contract SafeInternationalHarbour is ERC4337Mixin, QuotaMixin {
     // ------------------------------------------------------------------
     // Storage
     // ------------------------------------------------------------------
@@ -53,9 +54,9 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         private _hasSignerSignedTx;
 
     constructor(
-        address _entryPoint,
-        FeeConfigParams memory _feeConfigParams
-    ) ERC4337Mixin(_entryPoint, _feeConfigParams) {}
+        ERC4337MixinConfig memory _erc4337Mixinconfig,
+        QuotaMixinConfig memory _quotaMixinconfig
+    ) ERC4337Mixin(_erc4337Mixinconfig) QuotaMixin(_quotaMixinconfig) {}
 
     // ------------------------------------------------------------------
     // External & public write functions

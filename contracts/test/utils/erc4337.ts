@@ -12,18 +12,32 @@ import {
 } from "ethers";
 import { ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
 import type { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
+import type { ERC4337Mixin, QuotaMixin } from "../../typechain-types/src/SafeInternationalHarbour";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
-import { ERC4337Mixin } from "../../typechain-types/src/SafeInternationalHarbour";
 
-
-export function buildFeeConfig(): ERC4337Mixin.FeeConfigParamsStruct {
+export function buildQuotaConfig(
+	feeToken: string = ZeroAddress,
+	feeTokenDecimals = 18,
+): QuotaMixin.QuotaMixinConfigStruct {
 	return {
+		timeframeQuotaReset: 24 * 3600, // Per day quota
+		requiredQuotaMultiplier: feeToken === ZeroAddress ? 0 : 1, // Disable quota if no fee token is set
+		freeQuotaPerDepositedFeeToken: 1000,
+		maxFreeQuota: 5000,
+		feeToken,
+		feeTokenDecimals,
+	};
+}
+
+export function build4337Config(entryPoint: string): ERC4337Mixin.ERC4337MixinConfigStruct {
+	return {
+		entryPoint,
 		maxPriorityFee: ethers.parseUnits("2", "gwei"),
 		preVerificationGasPerByte: 25,
 		preVerificationBaseGas: 40000,
-		verificationGasPerByte: 100,
-		callGasPerByte: 1000
-	}
+		verificationGasPerByte: 200,
+		callGasPerByte: 1000,
+	};
 }
 
 export function buildUserOp(
@@ -60,7 +74,7 @@ export function buildUserOp(
 		nonce: entryPointNonce,
 		initCode: "0x",
 		callData,
-		accountGasLimits: toBeHex(callData.length / 2 * 80, 16) + toBeHex(callData.length / 2 * 800, 16).slice(2),
+		accountGasLimits: toBeHex((callData.length / 2) * 180, 16) + toBeHex((callData.length / 2) * 800, 16).slice(2),
 		preVerificationGas: 0,
 		gasFees: ZeroHash,
 		paymasterAndData: "0x",
