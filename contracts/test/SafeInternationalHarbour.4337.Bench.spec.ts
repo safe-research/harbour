@@ -23,7 +23,8 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await HarbourFactory.deploy(build4337Config(await entryPoint.getAddress()), buildQuotaConfig());
+		const erc4337config = build4337Config({ entryPoint: await entryPoint.getAddress() });
+		const harbour = await HarbourFactory.deploy(erc4337config, buildQuotaConfig());
 
 		const safeAddress = await alice.getAddress();
 		return { entryPoint, deployer, alice, harbour, chainId, safeAddress };

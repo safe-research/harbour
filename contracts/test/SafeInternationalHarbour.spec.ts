@@ -1,6 +1,6 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import { type Signer, ZeroAddress } from "ethers";
+import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { build4337Config, buildQuotaConfig } from "./utils/erc4337";
@@ -12,7 +12,7 @@ describe("SafeInternationalHarbour", () => {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
 		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy(build4337Config(ZeroAddress), buildQuotaConfig());
+		const harbour = await Factory.deploy(build4337Config(), buildQuotaConfig());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress };

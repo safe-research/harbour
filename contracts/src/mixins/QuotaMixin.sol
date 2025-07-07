@@ -52,7 +52,7 @@ abstract contract QuotaMixin is IQuotaManager {
     function depositTokensForSigner(
         address signer,
         uint128 amount
-    ) public payable {
+    ) public {
         // We don't update the nextQuotaReset this way depositing more tokens does not negatively affect the reset schedule
         // The reset schedule always starts from 0, therefore is always a multiple of the reset timeframe (unless the timeframe is changed)
         quotaStatsForSigner[signer].tokenBalance += amount;

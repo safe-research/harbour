@@ -16,27 +16,29 @@ import type { ERC4337Mixin, QuotaMixin } from "../../typechain-types/src/SafeInt
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
 
 export function buildQuotaConfig(
-	feeToken: string = ZeroAddress,
-	feeTokenDecimals = 18,
+	params?: Partial<QuotaMixin.QuotaMixinConfigStruct>,
 ): QuotaMixin.QuotaMixinConfigStruct {
+	const feeToken = params?.feeToken || ZeroAddress;
 	return {
-		timeframeQuotaReset: 24 * 3600, // Per day quota
-		requiredQuotaMultiplier: feeToken === ZeroAddress ? 0 : 1, // Disable quota if no fee token is set
-		freeQuotaPerDepositedFeeToken: 1000,
-		maxFreeQuota: 5000,
+		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
+		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
+		freeQuotaPerDepositedFeeToken: params?.freeQuotaPerDepositedFeeToken || 1000,
+		maxFreeQuota: params?.maxFreeQuota || 5000,
 		feeToken,
-		feeTokenDecimals,
+		feeTokenDecimals: params?.feeTokenDecimals || 18,
 	};
 }
 
-export function build4337Config(entryPoint: string): ERC4337Mixin.ERC4337MixinConfigStruct {
+export function build4337Config(
+	params?: Partial<ERC4337Mixin.ERC4337MixinConfigStruct>,
+): ERC4337Mixin.ERC4337MixinConfigStruct {
 	return {
-		entryPoint,
-		maxPriorityFee: ethers.parseUnits("2", "gwei"),
-		preVerificationGasPerByte: 25,
-		preVerificationBaseGas: 40000,
-		verificationGasPerByte: 200,
-		callGasPerByte: 1000,
+		entryPoint: params?.entryPoint || ZeroAddress,
+		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
+		preVerificationGasPerByte: params?.preVerificationGasPerByte || 25,
+		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
+		verificationGasPerByte: params?.verificationGasPerByte || 200,
+		callGasPerByte: params?.callGasPerByte || 1000,
 	};
 }
 
