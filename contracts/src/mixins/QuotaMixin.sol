@@ -17,6 +17,9 @@ struct QuotaStats {
 abstract contract QuotaMixin is IQuotaManager {
     using SafeERC20 for IERC20;
 
+    event Withdraw(address indexed signer, uint256 indexed amount);
+    event Deposit(address indexed signer, uint256 indexed amount);
+
     struct QuotaMixinConfig {
         uint64 timeframeQuotaReset;
         uint16 requiredQuotaMultiplier;
@@ -27,6 +30,7 @@ abstract contract QuotaMixin is IQuotaManager {
     }
 
     mapping(address => QuotaStats) public quotaStatsForSigner;
+    mapping(address => mapping(bytes32 => uint256)) public withdrawsForSigner;
 
     uint64 public immutable TIMEFRAME_QUOTA_RESET;
     uint32 public immutable FREE_QUOTA_PER_DEPOSITED_FEE_TOKEN;
@@ -49,13 +53,17 @@ abstract contract QuotaMixin is IQuotaManager {
         address signer,
         uint128 amount
     ) public payable {
+        // We don't update the nextQuotaReset this way depositing more tokens does not negatively affect the reset schedule
+        // The reset schedule always starts from 0, therefore is always a multiple of the reset timeframe (unless the timeframe is changed)
         quotaStatsForSigner[signer].tokenBalance += amount;
         IERC20(FEE_TOKEN).safeTransferFrom(msg.sender, address(this), amount);
+        emit Deposit(signer, amount);
     }
 
     function computeWithdrawHash(
         uint256 amount,
-        address beneficiary
+        address beneficiary,
+        uint256 nonce
     ) internal view returns (bytes32 withdrawHash) {
         bytes32 domainSeparator = keccak256(
             abi.encode(
@@ -69,10 +77,11 @@ abstract contract QuotaMixin is IQuotaManager {
         bytes32 structHash = keccak256(
             abi.encode(
                 keccak256(
-                    "WithdrawRequest(uint256 amount,address beneficiary)"
+                    "WithdrawRequest(uint256 amount,address beneficiary,uint256 nonce)"
                 ),
                 amount,
-                beneficiary
+                beneficiary,
+                nonce
             )
         );
         withdrawHash = keccak256(
@@ -83,13 +92,19 @@ abstract contract QuotaMixin is IQuotaManager {
     function widthdrawTokensForSigner(
         bytes calldata signature,
         uint128 amount,
-        address beneficiary
+        address beneficiary,
+        uint256 nonce
     ) public payable {
-        bytes32 withdrawHash = computeWithdrawHash(amount, beneficiary);
+        bytes32 withdrawHash = computeWithdrawHash(amount, beneficiary, nonce);
         (address signer, bytes32 r, bytes32 vs) = CoreLib.recoverSigner(
             withdrawHash,
             signature
         );
+        // Silence unused local variable warning
+        (r, vs);
+        // Check that withdrawal was not executed yet
+        require(withdrawsForSigner[signer][withdrawHash] == 0, "Withdrawal was already performed");
+        withdrawsForSigner[signer][withdrawHash] = block.timestamp;
 
         QuotaStats storage stats = quotaStatsForSigner[signer];
         require(stats.tokenBalance >= amount, "Insufficient Tokens");
@@ -104,6 +119,7 @@ abstract contract QuotaMixin is IQuotaManager {
         stats.tokenBalance -= amount;
 
         IERC20(FEE_TOKEN).safeTransfer(beneficiary, amount);
+        emit Withdraw(signer, amount);
     }
 
     function availableFreeQuotaForSigner(
@@ -121,8 +137,14 @@ abstract contract QuotaMixin is IQuotaManager {
         nextSignerQuotaReset = stats.nextQuotaReset;
         if (nextSignerQuotaReset > block.timestamp) {
             usedSignerQuota = stats.usedQuota;
+        } else {
+            uint64 blocktime = uint64(block.timestamp);
+            nextSignerQuotaReset = blocktime -
+                ((blocktime - nextSignerQuotaReset) % TIMEFRAME_QUOTA_RESET) +
+                TIMEFRAME_QUOTA_RESET;
         }
-        uint256 maxSignerQuota = (stats.tokenBalance *
+        // We cast tokenBalance to uint256 to use more bits for the arithmetics
+        uint256 maxSignerQuota = (uint256(stats.tokenBalance) *
             FREE_QUOTA_PER_DEPOSITED_FEE_TOKEN) / 10 ** FEE_TOKEN_DECIMALS;
 
         require(
@@ -147,12 +169,8 @@ abstract contract QuotaMixin is IQuotaManager {
         uint64 nextSignerQuotaReset
     ) internal {
         QuotaStats storage stats = quotaStatsForSigner[signer];
-        uint64 blocktime = uint64(block.timestamp);
-        if (nextSignerQuotaReset <= blocktime) {
-            stats.nextQuotaReset =
-                blocktime -
-                ((blocktime - nextSignerQuotaReset) % TIMEFRAME_QUOTA_RESET) +
-                TIMEFRAME_QUOTA_RESET;
+        if (nextSignerQuotaReset != stats.nextQuotaReset) {
+            stats.nextQuotaReset = nextSignerQuotaReset;
         }
         stats.usedQuota = newSignerQuota;
     }
