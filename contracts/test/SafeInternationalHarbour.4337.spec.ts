@@ -4,7 +4,7 @@ import { expect } from "chai";
 import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { build4337Config, buildQuotaConfig, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -15,7 +15,8 @@ describe("SafeInternationalHarbour.4337", () => {
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await HarbourFactory.deploy(entryPoint);
+		const erc4337config = build4337Config({ entryPoint: await entryPoint.getAddress() });
+		const harbour = await HarbourFactory.deploy(erc4337config, buildQuotaConfig());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint };
@@ -39,10 +40,6 @@ describe("SafeInternationalHarbour.4337", () => {
 
 	it("should revert if storeTransaction is not called from EntryPoint", async () => {
 		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx();
-		console.log({ safeTx });
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
-		console.log({ userOp });
 		await expect(
 			harbour.storeTransaction(
 				ZeroHash,
@@ -98,7 +95,7 @@ describe("SafeInternationalHarbour.4337", () => {
 	it("should revert if invalid UserOp nonce is provided", async () => {
 		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const safeTx = buildSafeTx();
-		const signerWallet = ethers.Wallet.createRandom();
+		const signerWallet = Wallet.createRandom();
 		const signerAddress = await signerWallet.getAddress();
 		const signature = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
@@ -136,8 +133,8 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTxGas: 100000n,
 			baseGas: 21000n,
 			gasPrice: 2n * 10n ** 9n, // 2 gwei
-			gasToken: ethers.Wallet.createRandom().address,
-			refundReceiver: ethers.Wallet.createRandom().address,
+			gasToken: Wallet.createRandom().address,
+			refundReceiver: Wallet.createRandom().address,
 			nonce: 123n,
 		};
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
@@ -159,9 +156,9 @@ describe("SafeInternationalHarbour.4337", () => {
 
 	it.skip("should not overwrite existing parameters on subsequent calls with same safeTxHash", async () => {
 		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const signerWallet = Wallet.createRandom();
 		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 1n,
 			data: "0x1234",
 			operation: 0,
@@ -200,7 +197,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		// Second call with different parameters but same hash (won't happen in reality, but tests logic)
 		// Use a different signer just to make the second call valid
-		const anotherSigner = ethers.Wallet.createRandom();
+		const anotherSigner = Wallet.createRandom();
 		const signature2 = await anotherSigner.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
 			EIP712_SAFE_TX_TYPE,
@@ -210,15 +207,15 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeAddress,
 			chainId,
 			safeTx.nonce, // Same nonce
-			ethers.Wallet.createRandom().address, // Different 'to'
+			Wallet.createRandom().address, // Different 'to'
 			safeTx.value + 1n, // Different value
 			"0xabcd", // Different data
 			1, // Different operation
 			safeTx.safeTxGas + 1n, // Different safeTxGas
 			safeTx.baseGas + 1n, // Different baseGas
 			safeTx.gasPrice + 1n, // Different gasPrice
-			ethers.Wallet.createRandom().address, // Different gasToken
-			ethers.Wallet.createRandom().address, // Different refundReceiver
+			Wallet.createRandom().address, // Different gasToken
+			Wallet.createRandom().address, // Different refundReceiver
 			signature2, // New valid signature for the *original* tx hash
 		);
 
@@ -238,9 +235,9 @@ describe("SafeInternationalHarbour.4337", () => {
 
 	it("should not support malleable signatures", async () => {
 		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
+		const signerWallet = Wallet.createRandom();
 
-		const safeTx = buildSafeTx({ to: ethers.Wallet.createRandom().address });
+		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
 
 		const signature1 = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
@@ -341,15 +338,15 @@ describe("SafeInternationalHarbour.4337", () => {
 		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
 		const signerWallet = Wallet.createRandom();
 		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 12345n,
 			data: "0xaabbccdd",
 			operation: 0,
 			safeTxGas: 54321n,
 			baseGas: 12345n,
 			gasPrice: 5n * 10n ** 9n,
-			gasToken: ethers.Wallet.createRandom().address,
-			refundReceiver: ethers.Wallet.createRandom().address,
+			gasToken: Wallet.createRandom().address,
+			refundReceiver: Wallet.createRandom().address,
 			nonce: 99n,
 		};
 
@@ -381,7 +378,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		for (let i = 0; i < 5; i++) {
 			const safeTx = buildSafeTx({
-				to: ethers.Wallet.createRandom().address,
+				to: Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
 				nonce,
@@ -440,7 +437,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const signerWallet = Wallet.createRandom();
 		const signerAddress = signerWallet.address;
 		const nonce = 8n;
-		const safeTx: SafeTransaction = buildSafeTx({ to: ethers.Wallet.createRandom().address, nonce });
+		const safeTx: SafeTransaction = buildSafeTx({ to: Wallet.createRandom().address, nonce });
 
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
 		// First call stores signature
@@ -473,7 +470,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		// Add 3 signatures
 		for (let i = 0; i < 3; i++) {
 			const safeTx = buildSafeTx({
-				to: ethers.Wallet.createRandom().address,
+				to: Wallet.createRandom().address,
 				value: BigInt(i),
 				data: `0x${(i + 1).toString(16).padStart(2, "0")}`,
 				nonce,
@@ -498,7 +495,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		// Define a common transaction structure (except nonce which is part of key)
 		const safeTxBase: Omit<SafeTransaction, "nonce"> = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 1n,
 			data: "0xaa",
 			operation: 0,
@@ -559,7 +556,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const nonce2 = 12n;
 
 		const safeTxBase: Omit<SafeTransaction, "nonce"> = {
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			value: 1n,
 			data: "0xbb",
 			operation: 0,
@@ -712,7 +709,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		// Add one known signature
 		const safeTx = buildSafeTx({
-			to: ethers.Wallet.createRandom().address,
+			to: Wallet.createRandom().address,
 			nonce: knownNonce,
 		});
 
