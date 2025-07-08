@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {
@@ -18,10 +18,22 @@ import {
     UserOperationLib
 } from "@account-abstraction/contracts/core/UserOperationLib.sol";
 import "../interfaces/Errors.sol";
-import "../interfaces/AbstractHarbourStore.sol";
+import "../interfaces/HarbourStore.sol";
+import "../interfaces/QuotaManager.sol";
 import "../libs/CoreLib.sol";
 
-abstract contract ERC4337Mixin is IAccount, IHarbourStore {
+abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
+    using UserOperationLib for PackedUserOperation;
+
+    struct ERC4337MixinConfig {
+        address entryPoint;
+        uint256 maxPriorityFee;
+        uint256 preVerificationGasPerByte;
+        uint256 preVerificationBaseGas;
+        uint256 verificationGasPerByte;
+        uint256 callGasPerByte;
+    }
+
     // ------------------------------------------------------------------
     // 4337 functions
     // ------------------------------------------------------------------
@@ -30,9 +42,20 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
      * @notice The address of the EntryPoint contract supported by this module.
      */
     address public immutable SUPPORTED_ENTRYPOINT;
+    // TODO evaluate if this should be upgradable
+    uint256 public immutable MAX_PRIORITY_FEE;
+    uint256 public immutable PRE_VERIFICATION_GAS_PER_BYTE;
+    uint256 public immutable PRE_VERIFICATION_BASE_GAS;
+    uint256 public immutable VERIFICATION_GAS_PER_BYTE;
+    uint256 public immutable CALL_GAS_PER_BYTE;
 
-    constructor(address _entryPoint) {
-        SUPPORTED_ENTRYPOINT = _entryPoint;
+    constructor(ERC4337MixinConfig memory _config) {
+        SUPPORTED_ENTRYPOINT = _config.entryPoint;
+        MAX_PRIORITY_FEE = _config.maxPriorityFee;
+        PRE_VERIFICATION_GAS_PER_BYTE = _config.preVerificationGasPerByte;
+        PRE_VERIFICATION_BASE_GAS = _config.preVerificationBaseGas;
+        VERIFICATION_GAS_PER_BYTE = _config.verificationGasPerByte;
+        CALL_GAS_PER_BYTE = _config.callGasPerByte;
     }
 
     /**
@@ -51,7 +74,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
     function validateUserOp(
         PackedUserOperation calldata userOp,
         bytes32,
-        uint256 missingAccountFunds
+        uint256
     ) external override returns (uint256 validationData) {
         // Assumption:
         //   - UserOp signature is SafeTx signature
@@ -63,8 +86,8 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         //   - [x] recover signer from SafeTx signature
         //   - [x] check that signer has not submitted signature
         //   - [x] check that nonce key is signer address
-        //   - [x] pay missing funds
-        //   - [ ] usage checks -> set validation data
+        //   - [x] check limits on fee params
+        //   - [ ] usage checks
 
         require(
             msg.sender == SUPPORTED_ENTRYPOINT,
@@ -84,8 +107,9 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             bytes32 safeTxHash,
             address signer,
             bytes32 r,
-            bytes32 vs
-        ) = _verifySafeTxHash(userOp.callData[4:]);
+            bytes32 vs,
+            uint256 computedDataLength
+        ) = _verifySafeTxData(userOp.callData[4:]);
 
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
@@ -99,23 +123,48 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         uint256 nonce = getNonce(signer);
         require(userOp.nonce == nonce, UnexpectedNonce(nonce));
 
-        // We trust the entry point to set the correct prefund value, based on the operation params
-        // We need to perform this even if the signature is not valid, else the simulation function of the entry point will not work.
-        if (missingAccountFunds != 0) {
-            // We intentionally ignore errors in paying the missing account funds, as the entry point is responsible for
-            // verifying the prefund has been paid. This behaviour matches the reference base account implementation.
-            (bool success, ) = payable(msg.sender).call{
-                value: missingAccountFunds
-            }("");
-            (success);
-        }
+        // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
 
-        return _packValidationData(false, 0, 0);
+        // `computedDataLength` is used for validations, as userOp.callData can be extended to manipulate the fees
+        bool validationFailed = !_validGasFees(userOp) ||
+            !_validGasLimits(userOp, computedDataLength) ||
+            !_checkAndUpdateQuota(signer, computedDataLength);
+        return _packValidationData(validationFailed, 0, 0);
     }
 
-    function _verifySafeTxHash(
+    function _validGasFees(
+        PackedUserOperation calldata userOp
+    ) private view returns (bool) {
+        uint256 maxPriorityFeePerGas = userOp.unpackMaxPriorityFeePerGas();
+        return maxPriorityFeePerGas <= MAX_PRIORITY_FEE;
+    }
+
+    function _validGasLimits(
+        PackedUserOperation calldata userOp,
+        uint256 computedDataLength
+    ) private view returns (bool) {
+        // Base calculations of gas limits on calldata size, this is a simple workaround for now
+        //      -> an alernative for verificationGas could be to do internal gas metering
+        // Employ a maximum gas limit based on locked tokens
+        if (
+            userOp.preVerificationGas >
+            computedDataLength *
+                PRE_VERIFICATION_GAS_PER_BYTE +
+                PRE_VERIFICATION_BASE_GAS
+        ) return false;
+        uint256 verificationGasLimit = userOp.unpackVerificationGasLimit();
+        if (
+            verificationGasLimit >
+            computedDataLength * VERIFICATION_GAS_PER_BYTE
+        ) return false;
+        uint256 callGasLimit = userOp.unpackCallGasLimit();
+        if (callGasLimit > computedDataLength * CALL_GAS_PER_BYTE) return false;
+        return true;
+    }
+
+    function _verifySafeTxData(
         bytes calldata callData
-    ) private pure returns (bytes32, address, bytes32, bytes32) {
+    ) private pure returns (bytes32, address, bytes32, bytes32, uint256) {
         (
             bytes32 safeTxHash,
             address safeAddress,
@@ -154,7 +203,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
                     bytes32
                 )
             );
-        bytes32 computedSafeTxHash = CoreLib._computeSafeTxHash(
+        bytes32 computedSafeTxHash = CoreLib.computeSafeTxHash(
             safeAddress,
             chainId,
             nonce,
@@ -173,7 +222,9 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             computedSafeTxHash == safeTxHash,
             UnexpectedSafeTxHash(computedSafeTxHash)
         );
-        return (safeTxHash, signer, r, vs);
+        // The computed length when properly encoded is based on the data length and the number of params
+        // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length + 32 bytes buffer for padding
+        return (safeTxHash, signer, r, vs, data.length + 18 * 32 + 4);
     }
 
     function _verifySignature(
@@ -187,7 +238,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             address recoveredSigner,
             bytes32 extractedR,
             bytes32 extractedVS
-        ) = CoreLib._recoverSigner(safeTxHash, signature);
+        ) = CoreLib.recoverSigner(safeTxHash, signature);
         require(signer == recoveredSigner, UnexpectedSigner(signer));
         require(r == extractedR, UnexpectedSignatureR(r));
         require(vs == extractedVS, UnexpectedSignatureVS(vs));

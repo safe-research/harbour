@@ -62,8 +62,8 @@ Note: The order of struct variables might differ in the implementation to optimi
 
 The contract builds:
 
-1. A domain separator: `keccak256(abi.encode(_DOMAIN_TYPEHASH, chainId, safeAddress))`.
-2. A struct hash: `keccak256(abi.encode(_SAFE_TX_TYPEHASH, to, value, keccak256(data), operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce))`.
+1. A domain separator: `keccak256(abi.encode(DOMAIN_TYPEHASH, chainId, safeAddress))`.
+2. A struct hash: `keccak256(abi.encode(SAFE_TX_TYPEHASH, to, value, keccak256(data), operation, safeTxGas, baseGas, gasPrice, gasToken, refundReceiver, nonce))`.
 3. The final digest: `keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash))`.
 
 ## API Reference

@@ -12,7 +12,35 @@ import {
 } from "ethers";
 import { ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
 import type { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
+import type { ERC4337Mixin, QuotaMixin } from "../../typechain-types/src/SafeInternationalHarbour";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
+
+export function buildQuotaConfig(
+	params?: Partial<QuotaMixin.QuotaMixinConfigStruct>,
+): QuotaMixin.QuotaMixinConfigStruct {
+	const feeToken = params?.feeToken || ZeroAddress;
+	return {
+		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
+		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
+		freeQuotaPerDepositedFeeToken: params?.freeQuotaPerDepositedFeeToken || 1000,
+		maxFreeQuota: params?.maxFreeQuota || 5000,
+		feeToken,
+		feeTokenDecimals: params?.feeTokenDecimals || 18,
+	};
+}
+
+export function build4337Config(
+	params?: Partial<ERC4337Mixin.ERC4337MixinConfigStruct>,
+): ERC4337Mixin.ERC4337MixinConfigStruct {
+	return {
+		entryPoint: params?.entryPoint || ZeroAddress,
+		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
+		preVerificationGasPerByte: params?.preVerificationGasPerByte || 25,
+		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
+		verificationGasPerByte: params?.verificationGasPerByte || 200,
+		callGasPerByte: params?.callGasPerByte || 1000,
+	};
+}
 
 export function buildUserOp(
 	harbour: AddressLike,
@@ -48,7 +76,7 @@ export function buildUserOp(
 		nonce: entryPointNonce,
 		initCode: "0x",
 		callData,
-		accountGasLimits: toBeHex(2_000_000, 16) + toBeHex(2_000_000, 16).slice(2),
+		accountGasLimits: toBeHex((callData.length / 2) * 180, 16) + toBeHex((callData.length / 2) * 800, 16).slice(2),
 		preVerificationGas: 0,
 		gasFees: ZeroHash,
 		paymasterAndData: "0x",

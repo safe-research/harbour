@@ -1,12 +1,17 @@
 import type { DeployFunction } from "hardhat-deploy/types";
+import { harbourConfig } from "../config/harbourConfig";
+import { build4337Config, buildQuotaConfig } from "../test/utils/erc4337";
 
-const func: DeployFunction = async ({ getNamedAccounts, deployments }) => {
+const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId }) => {
 	const { deterministic, log } = deployments;
 	const { deployer } = await getNamedAccounts();
+	const chainId = await getChainId();
+	const config = harbourConfig[chainId];
+	if (!config) throw Error("No configuration for this network");
 
 	const result = await deterministic("SafeInternationalHarbour", {
 		from: deployer,
-		args: ["0x4337084d9e255ff0702461cf8895ce9e3b5ff108"],
+		args: [build4337Config(config.erc4337config), buildQuotaConfig(config.quotaConfig)],
 		log: true,
 	});
 

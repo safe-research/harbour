@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import "./interfaces/Constants.sol";
@@ -7,6 +7,7 @@ import "./interfaces/Types.sol";
 import "./interfaces/Events.sol";
 import "./libs/CoreLib.sol";
 import "./mixins/ERC4337Mixin.sol";
+import "./mixins/QuotaMixin.sol";
 
 /**
  * @title SafeInternationalHarbour
@@ -29,7 +30,7 @@ import "./mixins/ERC4337Mixin.sol";
  * @dev The {SignatureStored} event is the only hook required by indexers; however, the contract is
  *      fully functional without any off‑chain infrastructure.
  */
-contract SafeInternationalHarbour is ERC4337Mixin {
+contract SafeInternationalHarbour is ERC4337Mixin, QuotaMixin {
     // ------------------------------------------------------------------
     // Storage
     // ------------------------------------------------------------------
@@ -52,7 +53,10 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(bytes32 safeTxHash => mapping(address signer => bool))
         private _hasSignerSignedTx;
 
-    constructor(address _entryPoint) ERC4337Mixin(_entryPoint) {}
+    constructor(
+        ERC4337MixinConfig memory _erc4337Mixinconfig,
+        QuotaMixinConfig memory _quotaMixinconfig
+    ) ERC4337Mixin(_erc4337Mixinconfig) QuotaMixin(_quotaMixinconfig) {}
 
     // ------------------------------------------------------------------
     // External & public write functions
@@ -102,7 +106,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         // ------------------------------------------------------------------
         // Build the EIP‑712 digest that uniquely identifies the SafeTx
         // ------------------------------------------------------------------
-        bytes32 safeTxHash = CoreLib._computeSafeTxHash(
+        bytes32 safeTxHash = CoreLib.computeSafeTxHash(
             safeAddress,
             chainId,
             nonce,
@@ -117,7 +121,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
             refundReceiver
         );
 
-        (address signer, bytes32 r, bytes32 vs) = CoreLib._recoverSigner(
+        (address signer, bytes32 r, bytes32 vs) = CoreLib.recoverSigner(
             safeTxHash,
             signature
         );
@@ -293,16 +297,16 @@ contract SafeInternationalHarbour is ERC4337Mixin {
 
             // Writing to storage is expensive, so we only write if the value is non-zero
             if (value > 0) {
-                slot.value = CoreLib._safeCastUint256ToUint128(value);
+                slot.value = CoreLib.safeCastUint256ToUint128(value);
             }
             if (safeTxGas > 0) {
-                slot.safeTxGas = CoreLib._safeCastUint256ToUint128(safeTxGas);
+                slot.safeTxGas = CoreLib.safeCastUint256ToUint128(safeTxGas);
             }
             if (baseGas > 0) {
-                slot.baseGas = CoreLib._safeCastUint256ToUint128(baseGas);
+                slot.baseGas = CoreLib.safeCastUint256ToUint128(baseGas);
             }
             if (gasPrice > 0) {
-                slot.gasPrice = CoreLib._safeCastUint256ToUint128(gasPrice);
+                slot.gasPrice = CoreLib.safeCastUint256ToUint128(gasPrice);
             }
             if (gasToken != address(0)) {
                 slot.gasToken = gasToken;
