@@ -1,4 +1,3 @@
-import { ZeroAddress } from "ethers";
 import type { ERC4337Mixin, QuotaMixin } from "../typechain-types/src/SafeInternationalHarbour";
 
 export type HarbourConfig = {
@@ -7,7 +6,7 @@ export type HarbourConfig = {
 };
 
 export const harbourConfig: Record<string, HarbourConfig> = {
-    "100": {
+	"100": {
 		erc4337config: {
 			entryPoint: "0x4337084d9e255ff0702461cf8895ce9e3b5ff108",
 		},
@@ -17,7 +16,7 @@ export const harbourConfig: Record<string, HarbourConfig> = {
 			feeTokenDecimals: 18,
 			freeQuotaPerDepositedFeeToken: 1000000,
 		},
-    },
+	},
 	"11155111": {
 		erc4337config: {
 			entryPoint: "0x4337084d9e255ff0702461cf8895ce9e3b5ff108",

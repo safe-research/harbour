@@ -21,8 +21,8 @@ jobs:
           cache: "npm"
       - run: npm ci
       - run: npm run build --workspace=contracts
-      - name: Lint JS/TS in contracts
-        run: npm run lint ./contracts
+      - name: Check formatting and linting of JS/TS in contracts
+        run: npm run check ./contracts
       - name: Lint Solidity in contracts
         run: npm run lint:sol --workspace=contracts
       - name: Check Solidity formatting

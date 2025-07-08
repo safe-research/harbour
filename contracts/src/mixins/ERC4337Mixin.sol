@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {
@@ -223,8 +223,8 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
             UnexpectedSafeTxHash(computedSafeTxHash)
         );
         // The computed length when properly encoded is based on the data length and the number of params
-        // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length
-        return (safeTxHash, signer, r, vs, data.length + 17 * 32 + 4);
+        // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length + 32 bytes buffer for padding
+        return (safeTxHash, signer, r, vs, data.length + 18 * 32 + 4);
     }
 
     function _verifySignature(

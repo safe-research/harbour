@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GNU GPLv3
+// // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {
@@ -96,12 +96,10 @@ abstract contract QuotaMixin is IQuotaManager {
         uint256 nonce
     ) public payable {
         bytes32 withdrawHash = computeWithdrawHash(amount, beneficiary, nonce);
-        (address signer, bytes32 r, bytes32 vs) = CoreLib.recoverSigner(
+        (address signer,,) = CoreLib.recoverSigner(
             withdrawHash,
             signature
         );
-        // Silence unused local variable warning
-        (r, vs);
         // Check that withdrawal was not executed yet
         require(withdrawsForSigner[signer][withdrawHash] == 0, "Withdrawal was already performed");
         withdrawsForSigner[signer][withdrawHash] = block.timestamp;
@@ -138,6 +136,13 @@ abstract contract QuotaMixin is IQuotaManager {
         if (nextSignerQuotaReset > block.timestamp) {
             usedSignerQuota = stats.usedQuota;
         } else {
+            // Signer quota should be reset (therefore be 0)
+            usedSignerQuota = 0;
+            // The reset time should always be aligned with the timeframe (be a multiple)
+            // First the time difference since the last reset is calculated (last reset - block time)
+            // Then the elablesed time in the current timeframe (modulo with timeframe duration)
+            // Then substract this from the current blocktime to get the start of the current timeframe
+            // And lastly add the timeframe duration to get the starting point of the next timeframe
             uint64 blocktime = uint64(block.timestamp);
             nextSignerQuotaReset = blocktime -
                 ((blocktime - nextSignerQuotaReset) % TIMEFRAME_QUOTA_RESET) +
