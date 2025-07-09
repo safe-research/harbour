@@ -23,10 +23,15 @@ export function useERC20TokenDetails(
 	provider: JsonRpcApiProvider,
 	tokenAddress: string,
 	ownerAddress: string,
-	chainId: number,
+	chainId: bigint,
 ) {
 	return useQuery<ERC20TokenDetails | null, Error>({
-		queryKey: ["erc20TokenDetails", chainId, tokenAddress, ownerAddress],
+		queryKey: [
+			"erc20TokenDetails",
+			chainId.toString(),
+			tokenAddress,
+			ownerAddress,
+		],
 		queryFn: () => fetchERC20TokenDetails(provider, tokenAddress, ownerAddress),
 		enabled:
 			Boolean(provider) &&

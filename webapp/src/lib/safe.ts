@@ -235,7 +235,7 @@ async function signSafeTransaction(
  * @returns A FullSafeTransaction object.
  */
 function getSafeTransaction(params: {
-	chainId: number;
+	chainId: bigint;
 	safeAddress: string;
 	to: string;
 	value?: string;

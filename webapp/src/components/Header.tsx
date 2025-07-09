@@ -1,3 +1,4 @@
+import { Cog6ToothIcon } from "@heroicons/react/24/solid";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
@@ -86,6 +87,9 @@ export default function Header() {
 						Connect Wallet
 					</button>
 				)}
+				<Link to="/settings">
+					<Cog6ToothIcon className="size-8 p-1 hover:opacity-40 transition-opacity duration-300 cursor-pointer" />
+				</Link>
 			</div>
 		</header>
 	);

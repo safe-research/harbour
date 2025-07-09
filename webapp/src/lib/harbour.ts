@@ -1,5 +1,14 @@
-import type { JsonRpcApiProvider, JsonRpcSigner } from "ethers";
-import { Contract, Interface } from "ethers";
+import {
+	Contract,
+	Interface,
+	type JsonRpcApiProvider,
+	JsonRpcProvider,
+	type JsonRpcSigner,
+} from "ethers";
+import {
+	loadCurrentSettings,
+	type SettingsFormData,
+} from "@/components/settings/SettingsForm";
 import { switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
@@ -12,7 +21,7 @@ import type {
 } from "./types";
 
 /** The chain ID where the Harbour contract is deployed. */
-const HARBOUR_CHAIN_ID = 100;
+const HARBOUR_CHAIN_ID = 100n;
 /** The address of the Harbour contract. */
 const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 
@@ -30,12 +39,32 @@ const HARBOUR_ABI = [
  * @param signature - The EIP-712 signature
  * @returns The transaction receipt
  */
+async function _relayEnqueueSafeTransaction(
+	signer: JsonRpcSigner,
+	_transaction: FullSafeTransaction,
+	_signature: string,
+) {
+	const _harbourContract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, signer);
+}
+
+/**
+ * Enqueues a transaction to the Harbour contract
+ * @param signer - The ethers.js signer
+ * @param request - The transaction request parameters
+ * @param signature - The EIP-712 signature
+ * @returns The transaction receipt
+ */
 async function enqueueSafeTransaction(
 	signer: JsonRpcSigner,
 	transaction: FullSafeTransaction,
 	signature: string,
+	harbourAddress?: string,
 ) {
-	const harbourContract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, signer);
+	const harbourContract = new Contract(
+		harbourAddress || HARBOUR_ADDRESS,
+		HARBOUR_ABI,
+		signer,
+	);
 
 	const tx = await harbourContract.enqueueTransaction(
 		transaction.safeAddress,
@@ -109,6 +138,8 @@ async function fetchSafeQueue({
 	safeChainId,
 	maxNoncesToFetch = 5,
 }: FetchSafeQueueParams): Promise<NonceGroup[]> {
+	const currentSettings = await loadCurrentSettings();
+	const harbourAddress = currentSettings?.harbourAddress || HARBOUR_ADDRESS;
 	const iface = new Interface(HARBOUR_ABI);
 	const startNonce = Number(safeConfig.nonce);
 	const owners = safeConfig.owners || [];
@@ -126,7 +157,7 @@ async function fetchSafeQueue({
 		const nonce = startNonce + i;
 		for (const owner of owners) {
 			sigCalls.push({
-				target: HARBOUR_ADDRESS,
+				target: harbourAddress,
 				allowFailure: false,
 				callData: iface.encodeFunctionData("retrieveSignatures", [
 					owner,
@@ -175,7 +206,7 @@ async function fetchSafeQueue({
 
 	const txHashes = Array.from(uniqueTxHashes);
 	const txCalls = txHashes.map((txHash) => ({
-		target: HARBOUR_ADDRESS,
+		target: harbourAddress,
 		allowFailure: false,
 		callData: iface.encodeFunctionData("retrieveTransaction", [txHash]),
 	}));
@@ -235,6 +266,17 @@ async function fetchSafeQueue({
 	return result;
 }
 
+async function getChainId(
+	currentSettings: Partial<SettingsFormData>,
+): Promise<bigint> {
+	if (currentSettings.rpcUrl) {
+		const provider = new JsonRpcProvider(currentSettings.rpcUrl);
+		const network = await provider.getNetwork();
+		return network.chainId;
+	}
+	return HARBOUR_CHAIN_ID;
+}
+
 /**
  * Signs a Safe transaction and enqueues it to the Harbour contract.
  * This function handles the complete flow:
@@ -256,17 +298,22 @@ async function signAndEnqueueSafeTransaction(
 	const signer = await walletProvider.getSigner();
 	const signature = await signSafeTransaction(signer, transaction);
 
+	const currentSettings = await loadCurrentSettings();
+	if (currentSettings.bundlerUrl) {
+		console.log("Use Bundler");
+		const hash = "";
+		return { hash, transactionHash: hash };
+	}
 	// Switch to Harbour chain for enqueuing
-	await switchToChain(walletProvider, HARBOUR_CHAIN_ID);
-	const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 
+	// TODO: if we set a custom RPC then this chain might not be correct
+	await switchToChain(walletProvider, await getChainId(currentSettings));
+	const receipt = await enqueueSafeTransaction(signer, transaction, signature);
 	return receipt;
 }
 
 export {
 	HARBOUR_CHAIN_ID,
-	HARBOUR_ADDRESS,
-	HARBOUR_ABI,
 	enqueueSafeTransaction,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,

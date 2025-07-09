@@ -23,7 +23,7 @@ const safeAddressSchema = ethereumAddressSchema;
  * Zod schema for validating Chain IDs.
  * Ensures the chain ID is an integer and a positive number.
  */
-const chainIdSchema = z.number().int().positive();
+const chainIdSchema = z.coerce.bigint().positive();
 
 /**
  * Generic schema for validating numeric strings (reusable for any numeric input)

@@ -17,7 +17,7 @@ export function useChainId(
 		queryFn: async () => {
 			// biome-ignore lint/style/noNonNullAssertion: non-null assertion is safe here because of the enabled check
 			const network = await provider!.getNetwork();
-			return Number(network.chainId);
+			return network.chainId;
 		},
 		enabled: !!provider,
 		retry: false,
