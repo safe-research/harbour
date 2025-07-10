@@ -9,7 +9,8 @@ import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
-import { switchToChain } from "./chains";
+import { buildUserOp } from "./bundler";
+import { getRpcUrlByChainId, switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
 import { signSafeTransaction } from "./safe";
@@ -27,25 +28,13 @@ const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 
 /** ABI for the Harbour contract. */
 const HARBOUR_ABI = [
+	"function SUPPORTED_ENTRYPOINT() view returns (address supportedEntrypoint)",
+	"function getNonce(address signer) view returns (uint256 userOpNonce)",
+	"function storeTransaction(bytes32 safeTxHash, address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes calldata data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, address signer, bytes32 r, bytes32 vs) external returns (uint256 listIndex)",
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
 	"function retrieveSignatures(address signerAddress, address safeAddress, uint256 chainId, uint256 nonce, uint256 start, uint256 count) external view returns (tuple(bytes32 r, bytes32 vs, bytes32 txHash)[] page, uint256 totalCount)",
 	"function retrieveTransaction(bytes32 safeTxHash) view returns (tuple(bool stored,uint8 operation,address to,uint128 value,uint128 safeTxGas,uint128 baseGas,uint128 gasPrice,address gasToken,address refundReceiver,bytes data) txParams)",
 ];
-
-/**
- * Enqueues a transaction to the Harbour contract
- * @param signer - The ethers.js signer
- * @param request - The transaction request parameters
- * @param signature - The EIP-712 signature
- * @returns The transaction receipt
- */
-async function _relayEnqueueSafeTransaction(
-	signer: JsonRpcSigner,
-	_transaction: FullSafeTransaction,
-	_signature: string,
-) {
-	const _harbourContract = new Contract(HARBOUR_ADDRESS, HARBOUR_ABI, signer);
-}
 
 /**
  * Enqueues a transaction to the Harbour contract
@@ -299,16 +288,41 @@ async function signAndEnqueueSafeTransaction(
 	const signature = await signSafeTransaction(signer, transaction);
 
 	const currentSettings = await loadCurrentSettings();
+	// If a bundler URL is set we will use that to relay the transaction
 	if (currentSettings.bundlerUrl) {
 		console.log("Use Bundler");
-		const hash = "";
+		const bundlerProvider = new JsonRpcProvider(currentSettings.bundlerUrl);
+		const rpcUrl =
+			currentSettings.rpcUrl || (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+		const harbourProvider = new JsonRpcProvider(rpcUrl);
+		const harbour = new Contract(
+			currentSettings.harbourAddress || HARBOUR_ADDRESS,
+			HARBOUR_ABI,
+			harbourProvider,
+		);
+		const { userOp, entryPoint } = await buildUserOp(
+			bundlerProvider,
+			harbour,
+			signer,
+			transaction,
+			signature,
+		);
+		console.log({ userOp });
+		const hash = await bundlerProvider.send("eth_sendUserOperation", [
+			userOp,
+			entryPoint,
+		]);
 		return { hash, transactionHash: hash };
 	}
 	// Switch to Harbour chain for enqueuing
 
-	// TODO: if we set a custom RPC then this chain might not be correct
 	await switchToChain(walletProvider, await getChainId(currentSettings));
-	const receipt = await enqueueSafeTransaction(signer, transaction, signature);
+	const receipt = await enqueueSafeTransaction(
+		signer,
+		transaction,
+		signature,
+		currentSettings.harbourAddress,
+	);
 	return receipt;
 }
 

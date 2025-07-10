@@ -67,6 +67,7 @@ const _sendUserOp = async (
 	serializedUserOp.preVerificationGas = limits.preVerificationGas;
 	serializedUserOp.verificationGasLimit = limits.verificationGasLimit;
 	serializedUserOp.callGasLimit = limits.callGasLimit;
+	console.log({serializedUserOp})
 	return await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
 };
 

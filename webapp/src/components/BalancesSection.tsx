@@ -57,7 +57,7 @@ type AddTokenFormData = z.infer<ReturnType<typeof createAddTokenFormSchema>>;
 interface BalancesSectionProps {
 	provider: JsonRpcApiProvider;
 	safeAddress: string;
-	chainId: number;
+	chainId: bigint;
 	onSendNative: () => void;
 	onSendToken: (tokenAddress: string) => void;
 }

@@ -63,7 +63,9 @@ export default function Header() {
 				{primaryWallet ? (
 					<div className="flex items-center gap-2">
 						{chainId && (
-							<span className="font-mono text-sm text-gray-600">{chainId}</span>
+							<span className="font-mono text-sm text-gray-600">
+								{BigInt(chainId).toString()}
+							</span>
 						)}
 						{address && (
 							<span className="font-mono text-sm text-gray-900">
