@@ -1,5 +1,6 @@
 import {
 	Contract,
+	type ContractRunner,
 	Interface,
 	type JsonRpcApiProvider,
 	JsonRpcProvider,
@@ -9,7 +10,7 @@ import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
-import { buildUserOp } from "./bundler";
+import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
@@ -30,11 +31,19 @@ const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 const HARBOUR_ABI = [
 	"function SUPPORTED_ENTRYPOINT() view returns (address supportedEntrypoint)",
 	"function getNonce(address signer) view returns (uint256 userOpNonce)",
+	"function availableFreeQuotaForSigner(address signer) view returns (uint64 availableFreeQuota, uint64 usedSignerQuota, uint64 nextSignerQuotaReset)",
 	"function storeTransaction(bytes32 safeTxHash, address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes calldata data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, address signer, bytes32 r, bytes32 vs) external returns (uint256 listIndex)",
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
 	"function retrieveSignatures(address signerAddress, address safeAddress, uint256 chainId, uint256 nonce, uint256 start, uint256 count) external view returns (tuple(bytes32 r, bytes32 vs, bytes32 txHash)[] page, uint256 totalCount)",
 	"function retrieveTransaction(bytes32 safeTxHash) view returns (tuple(bool stored,uint8 operation,address to,uint128 value,uint128 safeTxGas,uint128 baseGas,uint128 gasPrice,address gasToken,address refundReceiver,bytes data) txParams)",
 ];
+
+function harbourAt(
+	harbourAddress: string | undefined,
+	runner: ContractRunner,
+): Contract {
+	return new Contract(harbourAddress || HARBOUR_ADDRESS, HARBOUR_ABI, runner);
+}
 
 /**
  * Enqueues a transaction to the Harbour contract
@@ -49,11 +58,7 @@ async function enqueueSafeTransaction(
 	signature: string,
 	harbourAddress?: string,
 ) {
-	const harbourContract = new Contract(
-		harbourAddress || HARBOUR_ADDRESS,
-		HARBOUR_ABI,
-		signer,
-	);
+	const harbourContract = harbourAt(harbourAddress, signer);
 
 	const tx = await harbourContract.enqueueTransaction(
 		transaction.safeAddress,
@@ -295,17 +300,15 @@ async function signAndEnqueueSafeTransaction(
 		const rpcUrl =
 			currentSettings.rpcUrl || (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
 		const harbourProvider = new JsonRpcProvider(rpcUrl);
-		const harbour = new Contract(
-			currentSettings.harbourAddress || HARBOUR_ADDRESS,
-			HARBOUR_ABI,
-			harbourProvider,
-		);
+		const harbour = harbourAt(currentSettings.harbourAddress, harbourProvider);
+		const gasFee = await getUserOpGasPrice(harbourProvider);
 		const { userOp, entryPoint } = await buildUserOp(
 			bundlerProvider,
 			harbour,
 			signer,
 			transaction,
 			signature,
+			gasFee,
 		);
 		console.log({ userOp });
 		const hash = await bundlerProvider.send("eth_sendUserOperation", [
@@ -314,8 +317,8 @@ async function signAndEnqueueSafeTransaction(
 		]);
 		return { hash, transactionHash: hash };
 	}
+	// Transaction cannot be relayed. User has to submit the transaction
 	// Switch to Harbour chain for enqueuing
-
 	await switchToChain(walletProvider, await getChainId(currentSettings));
 	const receipt = await enqueueSafeTransaction(
 		signer,
@@ -329,6 +332,7 @@ async function signAndEnqueueSafeTransaction(
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
+	harbourAt,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
 };

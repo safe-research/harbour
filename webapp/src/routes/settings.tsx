@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ConditionalBackButton } from "@/components/BackButton";
 import { Box, Container, ContainerTitle } from "@/components/Groups";
+import { QuotaOverview } from "@/components/harbour/QuotaOverview";
 import {
 	SettingsForm,
 	useCurrentSettings,
@@ -32,6 +33,9 @@ export function SettingsPage() {
 					"Loading..."
 				)}
 			</Box>
+			{currentSettings && (
+				<QuotaOverview currentSettings={currentSettings} className="mt-4" />
+			)}
 		</Container>
 	);
 }

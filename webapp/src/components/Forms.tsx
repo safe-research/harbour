@@ -11,15 +11,17 @@ function FormItem<T extends FieldValues>({
 	label,
 	placeholder,
 	register,
+	className,
 }: {
 	id: FieldPath<T>;
 	error: FieldError | undefined;
 	label: string;
 	placeholder?: string;
 	register: UseFormRegister<T>;
+	className?: string;
 }) {
 	return (
-		<div>
+		<div className={className}>
 			<label
 				htmlFor={id}
 				className="block text-sm font-medium text-gray-700 mb-1"
@@ -42,13 +44,17 @@ function SubmitItem({
 	isSubmitting,
 	actionTitle,
 	disabled = false,
+	showProcessingText = true,
+	className = "",
 }: {
 	isSubmitting: boolean;
 	actionTitle: string;
 	disabled?: boolean;
+	className?: string;
+	showProcessingText?: boolean;
 }) {
 	return (
-		<div className="pt-4 flex space-x-4">
+		<div className={`pt-4 flex space-x-4 ${className}`}>
 			<button
 				type="submit"
 				disabled={isSubmitting || disabled}
@@ -57,7 +63,7 @@ function SubmitItem({
 				{isSubmitting ? (
 					<>
 						<LoadingSpinner />
-						Processing...
+						{showProcessingText && "Processing..."}
 					</>
 				) : (
 					actionTitle

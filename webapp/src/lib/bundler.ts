@@ -50,15 +50,18 @@ type GasLimits = {
 	paymasterPostOpGasLimit: string;
 };
 
-const getUserOpGasPrice = async (
-	bundlerProvider: JsonRpcProvider,
+export const getUserOpGasPrice = async (
+	provider: JsonRpcProvider,
 ): Promise<GasFee> => {
-    // TODO: refactor to use pimlico agnostic gas price fetching
-	const fees: { standard: GasFee } = await bundlerProvider.send(
-		"pimlico_getUserOperationGasPrice",
+	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest"]);
+	const maxPriorityFeePerGas = await provider.send(
+		"eth_maxPriorityFeePerGas",
 		[],
 	);
-	return fees.standard;
+	return {
+		maxFeePerGas: feeHistory.baseFeePerGas[0],
+		maxPriorityFeePerGas,
+	};
 };
 
 const getUserOpGasLimits = async (
@@ -79,6 +82,8 @@ export async function buildUserOp(
 	signer: JsonRpcSigner,
 	transaction: FullSafeTransaction,
 	signature: string,
+	gasFee: GasFee,
+	limitsOverwrite?: GasLimits,
 ): Promise<{ userOp: UserOpRequest; entryPoint: string }> {
 	const signerAddress = await signer.getAddress();
 	const safeTxHash = getSafeTransactionHash(transaction);
@@ -114,9 +119,9 @@ export async function buildUserOp(
 		maxPriorityFeePerGas: toBeHex(0),
 		signature: packedSig.serialized,
 	};
-	const gasFee = await getUserOpGasPrice(bundlerProvider);
-	console.log({ gasFee });
-	const limits = await getUserOpGasLimits(bundlerProvider, entryPoint, userOp);
+	const limits =
+		limitsOverwrite ||
+		(await getUserOpGasLimits(bundlerProvider, entryPoint, userOp));
 	userOp.maxFeePerGas = gasFee.maxFeePerGas;
 	userOp.maxPriorityFeePerGas = gasFee.maxPriorityFeePerGas;
 	userOp.preVerificationGas = limits.preVerificationGas;

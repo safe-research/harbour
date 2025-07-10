@@ -1,5 +1,5 @@
-import { getAddress, type Signer } from "ethers";
-import type { ActionType, TaskArguments } from "hardhat/types";
+import { getAddress, Provider, type Signer } from "ethers";
+import type { ActionType, EthereumProvider, TaskArguments } from "hardhat/types";
 import { buildSafeTx, buildSignedUserOp, serialize } from "../test/utils/erc4337";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import type { PackedUserOperationStruct } from "../typechain-types/src/SafeInternationalHarbour";
@@ -36,9 +36,13 @@ type GasFee = {
 	maxPriorityFeePerGas: string;
 };
 
-const getUserOpGasPrice = async (): Promise<GasFee> => {
-	const fees = await call<{ standard: GasFee }>("pimlico_getUserOperationGasPrice", []);
-	return fees.standard;
+const getUserOpGasPrice = async (provider: EthereumProvider): Promise<GasFee> => {
+	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest"]);
+	const maxPriorityFeePerGas = await provider.send("eth_maxPriorityFeePerGas", []);
+	return {
+		maxFeePerGas: feeHistory.baseFeePerGas[0],
+		maxPriorityFeePerGas
+	};
 };
 
 type GasLimits = {
@@ -68,7 +72,7 @@ const _sendUserOp = async (
 	serializedUserOp.verificationGasLimit = limits.verificationGasLimit;
 	serializedUserOp.callGasLimit = limits.callGasLimit;
 	console.log({serializedUserOp})
-	return await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
+	return "" //await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
 };
 
 export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
@@ -84,7 +88,9 @@ export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
 	const harbour = SafeInternationalHarbour__factory.connect(harbourAddress, signer);
 	const supportedEntryPoint = await harbour.SUPPORTED_ENTRYPOINT();
 	const { userOp } = await buildSignedUserOp(harbour, signer, chainId, safeAddress, safeTx);
-	const gasFee = await getUserOpGasPrice();
+	const gasFee = await getUserOpGasPrice(hre.ethers.provider as unknown as EthereumProvider);
+	console.log(BigInt(gasFee.maxPriorityFeePerGas).toString())
+	console.log(BigInt(gasFee.maxFeePerGas).toString())
 	console.log({ gasFee });
 	const limits = await getUserOpGasLimits(supportedEntryPoint, userOp);
 	console.log({ limits });

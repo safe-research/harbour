@@ -1,9 +1,16 @@
 import { Cog6ToothIcon } from "@heroicons/react/24/solid";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
+import { getAddress } from "ethers";
 import { useMemo } from "react";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { safeIdSchema } from "@/lib/validators";
+
+// TODO: move to some util
+function formatAddress(address: string) {
+	const checksummedAddress = getAddress(address);
+	return `${checksummedAddress.slice(0, 6)}...${checksummedAddress.slice(-4)}`;
+}
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
@@ -69,7 +76,7 @@ export default function Header() {
 						)}
 						{address && (
 							<span className="font-mono text-sm text-gray-900">
-								{address.slice(0, 6)}...{address.slice(-4)}
+								{formatAddress(address)}
 							</span>
 						)}
 						<button
