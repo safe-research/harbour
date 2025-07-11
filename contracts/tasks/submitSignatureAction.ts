@@ -1,4 +1,4 @@
-import { getAddress, Provider, type Signer } from "ethers";
+import { getAddress, type Signer } from "ethers";
 import type { ActionType, EthereumProvider, TaskArguments } from "hardhat/types";
 import { buildSafeTx, buildSignedUserOp, serialize } from "../test/utils/erc4337";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
@@ -41,7 +41,7 @@ const getUserOpGasPrice = async (provider: EthereumProvider): Promise<GasFee> =>
 	const maxPriorityFeePerGas = await provider.send("eth_maxPriorityFeePerGas", []);
 	return {
 		maxFeePerGas: feeHistory.baseFeePerGas[0],
-		maxPriorityFeePerGas
+		maxPriorityFeePerGas,
 	};
 };
 
@@ -60,7 +60,7 @@ const getUserOpGasLimits = async (entryPoint: string, userOp: PackedUserOperatio
 };
 
 const _sendUserOp = async (
-	entryPoint: string,
+	_entryPoint: string,
 	userOp: PackedUserOperationStruct,
 	gasFee: GasFee,
 	limits: GasLimits,
@@ -71,8 +71,8 @@ const _sendUserOp = async (
 	serializedUserOp.preVerificationGas = limits.preVerificationGas;
 	serializedUserOp.verificationGasLimit = limits.verificationGasLimit;
 	serializedUserOp.callGasLimit = limits.callGasLimit;
-	console.log({serializedUserOp})
-	return "" //await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
+	console.log({ serializedUserOp });
+	return ""; //await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
 };
 
 export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
@@ -89,8 +89,8 @@ export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
 	const supportedEntryPoint = await harbour.SUPPORTED_ENTRYPOINT();
 	const { userOp } = await buildSignedUserOp(harbour, signer, chainId, safeAddress, safeTx);
 	const gasFee = await getUserOpGasPrice(hre.ethers.provider as unknown as EthereumProvider);
-	console.log(BigInt(gasFee.maxPriorityFeePerGas).toString())
-	console.log(BigInt(gasFee.maxFeePerGas).toString())
+	console.log(BigInt(gasFee.maxPriorityFeePerGas).toString());
+	console.log(BigInt(gasFee.maxFeePerGas).toString());
 	console.log({ gasFee });
 	const limits = await getUserOpGasLimits(supportedEntryPoint, userOp);
 	console.log({ limits });

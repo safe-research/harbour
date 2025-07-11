@@ -29,8 +29,11 @@ const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 
 /** ABI for the Harbour contract. */
 const HARBOUR_ABI = [
+	"function FEE_TOKEN() view returns (address feeToken)",
 	"function SUPPORTED_ENTRYPOINT() view returns (address supportedEntrypoint)",
 	"function getNonce(address signer) view returns (uint256 userOpNonce)",
+	"function depositTokensForSigner(address signer, uint128 amount)",
+	"function quotaStatsForSigner(address signer) view returns (uint128 tokenBalance, uint64 usedQuota, uint64 nextQuotaReset)",
 	"function availableFreeQuotaForSigner(address signer) view returns (uint64 availableFreeQuota, uint64 usedSignerQuota, uint64 nextSignerQuotaReset)",
 	"function storeTransaction(bytes32 safeTxHash, address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes calldata data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, address signer, bytes32 r, bytes32 vs) external returns (uint256 listIndex)",
 	"function enqueueTransaction(address safeAddress, uint256 chainId, uint256 nonce, address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signature) external",
@@ -40,7 +43,7 @@ const HARBOUR_ABI = [
 
 function harbourAt(
 	harbourAddress: string | undefined,
-	runner: ContractRunner,
+	runner?: ContractRunner,
 ): Contract {
 	return new Contract(harbourAddress || HARBOUR_ADDRESS, HARBOUR_ABI, runner);
 }
@@ -268,7 +271,13 @@ async function getChainId(
 		const network = await provider.getNetwork();
 		return network.chainId;
 	}
+	switchToChain;
 	return HARBOUR_CHAIN_ID;
+}
+
+async function getHarbourChainId(): Promise<bigint> {
+	const currentSettings = await loadCurrentSettings();
+	return getChainId(currentSettings);
 }
 
 /**
@@ -333,6 +342,7 @@ export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
 	harbourAt,
+	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
 };

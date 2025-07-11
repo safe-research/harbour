@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
+import { fetchERC20TokenDetails } from "@/lib/erc20";
 import { harbourAt } from "@/lib/harbour";
 
 interface QuotaStats {
@@ -21,7 +22,6 @@ function useQuotaStats(
 ) {
 	const queryKey = ["quotaStats", harbourAddress, signerAddress];
 	const queryFn = async () => {
-		console.log({ provider, signerAddress });
 		if (!provider || !signerAddress) {
 			return EMPTY_QUOTA_STATS;
 		}
@@ -52,5 +52,63 @@ function useQuotaStats(
 		refresh: refetch,
 	};
 }
+interface QuotaTokenStats {
+	tokenInfo: {
+		address: string;
+		decimals?: number;
+		name?: string;
+		symbol?: string;
+		balance?: bigint;
+	};
+	lockedTokens: bigint;
+}
 
-export { useQuotaStats };
+function useQuotaTokenStats(
+	provider: JsonRpcApiProvider | null,
+	signerAddress: string | null | undefined,
+	harbourAddress?: string,
+) {
+	const queryKey = ["quotaTokenStats", harbourAddress, signerAddress];
+	const queryFn = async (): Promise<QuotaTokenStats> => {
+		if (!provider || !signerAddress) {
+			throw Error("Not initialized");
+		}
+		const harbour = harbourAt(harbourAddress, provider);
+		const tokenAddress = await harbour.FEE_TOKEN();
+		const tokenInfo = await fetchERC20TokenDetails(
+			provider,
+			tokenAddress,
+			signerAddress,
+		);
+		const stats = await harbour.quotaStatsForSigner(signerAddress);
+		return {
+			tokenInfo: tokenInfo || { address: tokenAddress },
+			lockedTokens: BigInt(stats.tokenBalance),
+		};
+	};
+	const enabled = !!provider && !!signerAddress && !!harbourAddress;
+	const {
+		data: quotaTokenStats,
+		isPending,
+		error: queryError,
+		refetch,
+	} = useQuery<QuotaTokenStats, Error>({
+		queryKey,
+		queryFn,
+		enabled,
+	});
+	const error = queryError ? queryError.message : null;
+	return {
+		quotaTokenStats,
+		isLoading: enabled && isPending,
+		error,
+		refresh: refetch,
+	};
+}
+
+export {
+	useQuotaStats,
+	type QuotaStats,
+	useQuotaTokenStats,
+	type QuotaTokenStats,
+};

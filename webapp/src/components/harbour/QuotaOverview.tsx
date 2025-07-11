@@ -4,12 +4,13 @@ import { getAddress } from "ethers";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Box, BoxTitle } from "@/components/Groups";
+import { Box } from "@/components/Groups";
 import type { SettingsFormData } from "@/components/settings/SettingsForm";
-import { useQuotaStats } from "@/hooks/useQuotaStats";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
 import { checkedAddressSchema } from "@/lib/validators";
 import { FormItem, SubmitItem } from "../Forms";
+import { QuotaStats } from "./QuotaStats";
+import { QuotaTokenBalance } from "./QuotaTokenBalance";
 
 const createQuotaStatsFormSchema = () =>
 	z.object({
@@ -29,16 +30,9 @@ function QuotaOverview({
 }) {
 	const [{ wallet }] = useConnectWallet();
 	const [signerAddress, setSignerAddress] = useState<string | undefined>();
+	const [refreshCounter, setRefreshCounter] = useState<number>(0);
+	const [isLoadingQuota, setIsLoadingQuota] = useState<boolean>(false);
 	const { provider: harbourProvider } = useHarbourRpcProvider();
-	const {
-		quotaStats,
-		isLoading: isLoadingQuota,
-		refresh,
-	} = useQuotaStats(
-		harbourProvider,
-		signerAddress,
-		currentSettings.harbourAddress,
-	);
 
 	const {
 		register,
@@ -58,7 +52,7 @@ function QuotaOverview({
 
 	const onSubmit = async (data: QuotaStatsFormData) => {
 		setSignerAddress(data.signerAddress);
-		refresh();
+		setRefreshCounter((prev) => prev + 1);
 	};
 
 	return (
@@ -81,22 +75,20 @@ function QuotaOverview({
 					className="w-full"
 				/>
 			</form>
-			<div className={"grid gap-2 md:grid-cols-3 grid-cols-1"}>
-				<Box>
-					<BoxTitle>Available Quota</BoxTitle>
-					{isLoadingQuota ? "-" : quotaStats.availableFreeQuota}
-				</Box>
-				<Box>
-					<BoxTitle>Used Quota</BoxTitle>
-					{isLoadingQuota ? "-" : quotaStats.usedSignerQuota}
-				</Box>
-				<Box>
-					<BoxTitle>Next Reset</BoxTitle>
-					{isLoadingQuota
-						? "-"
-						: new Date(quotaStats.nextSignerQuotaReset * 1000).toLocaleString()}
-				</Box>
-			</div>
+			<QuotaStats
+				harbourAddress={currentSettings.harbourAddress}
+				signerAddress={signerAddress}
+				harbourProvider={harbourProvider}
+				refreshTrigger={refreshCounter}
+				updateIsLoading={(loading) => setIsLoadingQuota(loading)}
+			/>
+			<QuotaTokenBalance
+				key={refreshCounter}
+				harbourAddress={currentSettings.harbourAddress}
+				signerAddress={signerAddress}
+				harbourProvider={harbourProvider}
+				className="mt-2"
+			/>
 		</Box>
 	);
 }
