@@ -60,7 +60,7 @@ const getUserOpGasLimits = async (entryPoint: string, userOp: PackedUserOperatio
 };
 
 const _sendUserOp = async (
-	_entryPoint: string,
+	entryPoint: string,
 	userOp: PackedUserOperationStruct,
 	gasFee: GasFee,
 	limits: GasLimits,
