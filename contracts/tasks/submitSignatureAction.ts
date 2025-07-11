@@ -71,8 +71,7 @@ const _sendUserOp = async (
 	serializedUserOp.preVerificationGas = limits.preVerificationGas;
 	serializedUserOp.verificationGasLimit = limits.verificationGasLimit;
 	serializedUserOp.callGasLimit = limits.callGasLimit;
-	console.log({ serializedUserOp });
-	return ""; //await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
+	return await call<string>("eth_sendUserOperation", [serializedUserOp, entryPoint]);
 };
 
 export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
@@ -89,8 +88,6 @@ export const action: ActionType<TaskArguments> = async (taskArgs, hre) => {
 	const supportedEntryPoint = await harbour.SUPPORTED_ENTRYPOINT();
 	const { userOp } = await buildSignedUserOp(harbour, signer, chainId, safeAddress, safeTx);
 	const gasFee = await getUserOpGasPrice(hre.ethers.provider as unknown as EthereumProvider);
-	console.log(BigInt(gasFee.maxPriorityFeePerGas).toString());
-	console.log(BigInt(gasFee.maxFeePerGas).toString());
 	console.log({ gasFee });
 	const limits = await getUserOpGasLimits(supportedEntryPoint, userOp);
 	console.log({ limits });
