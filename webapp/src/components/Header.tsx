@@ -1,8 +1,12 @@
+import { Cog6ToothIcon } from "@heroicons/react/24/solid";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
+import { getShortAddress } from "@/lib/encoding";
 import { safeIdSchema } from "@/lib/validators";
+
+// TODO: move to some util
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
@@ -62,11 +66,13 @@ export default function Header() {
 				{primaryWallet ? (
 					<div className="flex items-center gap-2">
 						{chainId && (
-							<span className="font-mono text-sm text-gray-600">{chainId}</span>
+							<span className="font-mono text-sm text-gray-600">
+								{BigInt(chainId).toString()}
+							</span>
 						)}
 						{address && (
 							<span className="font-mono text-sm text-gray-900">
-								{address.slice(0, 6)}...{address.slice(-4)}
+								{getShortAddress(address)}
 							</span>
 						)}
 						<button
@@ -86,6 +92,9 @@ export default function Header() {
 						Connect Wallet
 					</button>
 				)}
+				<Link to="/settings">
+					<Cog6ToothIcon className="size-8 p-1 hover:opacity-40 transition-opacity duration-300 cursor-pointer" />
+				</Link>
 			</div>
 		</header>
 	);

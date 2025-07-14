@@ -20,11 +20,11 @@ import { useERC20TokenAddresses } from "./useERC20TokenAddresses";
 function useERC20Tokens(
 	provider: JsonRpcApiProvider,
 	safeAddress: string,
-	chainId: number,
+	chainId: bigint,
 ) {
 	const { addresses, addAddress, removeAddress } =
 		useERC20TokenAddresses(chainId);
-	const queryKey = ["erc20Tokens", safeAddress, chainId, addresses];
+	const queryKey = ["erc20Tokens", safeAddress, chainId.toString(), addresses];
 	const queryFn = async () => {
 		if (
 			!provider ||

@@ -15,6 +15,7 @@ const ERC20_ABI = [
 	"function decimals() view returns (uint8)",
 	"function balanceOf(address account) view returns (uint256)",
 	"function transfer(address to, uint256 amount) returns (bool)",
+	"function approve(address sepender, uint256 amount) returns (bool)",
 ];
 
 /**
@@ -74,8 +75,7 @@ async function fetchERC20TokenDetails(
 		balRes.returnData,
 	)[0] as bigint;
 
-	const numericDecimals =
-		typeof decimalsRaw === "bigint" ? Number(decimalsRaw) : Number(decimalsRaw);
+	const numericDecimals = Number(decimalsRaw);
 	if (
 		Number.isNaN(numericDecimals) ||
 		numericDecimals < 0 ||
@@ -168,10 +168,22 @@ function encodeERC20Transfer(recipient: string, amount: bigint): string {
 	return iface.encodeFunctionData("transfer", [recipient, amount]);
 }
 
+/**
+ * Encodes ERC20 approve function call data.
+ * @param spender The address that can spend the tokens.
+ * @param amount The amount of tokens that can be spent (in smallest unit, e.g., wei for ETH).
+ * @returns The encoded function call data as a hex string.
+ */
+function encodeERC20Approval(spender: string, amount: bigint): string {
+	const iface = new Interface(ERC20_ABI);
+	return iface.encodeFunctionData("approve", [spender, amount]);
+}
+
 export {
 	ERC20_ABI,
 	type ERC20TokenDetails,
 	encodeERC20Transfer,
+	encodeERC20Approval,
 	fetchBatchERC20TokenDetails,
 	fetchERC20TokenDetails,
 };

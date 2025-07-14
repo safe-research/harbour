@@ -9,7 +9,7 @@ import {
  * Hook to manage ERC20 token addresses persisted in localStorage by chain ID.
  * Provides current addresses for a specific chain and functions to add/remove addresses.
  */
-function useERC20TokenAddresses(chainId: number) {
+function useERC20TokenAddresses(chainId: bigint) {
 	const [addresses, setAddresses] = useState<string[]>(() =>
 		getERC20TokenAddresses(chainId),
 	);

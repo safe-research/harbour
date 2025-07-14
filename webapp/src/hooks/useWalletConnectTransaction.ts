@@ -7,7 +7,7 @@ import { getSafeTransaction } from "@/lib/safe";
 
 type WalletConnectTransactionParams = {
 	safeAddress: string;
-	chainId: number;
+	chainId: bigint;
 	browserProvider: BrowserProvider;
 	to: string;
 	value: string;
