@@ -62,13 +62,15 @@ describe("SafeInternationalHarbour.4337", () => {
 		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
 	});
 
-	it.skip("should revert if paymaster is set", async () => {
+	it("should revert if paymaster is set", async () => {
 		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const safeTx = buildSafeTx();
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
+		userOp.paymasterAndData = ethers.solidityPacked(["address", "uint128", "uint128"], [AddressOne, 0, 0]);
+		console.log(userOp.paymasterAndData);
 		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-			.withArgs(0, "AA23 reverted", "0xea42a443");
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidUserOpPaymaster"));
 	});
 
 	it("should revert if signature length is not 65 bytes", async () => {

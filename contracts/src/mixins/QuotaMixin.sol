@@ -49,10 +49,7 @@ abstract contract QuotaMixin is IQuotaManager {
         FEE_TOKEN_DECIMALS = _config.feeTokenDecimals;
     }
 
-    function depositTokensForSigner(
-        address signer,
-        uint128 amount
-    ) public {
+    function depositTokensForSigner(address signer, uint128 amount) public {
         // We don't update the nextQuotaReset this way depositing more tokens does not negatively affect the reset schedule
         // The reset schedule always starts from 0, therefore is always a multiple of the reset timeframe (unless the timeframe is changed)
         quotaStatsForSigner[signer].tokenBalance += amount;
@@ -96,12 +93,12 @@ abstract contract QuotaMixin is IQuotaManager {
         uint256 nonce
     ) public payable {
         bytes32 withdrawHash = computeWithdrawHash(amount, beneficiary, nonce);
-        (address signer,,) = CoreLib.recoverSigner(
-            withdrawHash,
-            signature
-        );
+        (address signer, , ) = CoreLib.recoverSigner(withdrawHash, signature);
         // Check that withdrawal was not executed yet
-        require(withdrawsForSigner[signer][withdrawHash] == 0, "Withdrawal was already performed");
+        require(
+            withdrawsForSigner[signer][withdrawHash] == 0,
+            "Withdrawal was already performed"
+        );
         withdrawsForSigner[signer][withdrawHash] = block.timestamp;
 
         QuotaStats storage stats = quotaStatsForSigner[signer];
@@ -144,7 +141,8 @@ abstract contract QuotaMixin is IQuotaManager {
             // Then substract this from the current blocktime to get the start of the current timeframe
             // And lastly add the timeframe duration to get the starting point of the next timeframe
             uint64 blocktime = uint64(block.timestamp);
-            nextSignerQuotaReset = blocktime -
+            nextSignerQuotaReset =
+                blocktime -
                 ((blocktime - nextSignerQuotaReset) % TIMEFRAME_QUOTA_RESET) +
                 TIMEFRAME_QUOTA_RESET;
         }

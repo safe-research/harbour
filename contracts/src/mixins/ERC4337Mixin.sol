@@ -32,6 +32,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         uint256 preVerificationBaseGas;
         uint256 verificationGasPerByte;
         uint256 callGasPerByte;
+        address trustedPaymaster;
     }
 
     // ------------------------------------------------------------------
@@ -48,6 +49,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
     uint256 public immutable PRE_VERIFICATION_BASE_GAS;
     uint256 public immutable VERIFICATION_GAS_PER_BYTE;
     uint256 public immutable CALL_GAS_PER_BYTE;
+    address public immutable TRUSTED_PAYMASTER;
 
     constructor(ERC4337MixinConfig memory _config) {
         SUPPORTED_ENTRYPOINT = _config.entryPoint;
@@ -56,6 +58,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         PRE_VERIFICATION_BASE_GAS = _config.preVerificationBaseGas;
         VERIFICATION_GAS_PER_BYTE = _config.verificationGasPerByte;
         CALL_GAS_PER_BYTE = _config.callGasPerByte;
+        TRUSTED_PAYMASTER = _config.trustedPaymaster;
     }
 
     /**
@@ -93,11 +96,20 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
         );
-        require(
-            userOp.paymasterAndData.length == 0,
-            InvalidUserOpPaymasterAndData()
-        );
         require(userOp.signature.length == 65, InvalidECDSASignatureLength());
+
+        // Since paymasterAndData are not signed it is possible to to replace the paymaster
+        // TODO: To evaluate if we should encode the used paymaster into the refund receiver
+        if (userOp.paymasterAndData.length != 0) {
+            address paymaster = address(
+                bytes20(
+                    userOp.paymasterAndData[
+                        :UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET
+                    ]
+                )
+            );
+            require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
+        }
 
         require(
             bytes4(userOp.callData) == this.storeTransaction.selector,

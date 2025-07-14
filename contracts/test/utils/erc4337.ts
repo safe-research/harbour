@@ -39,6 +39,7 @@ export function build4337Config(
 		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
 		verificationGasPerByte: params?.verificationGasPerByte || 200,
 		callGasPerByte: params?.callGasPerByte || 1000,
+		trustedPaymaster: params?.trustedPaymaster || ZeroAddress,
 	};
 }
 
