@@ -12,7 +12,7 @@ function getChecksummedAddress(address: string): string {
 
 function getShortAddress(address: string) {
 	const checksummedAddress = getChecksummedAddress(address);
-	return `${checksummedAddress.slice(0, 6)}...${checksummedAddress.slice(-4)}`;
+	return `${checksummedAddress.slice(0, 6)}…${checksummedAddress.slice(-4)}`;
 }
 
 /**
