@@ -15,7 +15,7 @@ import { ERC20TransferForm } from "../components/transaction-forms/ERC20Transfer
 import { NativeTransferForm } from "../components/transaction-forms/NativeTransferForm";
 import { RawTransactionForm } from "../components/transaction-forms/RawTransactionForm";
 import { WalletConnectTransactionForm } from "../components/transaction-forms/WalletConnectTransactionForm";
-import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
+import { useChainlistRpcProvider } from "../hooks/useRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
 

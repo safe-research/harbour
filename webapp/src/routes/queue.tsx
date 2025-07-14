@@ -3,27 +3,24 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
-import { switchToChain } from "@/lib/chains";
 import type { ChainId } from "@/lib/types";
 
 import { ActionCard } from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
-import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
 import {
 	type TransactionToExecute,
 	useExecuteTransaction,
 } from "../hooks/useExecuteTransaction";
+import {
+	useChainlistRpcProvider,
+	useHarbourRpcProvider,
+} from "../hooks/useRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { useSafeQueue } from "../hooks/useSafeQueue";
-import {
-	enqueueSafeTransaction,
-	HARBOUR_CHAIN_ID,
-	type NonceGroup,
-} from "../lib/harbour";
+import { type NonceGroup, signAndEnqueueSafeTransaction } from "../lib/harbour";
 import type { SafeConfiguration } from "../lib/safe";
-import { signSafeTransaction } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
 import { safeIdSchema } from "../lib/validators";
 
@@ -130,13 +127,7 @@ function QueueContent({
 				safeAddress,
 				chainId,
 			};
-			// Sign with EIP-712 on the Safe chain
-			await switchToChain(walletProvider, chainId);
-			const signer = await walletProvider.getSigner();
-			const signature = await signSafeTransaction(signer, fullTx);
-			// Enqueue signature on Harbour chain
-			await switchToChain(walletProvider, HARBOUR_CHAIN_ID);
-			await enqueueSafeTransaction(signer, fullTx, signature);
+			await signAndEnqueueSafeTransaction(walletProvider, fullTx);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {
 			const errMsg =
@@ -282,12 +273,12 @@ function QueuePageInner({
 		provider: harbourProvider,
 		error: harbourError,
 		isLoading: isLoadingHarbour,
-	} = useChainlistRpcProvider(HARBOUR_CHAIN_ID);
+	} = useHarbourRpcProvider();
 	const {
 		provider: rpcProvider,
 		error: rpcError,
 		isLoading: isLoadingRpc,
-	} = useChainlistRpcProvider(Number(chainId));
+	} = useChainlistRpcProvider(chainId);
 	const {
 		data: safeConfig,
 		isLoading: isLoadingConfig,

@@ -8,7 +8,7 @@ import { ActionCard } from "../components/ActionCard";
 import { BalancesSection } from "../components/BalancesSection";
 import { RequireWallet } from "../components/RequireWallet";
 import SafeConfigDisplay from "../components/SafeConfigDisplay";
-import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
+import { useChainlistRpcProvider } from "../hooks/useRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import { safeIdSchema } from "../lib/validators";
 
@@ -18,7 +18,7 @@ interface DashboardContentProps {
 	/** The address of the Safe. */
 	safeAddress: string;
 	/** The chain ID where the Safe is deployed. */
-	chainId: number;
+	chainId: bigint;
 }
 
 /**
@@ -155,7 +155,7 @@ export function DashboardPage() {
 /**
  * Inner component for the dashboard page, rendered if a wallet is connected.
  * It acquires a JSON RPC provider for the given chain ID and then renders the main dashboard content.
- * @param {{ safeAddress: string; chainId: number }} props - Props containing the Safe address and chain ID.
+ * @param {{ safeAddress: string; chainId: bigint }} props - Props containing the Safe address and chain ID.
  * @returns JSX element, either a loading/error state or the DashboardContent.
  */
 function DashboardPageInner({
@@ -163,7 +163,7 @@ function DashboardPageInner({
 	chainId,
 }: {
 	safeAddress: string;
-	chainId: number;
+	chainId: bigint;
 }) {
 	const { provider, error, isLoading } = useChainlistRpcProvider(chainId);
 

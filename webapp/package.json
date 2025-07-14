@@ -15,6 +15,7 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@heroicons/react": "^2.2.0",
 		"@hookform/resolvers": "^5.1.1",
 		"@reown/walletkit": "^1.2.8",
 		"@tailwindcss/vite": "^4.1.11",
