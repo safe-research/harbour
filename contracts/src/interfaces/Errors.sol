@@ -25,6 +25,7 @@ error SignerAlreadySignedTransaction(address signer, bytes32 safeTxHash);
 error InvalidTarget(bytes4 targetSelector);
 error InvalidEntryPoint(address entryPoint);
 error InvalidUserOpPaymaster();
+error UnexpectedUserSignature();
 error UnexpectedSafeTxHash(bytes32 expectedSafeTxHash);
 error UnexpectedSigner(address recoveredSigner);
 error UnexpectedSignatureR(bytes32 extractedR);

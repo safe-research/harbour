@@ -96,20 +96,11 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
         );
-        require(userOp.signature.length == 65, InvalidECDSASignatureLength());
-
-        // Since paymasterAndData are not signed it is possible to to replace the paymaster
-        // TODO: To evaluate if we should encode the used paymaster into the refund receiver
-        if (userOp.paymasterAndData.length != 0) {
-            address paymaster = address(
-                bytes20(
-                    userOp.paymasterAndData[
-                        :UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET
-                    ]
-                )
-            );
-            require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
-        }
+        // TODO: as signature check should happen in paymaster
+        require(
+            userOp.signature.length == 65 || userOp.signature.length == 0,
+            InvalidECDSASignatureLength()
+        );
 
         require(
             bytes4(userOp.callData) == this.storeTransaction.selector,
@@ -130,12 +121,30 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
 
-        _verifySignature(safeTxHash, userOp.signature, signer, r, vs);
+        _verifySignature(safeTxHash, signer, r, vs);
 
         uint256 nonce = getNonce(signer);
         require(userOp.nonce == nonce, UnexpectedNonce(nonce));
 
         // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
+
+        // Since paymasterAndData are not signed it is possible to to replace the paymaster
+        // TODO: To evaluate if we should encode the used paymaster into the refund receiver
+        // OR: for now accept that there is always the chance that the user quota is used first
+        if (userOp.paymasterAndData.length != 0) {
+            address paymaster = address(
+                bytes20(
+                    userOp.paymasterAndData[
+                        :UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET
+                    ]
+                )
+            );
+            require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
+            return _packValidationData(false, 0, 0);
+        } else {
+            // UserOp Signature is used for validators (via the paymaster) and should be empty when no paymaster is used
+            require(userOp.signature.length == 0, UnexpectedUserSignature());
+        }
 
         // `computedDataLength` is used for validations, as userOp.callData can be extended to manipulate the fees
         bool validationFailed = !_validGasFees(userOp) ||
@@ -241,19 +250,12 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
 
     function _verifySignature(
         bytes32 safeTxHash,
-        bytes calldata signature,
         address signer,
         bytes32 r,
         bytes32 vs
     ) private pure {
-        (
-            address recoveredSigner,
-            bytes32 extractedR,
-            bytes32 extractedVS
-        ) = CoreLib.recoverSigner(safeTxHash, signature);
+        (address recoveredSigner) = CoreLib.recoverSigner(safeTxHash, r, vs);
         require(signer == recoveredSigner, UnexpectedSigner(signer));
-        require(r == extractedR, UnexpectedSignatureR(r));
-        require(vs == extractedVS, UnexpectedSignatureVS(vs));
     }
 
     function storeTransaction(

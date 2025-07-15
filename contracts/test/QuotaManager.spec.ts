@@ -1,9 +1,10 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import type { ContractTransactionResponse, Signer } from "ethers";
+import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { type QuotaMixin, TestQuotaManager__factory, TestToken__factory } from "../typechain-types";
 import { buildQuotaConfig } from "./utils/erc4337";
+import { calculateNextQuotaReset, calculateNextQuotaResetFromTx } from "./utils/quota";
 
 const WITHDRAW_REQUEST_TYPE = {
 	// "WithdrawRequest(uint256 amount,address beneficiary,uint256 nonce)"
@@ -23,24 +24,6 @@ describe("QuotaManager", () => {
 		const quotaConfig = buildQuotaConfig({ feeToken: await testToken.getAddress() });
 		const quotaManager = await quotaManagerFactory.deploy(quotaConfig);
 		return { deployer, alice: alice as unknown as Signer, bob, quotaManager, quotaManagerFactory, testToken };
-	}
-
-	function calculateNextQuotaReset(
-		updateTimestamp: bigint,
-		prevNextReset: bigint,
-		resetTimeframe: bigint = 24n * 3600n,
-	): bigint {
-		return updateTimestamp - ((updateTimestamp - prevNextReset) % resetTimeframe) + resetTimeframe;
-	}
-
-	async function calculateNextQuotaResetFromTx(
-		updateTx: ContractTransactionResponse,
-		prevNextReset: bigint,
-		resetTimeframe: bigint = 24n * 3600n,
-	): Promise<bigint> {
-		const updateBlock = await updateTx.getBlock();
-		const updateTimestamp = BigInt(updateBlock?.timestamp || 0);
-		return calculateNextQuotaReset(updateTimestamp, prevNextReset, resetTimeframe);
 	}
 
 	async function signWithdrawal(
