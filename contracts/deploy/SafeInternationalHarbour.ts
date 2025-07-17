@@ -1,6 +1,7 @@
 import type { DeployFunction } from "hardhat-deploy/types";
 import { harbourConfig } from "../config/harbourConfig";
-import { build4337Config, buildQuotaConfig } from "../test/utils/erc4337";
+import { build4337Config } from "../test/utils/erc4337";
+import { buildQuotaConfig } from "../test/utils/quota";
 
 const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId }) => {
 	const { deterministic, log } = deployments;

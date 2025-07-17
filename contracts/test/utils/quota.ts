@@ -1,15 +1,19 @@
-import { type AddressLike, type ContractTransactionResponse, resolveAddress, Signature, type Signer } from "ethers";
-import type { EntryPoint, SafeHarbourPaymaster } from "../../typechain-types";
-import type { PackedUserOperationStruct } from "../../typechain-types/src/SafeHarbourPaymaster";
-import { getUserOpHash } from "./erc4337";
+import { type ContractTransactionResponse, Signature, type Signer, ZeroAddress } from "ethers";
+import type { EntryPoint } from "../../typechain-types";
+import type { PackedUserOperationStruct, QuotaMixinConfigStruct } from "../../typechain-types/src/SafeHarbourPaymaster";
+import { signUserOp } from "./erc4337";
 
-const EIP712_VALIDATOR_CONFIRMATION_TYPE = {
-	// "ValidatorConfirmation(address harbour,bytes32 userOpHash)"
-	ValidatorConfirmation: [
-		{ type: "address", name: "harbour" },
-		{ type: "bytes32", name: "userOpHash" },
-	],
-};
+export function buildQuotaConfig(params?: Partial<QuotaMixinConfigStruct>): QuotaMixinConfigStruct {
+	const feeToken = params?.feeToken || ZeroAddress;
+	return {
+		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
+		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
+		quotaPerDepositedFeeToken: params?.quotaPerDepositedFeeToken || 1000,
+		maxFreeQuota: params?.maxFreeQuota || 5000,
+		feeToken,
+		feeTokenDecimals: params?.feeTokenDecimals || 18,
+	};
+}
 
 export function calculateNextQuotaReset(
 	updateTimestamp: bigint,
@@ -32,24 +36,9 @@ export async function calculateNextQuotaResetFromTx(
 export async function addValidatorSignature(
 	chainId: bigint,
 	entryPoint: EntryPoint,
-	harbour: AddressLike,
-	paymaster: SafeHarbourPaymaster,
 	userOp: PackedUserOperationStruct,
 	validator: Signer,
 ) {
-	const userOpHash = await getUserOpHash(chainId, entryPoint, userOp);
-	const validatorSig = Signature.from(
-		await validator.signTypedData(
-			{
-				chainId,
-				verifyingContract: await paymaster.getAddress(),
-			},
-			EIP712_VALIDATOR_CONFIRMATION_TYPE,
-			{
-				harbour: await resolveAddress(harbour),
-				userOpHash,
-			},
-		),
-	);
+	const validatorSig = Signature.from(await signUserOp(chainId, entryPoint, userOp, validator));
 	userOp.signature = validatorSig.serialized;
 }

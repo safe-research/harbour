@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {
-    HandlerContext
-} from "@safe-global/safe-contracts/contracts/handler/HandlerContext.sol";
 import {IAccount} from "@account-abstraction/contracts/interfaces/IAccount.sol";
 import {
     IEntryPoint
@@ -17,23 +14,35 @@ import {
 import {
     UserOperationLib
 } from "@account-abstraction/contracts/core/UserOperationLib.sol";
-import "../interfaces/Errors.sol";
-import "../interfaces/HarbourStore.sol";
-import "../interfaces/QuotaManager.sol";
-import "../libs/CoreLib.sol";
+import {
+    InvalidECDSASignatureLength,
+    InvalidEntryPoint,
+    InvalidTarget,
+    SignerAlreadySignedTransaction,
+    UnexpectedNonce,
+    InvalidUserOpPaymaster,
+    UnexpectedUserSignature,
+    UnexpectedSafeTxHash,
+    UnexpectedSigner
+} from "../interfaces/Errors.sol";
+import {IHarbourStore} from "../interfaces/HarbourStore.sol";
+import {IQuotaManager} from "../interfaces/QuotaManager.sol";
+import {PaymasterLib} from "../libs/PaymasterLib.sol";
+import {CoreLib} from "../libs/CoreLib.sol";
+
+struct ERC4337MixinConfig {
+    address entryPoint;
+    uint256 maxPriorityFee;
+    uint256 preVerificationGasPerByte;
+    uint256 preVerificationBaseGas;
+    uint256 verificationGasPerByte;
+    uint256 callGasPerByte;
+    address trustedPaymaster;
+}
 
 abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
     using UserOperationLib for PackedUserOperation;
-
-    struct ERC4337MixinConfig {
-        address entryPoint;
-        uint256 maxPriorityFee;
-        uint256 preVerificationGasPerByte;
-        uint256 preVerificationBaseGas;
-        uint256 verificationGasPerByte;
-        uint256 callGasPerByte;
-        address trustedPaymaster;
-    }
+    using PaymasterLib for PackedUserOperation;
 
     // ------------------------------------------------------------------
     // 4337 functions
@@ -132,13 +141,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         // TODO: To evaluate if we should encode the used paymaster into the refund receiver
         // OR: for now accept that there is always the chance that the user quota is used first
         if (userOp.paymasterAndData.length != 0) {
-            address paymaster = address(
-                bytes20(
-                    userOp.paymasterAndData[
-                        :UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET
-                    ]
-                )
-            );
+            address paymaster = userOp.extractPaymaster();
             require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
             return _packValidationData(false, 0, 0);
         } else {

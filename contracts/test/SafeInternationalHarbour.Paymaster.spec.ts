@@ -9,11 +9,22 @@ import {
 	SafeInternationalHarbour__factory,
 	TestToken__factory,
 } from "../typechain-types";
-import { build4337Config, buildQuotaConfig, buildSignedUserOp, calculateMaxGasUsageForUserOp } from "./utils/erc4337";
-import { addValidatorSignature, calculateNextQuotaReset, calculateNextQuotaResetFromTx } from "./utils/quota";
+import {
+	build4337Config,
+	buildSignedUserOp,
+	calculateMaxGasUsageForUserOp,
+	encodePaymasterData,
+} from "./utils/erc4337";
+import {
+	addValidatorSignature,
+	buildQuotaConfig,
+	calculateNextQuotaReset,
+	calculateNextQuotaResetFromTx,
+} from "./utils/quota";
 import { getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
+import { buildSlashingConfig } from "./utils/slashing";
 
-describe.only("SafeInternationalHarbour.Paymaster", () => {
+describe("SafeInternationalHarbour.Paymaster", () => {
 	async function deployFixture() {
 		const [deployer, alice, bob, charlie] = await ethers.getSigners();
 		const validator = charlie as unknown as Signer;
@@ -28,9 +39,10 @@ describe.only("SafeInternationalHarbour.Paymaster", () => {
 			entryPoint,
 			buildQuotaConfig({
 				maxFreeQuota: 100_000_000,
-				freeQuotaPerDepositedFeeToken: 10_000_000,
+				quotaPerDepositedFeeToken: 10_000_000,
 				feeToken: await testToken.getAddress(),
 			}),
+			buildSlashingConfig(),
 		);
 		await paymaster.deposit({ value: ethers.parseEther("1") });
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
@@ -51,7 +63,7 @@ describe.only("SafeInternationalHarbour.Paymaster", () => {
 		return contract.interface.encodeErrorResult(name, values);
 	}
 
-	it.only("should store transaction parameters and use validator quota", async () => {
+	it("should store transaction parameters and use validator quota", async () => {
 		const { harbour, chainId, safeAddress, entryPoint, validator, paymaster, testToken } =
 			await loadFixture(deployFixture);
 
@@ -75,10 +87,7 @@ describe.only("SafeInternationalHarbour.Paymaster", () => {
 			refundReceiver: Wallet.createRandom().address,
 			nonce: 123n,
 		};
-		const paymasterAndData = ethers.solidityPacked(
-			["address", "uint128", "uint128"],
-			[await paymaster.getAddress(), 500_000, 0],
-		);
+		const paymasterAndData = await encodePaymasterData({ paymaster });
 		const gasFees = {
 			baseFee: 1n,
 			priorityFee: 0n,
@@ -92,7 +101,7 @@ describe.only("SafeInternationalHarbour.Paymaster", () => {
 			paymasterAndData,
 			gasFees,
 		);
-		await addValidatorSignature(chainId, entryPoint, harbour, paymaster, userOp, validator);
+		await addValidatorSignature(chainId, entryPoint, userOp, validator);
 
 		const updateTx = await entryPoint.handleOps([userOp], AddressOne);
 

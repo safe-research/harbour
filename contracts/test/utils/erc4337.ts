@@ -5,6 +5,7 @@ import {
 	ethers,
 	hexlify,
 	recoverAddress,
+	resolveAddress,
 	Signature,
 	type Signer,
 	toBeHex,
@@ -13,7 +14,7 @@ import {
 } from "ethers";
 import { type EntryPoint, ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
 import type { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
-import type { ERC4337Mixin, QuotaMixin } from "../../typechain-types/src/SafeInternationalHarbour";
+import type { ERC4337MixinConfigStruct } from "../../typechain-types/src/SafeInternationalHarbour";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
 
 const EIP712_PACKED_USEROP_TYPE = {
@@ -30,23 +31,7 @@ const EIP712_PACKED_USEROP_TYPE = {
 	],
 };
 
-export function buildQuotaConfig(
-	params?: Partial<QuotaMixin.QuotaMixinConfigStruct>,
-): QuotaMixin.QuotaMixinConfigStruct {
-	const feeToken = params?.feeToken || ZeroAddress;
-	return {
-		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
-		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
-		freeQuotaPerDepositedFeeToken: params?.freeQuotaPerDepositedFeeToken || 1000,
-		maxFreeQuota: params?.maxFreeQuota || 5000,
-		feeToken,
-		feeTokenDecimals: params?.feeTokenDecimals || 18,
-	};
-}
-
-export function build4337Config(
-	params?: Partial<ERC4337Mixin.ERC4337MixinConfigStruct>,
-): ERC4337Mixin.ERC4337MixinConfigStruct {
+export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC4337MixinConfigStruct {
 	return {
 		entryPoint: params?.entryPoint || ZeroAddress,
 		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
@@ -194,6 +179,45 @@ export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct)
 	const paymasterPostOpGasLimit = BigInt(`0x${userOp.paymasterAndData.slice(74, 106)}`);
 	return (
 		preVerificationGas + verificationGasLimit + callGasLimit + paymasterVerificationGasLimit + paymasterPostOpGasLimit
+	);
+}
+
+export async function encodePaymasterData(params: {
+	paymaster: AddressLike;
+	paymasterVerificationGas?: bigint;
+	validFrom?: bigint;
+	validUntil?: bigint;
+}): Promise<string> {
+	return ethers.solidityPacked(
+		["address", "uint128", "uint128", "uint48", "uint48"],
+		[
+			await resolveAddress(params.paymaster),
+			params.paymasterVerificationGas || 500_000n,
+			0,
+			params.validFrom || 0,
+			params.validUntil || 0,
+		],
+	);
+}
+
+export async function signUserOp(
+	chainId: bigint,
+	entryPoint: EntryPoint,
+	userOp: PackedUserOperationStruct,
+	signer: Signer,
+): Promise<string> {
+	return signer.signTypedData(
+		{
+			name: "ERC4337",
+			version: "1",
+			chainId,
+			verifyingContract: await entryPoint.getAddress(),
+		},
+		EIP712_PACKED_USEROP_TYPE,
+		{
+			...userOp,
+			sender: await ethers.resolveAddress(userOp.sender),
+		},
 	);
 }
 

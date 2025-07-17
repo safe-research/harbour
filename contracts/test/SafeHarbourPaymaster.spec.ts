@@ -7,7 +7,9 @@ import {
 	SafeHarbourPaymaster__factory,
 	SafeInternationalHarbour__factory,
 } from "../typechain-types";
-import { build4337Config, buildQuotaConfig, buildSafeTx, buildUserOp } from "./utils/erc4337";
+import { build4337Config, buildSafeTx, buildUserOp } from "./utils/erc4337";
+import { buildQuotaConfig } from "./utils/quota";
+import { buildSlashingConfig } from "./utils/slashing";
 
 describe("SafeHarbourPaymaster", () => {
 	async function deployFixture() {
@@ -16,7 +18,7 @@ describe("SafeHarbourPaymaster", () => {
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const PaymasterFactory = new SafeHarbourPaymaster__factory(deployer as unknown as Signer);
-		const paymaster = await PaymasterFactory.deploy(bob, entryPoint, buildQuotaConfig());
+		const paymaster = await PaymasterFactory.deploy(bob, entryPoint, buildQuotaConfig(), buildSlashingConfig());
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const erc4337config = build4337Config({
 			entryPoint: await entryPoint.getAddress(),

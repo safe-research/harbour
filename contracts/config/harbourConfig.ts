@@ -14,7 +14,7 @@ export const harbourConfig: Record<string, HarbourConfig> = {
 			// Safe Token bridged to Gnosis Chain
 			feeToken: "0x4d18815D14fe5c3304e87B3FA18318baa5c23820",
 			feeTokenDecimals: 18,
-			freeQuotaPerDepositedFeeToken: 1000000,
+			quotaPerDepositedFeeToken: 1000000,
 		},
 	},
 	"11155111": {
@@ -25,7 +25,7 @@ export const harbourConfig: Record<string, HarbourConfig> = {
 			// WETH used by CoW on Sepolia
 			feeToken: "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14",
 			feeTokenDecimals: 18,
-			freeQuotaPerDepositedFeeToken: 1000000,
+			quotaPerDepositedFeeToken: 1000000,
 		},
 	},
 };

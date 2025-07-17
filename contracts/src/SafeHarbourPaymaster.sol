@@ -13,44 +13,37 @@ import {
 import {
     _packValidationData
 } from "@account-abstraction/contracts/core/Helpers.sol";
-import "./mixins/QuotaMixin.sol";
-import "./mixins/ERC4337Mixin.sol";
+import {QuotaMixin, QuotaMixinConfig} from "./mixins/QuotaMixin.sol";
+import {SlashingMixin, SlashingMixinConfig} from "./mixins/SlashingMixin.sol";
+import {ERC4337Mixin} from "./mixins/ERC4337Mixin.sol";
+import {PaymasterLib} from "./libs/PaymasterLib.sol";
+import {CoreLib} from "./libs/CoreLib.sol";
+import {InvalidTarget, InvalidUserOpPaymaster} from "./interfaces/Errors.sol";
 
 // TODO: do not use BasePaymaster as it is not optimized to our needs (i.e. no custom errors)
-contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin {
+contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
+    using PaymasterLib for PackedUserOperation;
+
     constructor(
         address manager,
         IEntryPoint supportedEntrypoint,
-        QuotaMixinConfig memory _quotaMixinconfig
-    ) BasePaymaster(supportedEntrypoint) QuotaMixin(_quotaMixinconfig) {
+        QuotaMixinConfig memory _quotaMixinconfig,
+        SlashingMixinConfig memory _slashingMixinconfig
+    )
+        BasePaymaster(supportedEntrypoint)
+        QuotaMixin(_quotaMixinconfig)
+        SlashingMixin(_slashingMixinconfig)
+    {
         transferOwnership(manager);
     }
 
-    function computeValidatorConfirmationHash(
-        address harbour,
-        bytes32 userOpHash
-    ) internal view returns (bytes32 validatorConfirmationHash) {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                keccak256(
-                    "EIP712Domain(uint256 chainId,address verifyingContract)"
-                ),
-                block.chainid,
-                address(this)
-            )
-        );
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256(
-                    "ValidatorConfirmation(address harbour,bytes32 userOpHash)"
-                ),
-                harbour,
-                userOpHash
-            )
-        );
-        validatorConfirmationHash = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, structHash)
-        );
+    function getSupportedEntrypoint()
+        public
+        view
+        override
+        returns (IEntryPoint)
+    {
+        return entryPoint;
     }
 
     /**
@@ -74,16 +67,42 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin {
             InvalidTarget(bytes4(userOp.callData))
         );
 
-        bytes32 digest = computeValidatorConfirmationHash(
-            userOp.sender,
-            userOpHash
+        require(
+            userOp.extractPaymaster() == address(this),
+            InvalidUserOpPaymaster()
         );
+
+        require(
+            userOp.extractPaymaster() == address(this),
+            InvalidTarget(bytes4(userOp.callData))
+        );
+
         (address validator, , ) = CoreLib.recoverSigner(
-            digest,
+            userOpHash,
             userOp.signature
         );
-        // Max quota per paymaster is ~1844ETH (2**64/10**16) in gas fees
+        // Range will be checked by Entrypoint
+        (uint48 validAfter, uint48 validUntil) = userOp.extractValidatorData();
+        // Max quota per validator is ~1844ETH (2**64/10**16) in gas fees
         bool validationFailed = !_checkAndUpdateQuota(validator, maxCost);
-        validationData = _packValidationData(validationFailed, 0, 0);
+        validationData = _packValidationData(
+            validationFailed,
+            validUntil,
+            validAfter
+        );
+    }
+
+    // Can be used to adjust slashing amount, i.e. based on quota relation
+    function _adjustSlashingAmount(
+        address validator,
+        uint128 slashingAmount
+    ) internal view override returns (uint128) {
+        uint256 tokensToSlash = (uint256(slashingAmount) *
+            10 ** FEE_TOKEN_DECIMALS) / QUOTA_PER_DEPOSITED_FEE_TOKEN;
+        uint128 tokenBalance = quotaStatsForSigner[validator].tokenBalance;
+        return
+            tokensToSlash > tokenBalance
+                ? tokenBalance
+                : uint128(tokensToSlash);
     }
 }

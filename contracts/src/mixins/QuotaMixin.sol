@@ -5,13 +5,22 @@ import {
     SafeERC20
 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/QuotaManager.sol";
-import "../libs/CoreLib.sol";
+import {IQuotaManager} from "../interfaces/QuotaManager.sol";
+import {CoreLib} from "../libs/CoreLib.sol";
 
 struct QuotaStats {
     uint128 tokenBalance; // uint96 might also be enough, as this would be more tokens than most project have in circulation
     uint64 usedQuota; // Quota is limited to 64 bits (current Quota == Bytes of data, so that should be ok)
     uint64 nextQuotaReset; // timestamps are Safe to limit to 64 bits
+}
+
+struct QuotaMixinConfig {
+    uint64 timeframeQuotaReset;
+    uint16 requiredQuotaMultiplier;
+    uint32 quotaPerDepositedFeeToken;
+    uint32 maxFreeQuota;
+    address feeToken;
+    uint8 feeTokenDecimals;
 }
 
 abstract contract QuotaMixin is IQuotaManager {
@@ -20,20 +29,11 @@ abstract contract QuotaMixin is IQuotaManager {
     event Withdraw(address indexed signer, uint256 indexed amount);
     event Deposit(address indexed signer, uint256 indexed amount);
 
-    struct QuotaMixinConfig {
-        uint64 timeframeQuotaReset;
-        uint16 requiredQuotaMultiplier;
-        uint32 freeQuotaPerDepositedFeeToken;
-        uint32 maxFreeQuota;
-        address feeToken;
-        uint8 feeTokenDecimals;
-    }
-
     mapping(address => QuotaStats) public quotaStatsForSigner;
     mapping(address => mapping(bytes32 => uint256)) public withdrawsForSigner;
 
     uint64 public immutable TIMEFRAME_QUOTA_RESET;
-    uint32 public immutable FREE_QUOTA_PER_DEPOSITED_FEE_TOKEN;
+    uint32 public immutable QUOTA_PER_DEPOSITED_FEE_TOKEN;
     uint16 public immutable REQUIRED_QUOTA_MULTIPLIER;
     uint32 public immutable MAX_FREE_QUOTA;
     address public immutable FEE_TOKEN;
@@ -41,8 +41,7 @@ abstract contract QuotaMixin is IQuotaManager {
 
     constructor(QuotaMixinConfig memory _config) {
         TIMEFRAME_QUOTA_RESET = _config.timeframeQuotaReset;
-        FREE_QUOTA_PER_DEPOSITED_FEE_TOKEN = _config
-            .freeQuotaPerDepositedFeeToken;
+        QUOTA_PER_DEPOSITED_FEE_TOKEN = _config.quotaPerDepositedFeeToken;
         REQUIRED_QUOTA_MULTIPLIER = _config.requiredQuotaMultiplier;
         MAX_FREE_QUOTA = _config.maxFreeQuota;
         FEE_TOKEN = _config.feeToken;
@@ -53,6 +52,7 @@ abstract contract QuotaMixin is IQuotaManager {
         // We don't update the nextQuotaReset this way depositing more tokens does not negatively affect the reset schedule
         // The reset schedule always starts from 0, therefore is always a multiple of the reset timeframe (unless the timeframe is changed)
         quotaStatsForSigner[signer].tokenBalance += amount;
+        // TODO: check if we want to track total tokens locked (might be useful in a recovery case)
         IERC20(FEE_TOKEN).safeTransferFrom(msg.sender, address(this), amount);
         emit Deposit(signer, amount);
     }
@@ -101,20 +101,38 @@ abstract contract QuotaMixin is IQuotaManager {
         );
         withdrawsForSigner[signer][withdrawHash] = block.timestamp;
 
+        _withdrawSignerTokens(signer, beneficiary, amount, false);
+
+        emit Withdraw(signer, amount);
+    }
+
+    function _withdrawSignerTokens(
+        address signer,
+        address beneficiary,
+        uint128 amount,
+        bool skipResetCheck
+    ) internal override {
         QuotaStats storage stats = quotaStatsForSigner[signer];
         require(stats.tokenBalance >= amount, "Insufficient Tokens");
         // We use the quota reset timeframe as a unlock timeframe
         // -> currently the signer is not allowed to sign any Safe transaction during this timeframe
         // TODO: have dedicated unlock logic (also to avoid some fee exploit flows)
         require(
-            stats.nextQuotaReset < block.timestamp,
+            skipResetCheck || stats.nextQuotaReset < block.timestamp,
             "Tokens have been used during this timeframe"
         );
 
         stats.tokenBalance -= amount;
 
+        if (beneficiary != address(this))
+            _transferFeeToken(beneficiary, amount);
+    }
+
+    function _transferFeeToken(
+        address beneficiary,
+        uint128 amount
+    ) internal override {
         IERC20(FEE_TOKEN).safeTransfer(beneficiary, amount);
-        emit Withdraw(signer, amount);
     }
 
     function availableFreeQuotaForSigner(
@@ -148,7 +166,7 @@ abstract contract QuotaMixin is IQuotaManager {
         }
         // We cast tokenBalance to uint256 to use more bits for the arithmetics
         uint256 maxSignerQuota = (uint256(stats.tokenBalance) *
-            FREE_QUOTA_PER_DEPOSITED_FEE_TOKEN) / 10 ** FEE_TOKEN_DECIMALS;
+            QUOTA_PER_DEPOSITED_FEE_TOKEN) / 10 ** FEE_TOKEN_DECIMALS;
 
         require(
             maxSignerQuota <= type(uint64).max,

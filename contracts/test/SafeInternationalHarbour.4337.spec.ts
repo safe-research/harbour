@@ -4,7 +4,8 @@ import { expect } from "chai";
 import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, ERC4337Mixin__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { build4337Config, buildQuotaConfig, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { build4337Config, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
