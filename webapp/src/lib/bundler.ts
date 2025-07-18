@@ -52,14 +52,17 @@ type GasLimits = {
 
 export const getUserOpGasPrice = async (
 	provider: JsonRpcProvider,
+	basePriceMultiplier?: bigint,
 ): Promise<GasFee> => {
 	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest"]);
 	const maxPriorityFeePerGas = await provider.send(
 		"eth_maxPriorityFeePerGas",
 		[],
 	);
+	const baseFee =
+		BigInt(feeHistory.baseFeePerGas[0]) * (basePriceMultiplier ?? 2n);
 	return {
-		maxFeePerGas: feeHistory.baseFeePerGas[0],
+		maxFeePerGas: toBeHex(baseFee * BigInt(maxPriorityFeePerGas)),
 		maxPriorityFeePerGas,
 	};
 };
