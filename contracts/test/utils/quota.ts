@@ -4,14 +4,14 @@ import type { PackedUserOperationStruct, QuotaMixinConfigStruct } from "../../ty
 import { signUserOp } from "./erc4337";
 
 export function buildQuotaConfig(params?: Partial<QuotaMixinConfigStruct>): QuotaMixinConfigStruct {
-	const feeToken = params?.feeToken || ZeroAddress;
+	const feeToken = params?.feeToken ?? ZeroAddress;
 	return {
-		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
-		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
-		quotaPerDepositedFeeToken: params?.quotaPerDepositedFeeToken || 1000,
-		maxFreeQuota: params?.maxFreeQuota || 5000,
+		timeframeQuotaReset: params?.timeframeQuotaReset ?? 24 * 3600, // Per day quota
+		requiredQuotaMultiplier: params?.requiredQuotaMultiplier ?? (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
+		maxAvailableQuota: params?.maxAvailableQuota ?? 5000,
 		feeToken,
-		feeTokenDecimals: params?.feeTokenDecimals || 18,
+		quotaPerFeeToken: params?.quotaPerFeeToken ?? 1000,
+		quotaPerFeeTokenScale: params?.quotaPerFeeTokenScale ?? 18,
 	};
 }
 

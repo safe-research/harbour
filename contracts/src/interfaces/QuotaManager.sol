@@ -10,12 +10,12 @@ abstract contract IQuotaManager {
     function _withdrawSignerTokens(
         address signer,
         address beneficiary,
-        uint128 amount,
+        uint96 amount,
         bool ignoreReset
     ) internal virtual;
 
     function _transferFeeToken(
         address beneficiary,
-        uint128 amount
+        uint96 amount
     ) internal virtual;
 }

@@ -11,10 +11,10 @@ import {
 library PaymasterLib {
     using UserOperationLib for PackedUserOperation;
 
-    uint256 private constant PAYMASTER_VALID_FROM_END =
+    uint256 private constant PAYMASTER_VALID_AFTER_END =
         UserOperationLib.PAYMASTER_DATA_OFFSET + 6;
     uint256 private constant PAYMASTER_VALID_UNTIL_END =
-        PAYMASTER_VALID_FROM_END + 6;
+        PAYMASTER_VALID_AFTER_END + 6;
 
     function extractValidatorData(
         PackedUserOperation calldata userOp
@@ -27,14 +27,14 @@ library PaymasterLib {
             bytes6(
                 userOp.paymasterAndData[
                     UserOperationLib
-                        .PAYMASTER_DATA_OFFSET:PAYMASTER_VALID_FROM_END
+                        .PAYMASTER_DATA_OFFSET:PAYMASTER_VALID_AFTER_END
                 ]
             )
         );
         validUntil = uint48(
             bytes6(
                 userOp.paymasterAndData[
-                    PAYMASTER_VALID_FROM_END:PAYMASTER_VALID_UNTIL_END
+                    PAYMASTER_VALID_AFTER_END:PAYMASTER_VALID_UNTIL_END
                 ]
             )
         );

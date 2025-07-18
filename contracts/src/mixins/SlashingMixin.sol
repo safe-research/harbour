@@ -95,8 +95,8 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
             "UserOp does not offend the condition"
         );
         require(slashedUserOps[userOpHash] == 0, "UserOp was already slashed");
-        uint128 usedQuota = uint128(userOp.calculateRequiredPrefund());
-        uint128 slashingAmount = _adjustSlashingAmount(validator, usedQuota);
+        uint96 usedQuota = uint96(userOp.calculateRequiredPrefund());
+        uint96 slashingAmount = _adjustSlashingAmount(validator, usedQuota);
         require(slashingAmount > 0, "Nothing to slash");
         // Currently only the slashed amount is stored, more information could be stored if necessary
         slashedUserOps[userOpHash] = slashingAmount;
@@ -109,8 +109,8 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
     // Can be used to adjust slashing amount, i.e. based on quota relation
     function _adjustSlashingAmount(
         address,
-        uint128 slashingAmount
-    ) internal virtual returns (uint128);
+        uint96 slashingAmount
+    ) internal virtual returns (uint96);
 
     function _enableCondition(ISlashingCondition condition) internal {
         require(
@@ -139,7 +139,7 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
 
     function _withdrawSlashedTokens(
         address beneficiary,
-        uint128 amount
+        uint96 amount
     ) internal {
         require(
             beneficiary != address(this),

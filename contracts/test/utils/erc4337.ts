@@ -3,12 +3,15 @@ import {
 	type BigNumberish,
 	type BytesLike,
 	ethers,
+	getAddress,
 	hexlify,
+	isHexString,
 	recoverAddress,
 	resolveAddress,
 	Signature,
 	type Signer,
 	toBeHex,
+	toBigInt,
 	ZeroAddress,
 	ZeroHash,
 } from "ethers";
@@ -144,20 +147,20 @@ export type UserOpRequest = {
 	maxPriorityFeePerGas: string;
 
 	// paymasterAndData: BytesLike;
-	// paymaster: string | undefined;
-	// paymasterVerificationGasLimit: string | undefined;
-	// paymasterPostOpGasLimit: string | undefined;
-	// paymasterData: string | undefined;
+	paymaster: string | undefined;
+	paymasterVerificationGasLimit: string | undefined;
+	paymasterPostOpGasLimit: string | undefined;
+	paymasterData: string | undefined;
 
 	signature: string;
 };
 
 export async function serialize(userOp: PackedUserOperationStruct): Promise<UserOpRequest> {
 	if (hexlify(userOp.initCode) !== "0x") throw Error("Unsupported initCode");
-	if (hexlify(userOp.paymasterAndData) !== "0x") throw Error("Unsupported paymasterAndData");
 	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
 	const gasFees = ethers.zeroPadValue(userOp.gasFees, 32).slice(2);
 	return {
+		...decodePaymasterData(userOp.paymasterAndData || "0x"),
 		sender: await ethers.resolveAddress(userOp.sender),
 		nonce: ethers.toBeHex(userOp.nonce),
 		callData: hexlify(userOp.callData),
@@ -166,7 +169,7 @@ export async function serialize(userOp: PackedUserOperationStruct): Promise<User
 		preVerificationGas: ethers.toBeHex(userOp.preVerificationGas),
 		maxFeePerGas: `0x${gasFees.slice(32)}`,
 		maxPriorityFeePerGas: `0x${gasFees.slice(0, 32)}`,
-		signature: hexlify(userOp.signature),
+		signature: hexlify(userOp.signature)
 	};
 }
 
@@ -180,6 +183,29 @@ export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct)
 	return (
 		preVerificationGas + verificationGasLimit + callGasLimit + paymasterVerificationGasLimit + paymasterPostOpGasLimit
 	);
+}
+
+function decodePaymasterData(paymasterAndData: BytesLike):{
+	paymaster: string | undefined
+	paymasterVerificationGasLimit: string | undefined
+	paymasterPostOpGasLimit: string | undefined
+	paymasterData: string | undefined
+} {
+	const data = hexlify(paymasterAndData)
+	if (!isHexString(data) || data.length != 130) {
+		return {
+			paymaster: undefined,
+			paymasterVerificationGasLimit: undefined,
+			paymasterPostOpGasLimit: undefined,
+			paymasterData: undefined
+		}
+	}
+	return {
+		paymaster: getAddress(data.slice(0, 42)),
+		paymasterVerificationGasLimit: toBeHex(toBigInt(`0x${data.slice(42, 74)}`)),
+		paymasterPostOpGasLimit: toBeHex(toBigInt(`0x${data.slice(74, 106)}`)),
+		paymasterData: `0x${data.slice(106, 130)}`
+	}
 }
 
 export async function encodePaymasterData(params: {

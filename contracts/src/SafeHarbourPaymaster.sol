@@ -83,7 +83,7 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
         );
         // Range will be checked by Entrypoint
         (uint48 validAfter, uint48 validUntil) = userOp.extractValidatorData();
-        // Max quota per validator is ~1844ETH (2**64/10**16) in gas fees
+        // Max quota per validator is ~18ETH (2**64/10**18) in gas fees
         bool validationFailed = !_checkAndUpdateQuota(validator, maxCost);
         validationData = _packValidationData(
             validationFailed,
@@ -92,17 +92,20 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
         );
     }
 
-    // Can be used to adjust slashing amount, i.e. based on quota relation
+    // TODO introduce maxCostsToQuota function, to scale the costs
+
+    // Slashing amount is based on quota and is converted back to tokens.
     function _adjustSlashingAmount(
         address validator,
-        uint128 slashingAmount
-    ) internal view override returns (uint128) {
+        uint96 slashingAmount
+    ) internal view override returns (uint96) {
         uint256 tokensToSlash = (uint256(slashingAmount) *
-            10 ** FEE_TOKEN_DECIMALS) / QUOTA_PER_DEPOSITED_FEE_TOKEN;
-        uint128 tokenBalance = quotaStatsForSigner[validator].tokenBalance;
+            10 ** QUOTA_PER_FEE_TOKEN_SCALE) / QUOTA_PER_FEE_TOKEN;
+        uint96 tokenBalance = quotaStatsForSigner[validator].tokenBalance;
+        // If more tokens than locked should be slashed, we slash what we can get
         return
             tokensToSlash > tokenBalance
                 ? tokenBalance
-                : uint128(tokensToSlash);
+                : uint96(tokensToSlash);
     }
 }

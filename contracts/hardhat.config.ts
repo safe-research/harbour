@@ -8,7 +8,7 @@ import * as dotenv from "dotenv";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 
 import "./tasks/deployAndVerify";
-import "./tasks/submitSignature";
+import "./tasks/relaying";
 
 dotenv.config();
 

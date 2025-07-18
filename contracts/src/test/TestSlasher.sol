@@ -39,7 +39,7 @@ contract TestSlasher is SlashingMixin {
     function _withdrawSignerTokens(
         address signer,
         address beneficiary,
-        uint128 amount,
+        uint96 amount,
         bool skipResetCheck
     ) internal override {
         revert("Should not be used");
@@ -47,15 +47,15 @@ contract TestSlasher is SlashingMixin {
 
     function _transferFeeToken(
         address beneficiary,
-        uint128 amount
+        uint96 amount
     ) internal override {
         revert("Should not be used");
     }
 
     function _adjustSlashingAmount(
         address,
-        uint128 slashingAmount
-    ) internal override returns (uint128) {
+        uint96 slashingAmount
+    ) internal override returns (uint96) {
         return slashingAmount;
     }
 }

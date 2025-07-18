@@ -11,6 +11,7 @@ import {
 } from "../typechain-types";
 import {
 	build4337Config,
+	buildSafeTx,
 	buildSignedUserOp,
 	calculateMaxGasUsageForUserOp,
 	encodePaymasterData,
@@ -23,6 +24,7 @@ import {
 } from "./utils/quota";
 import { getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { buildSlashingConfig } from "./utils/slashing";
+import { setGasParams } from "../tasks/actions/utils/bundlers";
 
 describe("SafeInternationalHarbour.Paymaster", () => {
 	async function deployFixture() {
@@ -38,8 +40,9 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 			bob,
 			entryPoint,
 			buildQuotaConfig({
-				maxFreeQuota: 100_000_000,
-				quotaPerDepositedFeeToken: 10_000_000,
+				maxAvailableQuota: 0,
+				quotaPerFeeToken: 1_000,
+				quotaPerFeeTokenScale: 0,
 				feeToken: await testToken.getAddress(),
 			}),
 			buildSlashingConfig(),
@@ -59,10 +62,6 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint, paymaster, validator, testToken };
 	}
 
-	function _error(contract: BaseContract, name: string, values: unknown[] = []): string {
-		return contract.interface.encodeErrorResult(name, values);
-	}
-
 	it("should store transaction parameters and use validator quota", async () => {
 		const { harbour, chainId, safeAddress, entryPoint, validator, paymaster, testToken } =
 			await loadFixture(deployFixture);
@@ -72,48 +71,46 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 
 		await testToken.approve(paymaster, ethers.parseUnits("1", 18));
 		await paymaster.depositTokensForSigner(validator, ethers.parseUnits("1", 18));
-		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([10_000_000n, 0n, nextResetTimestamp]);
+		const initialQuota = 1_000_000_000_000_000_000_000n
+		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([initialQuota, 0n, nextResetTimestamp]);
 
 		const signerWallet = Wallet.createRandom();
-		const safeTx: SafeTransaction = {
-			to: Wallet.createRandom().address,
-			value: 1n,
-			data: "0x1234",
-			operation: 1, // DELEGATECALL
-			safeTxGas: 100000n,
-			baseGas: 21000n,
-			gasPrice: 2n * 10n ** 9n, // 2 gwei
-			gasToken: Wallet.createRandom().address,
-			refundReceiver: Wallet.createRandom().address,
-			nonce: 123n,
-		};
+		const safeTx: SafeTransaction = buildSafeTx({to: "0xF4f42442E2AE1d7Ea87087aF73B2Abb5536290C2"});
 		const paymasterAndData = await encodePaymasterData({ paymaster });
-		const gasFees = {
-			baseFee: 1n,
-			priorityFee: 0n,
-		};
 		const { userOp } = await buildSignedUserOp(
 			harbour,
 			signerWallet,
-			chainId,
+			100n,
 			safeAddress,
 			safeTx,
-			paymasterAndData,
-			gasFees,
+			paymasterAndData
 		);
+		const gasFee = {
+			maxFeePerGas: "0xb00",
+			maxPriorityFeePerGas: "0xf4240",
+		};
+		const limits = {
+			preVerificationGas: '0xcf5c',
+			verificationGasLimit: '0xf091',
+			callGasLimit: '0x27c9d',
+			paymasterVerificationGasLimit: '0x6ed8',
+			paymasterPostOpGasLimit: '0x1'
+		}
+		setGasParams(userOp, gasFee, limits)
 		await addValidatorSignature(chainId, entryPoint, userOp, validator);
 
 		const updateTx = await entryPoint.handleOps([userOp], AddressOne);
 
 		const nextResetTimestampAfterUpdate = await calculateNextQuotaResetFromTx(updateTx, 0n);
 		const maxGas = calculateMaxGasUsageForUserOp(userOp);
+		const maxCosts = maxGas * BigInt(gasFee.maxFeePerGas)
 		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([
-			10_000_000n - maxGas,
-			maxGas,
+			initialQuota - maxCosts,
+			maxCosts,
 			nextResetTimestampAfterUpdate,
 		]);
 
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		const safeTxHash = getSafeTransactionHash(safeAddress, 100n, safeTx);
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
 		expect(storedTx.to).to.equal(safeTx.to);
 		expect(storedTx.value).to.equal(safeTx.value);

@@ -42,11 +42,11 @@ describe("QuotaMixin", () => {
 	it("should be correctly initialized", async () => {
 		const { quotaManager, testToken } = await loadFixture(deployFixture);
 		expect(await quotaManager.TIMEFRAME_QUOTA_RESET()).to.be.equal(24 * 3600);
-		expect(await quotaManager.QUOTA_PER_DEPOSITED_FEE_TOKEN()).to.be.equal(1000);
-		expect(await quotaManager.MAX_FREE_QUOTA()).to.be.equal(5000);
-		expect(await quotaManager.REQUIRED_QUOTA_MULTIPLIER()).to.be.equal(1);
+		expect(await quotaManager.MAX_AVAILABLE_QUOTA()).to.be.equal(5000);
+		expect(await quotaManager.QUOTA_ENABLED()).to.be.true;
 		expect(await quotaManager.FEE_TOKEN()).to.be.equal(await testToken.getAddress());
-		expect(await quotaManager.FEE_TOKEN_DECIMALS()).to.be.equal(18);
+		expect(await quotaManager.QUOTA_PER_FEE_TOKEN()).to.be.equal(1000);
+		expect(await quotaManager.QUOTA_PER_FEE_TOKEN_SCALE()).to.be.equal(18);
 	});
 
 	it("should not have any initial free quote for signer available", async () => {
@@ -88,14 +88,17 @@ describe("QuotaMixin", () => {
 	});
 
 	it("should revert if deposited tokens result in too high quota", async () => {
-		const { deployer, alice, quotaManager, testToken } = await loadFixture(deployFixture);
-		const maxUInt128 = BigInt("0xffffffffffffffffffffffffffffffff");
-		await testToken.mint(deployer, maxUInt128);
-		await testToken.approve(await quotaManager.getAddress(), maxUInt128);
-		await quotaManager.depositTokensForSigner(alice, maxUInt128);
-		expect(await testToken.balanceOf(await quotaManager.getAddress())).to.be.eq(maxUInt128);
+		const { deployer, alice, testToken, quotaManagerFactory } = await loadFixture(deployFixture);
+		// Deploy QuotaManager with adjusted scale
+		const quotaConfig = buildQuotaConfig({ feeToken: await testToken.getAddress(), quotaPerFeeTokenScale: 0 });
+		const quotaManager = await quotaManagerFactory.deploy(quotaConfig);
+		const maxUInt96 = BigInt("0xffffffffffffffffffffffff");
+		await testToken.mint(deployer, maxUInt96);
+		await testToken.approve(await quotaManager.getAddress(), maxUInt96);
+		await quotaManager.depositTokensForSigner(alice, maxUInt96);
+		expect(await testToken.balanceOf(await quotaManager.getAddress())).to.be.eq(maxUInt96);
 		expect(await quotaManager.quotaStatsForSigner(alice)).to.be.deep.eq([
-			maxUInt128, // Signer Token Balance
+			maxUInt96, // Signer Token Balance
 			0n, // Used Signer Quota
 			0n, // Next Signer Quota Reset
 		]);
