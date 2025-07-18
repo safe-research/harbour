@@ -19,7 +19,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 			deployer,
 			paymasterConfig.erc4337entryPoint,
 			buildQuotaConfig(paymasterConfig.quotaConfig),
-			buildSlashingConfig(paymasterConfig.slashingConfig)
+			buildSlashingConfig(paymasterConfig.slashingConfig),
 		],
 		log: true,
 	});
@@ -32,9 +32,9 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 		args: [
 			build4337Config({
 				trustedPaymaster: paymasterDeploymentResult.address,
-				...harbourConfig.erc4337config
-			}), 
-			buildQuotaConfig(harbourConfig.quotaConfig)
+				...harbourConfig.erc4337config,
+			}),
+			buildQuotaConfig(harbourConfig.quotaConfig),
 		],
 		log: true,
 	});

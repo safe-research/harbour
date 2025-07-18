@@ -207,8 +207,7 @@ abstract contract QuotaMixin is IQuotaManager {
             uint96 usedSignerQuota,
             uint48 nextSignerQuotaReset
         ) = availableFreeQuotaForSigner(signer);
-        if (requiredSignerQuota > availableFreeSignerQuota)
-            return false;
+        if (requiredSignerQuota > availableFreeSignerQuota) return false;
         // Casting to uint64 is safe, as availableFreeSignerQuota is at most a uint64 and we compare it against that
         _updateQuotaParams(
             signer,

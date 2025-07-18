@@ -8,4 +8,6 @@ import {
 
 import {EntryPoint} from "@account-abstraction/contracts/core/EntryPoint.sol";
 
-import {EntryPointSimulations} from "@account-abstraction/contracts/core/EntryPointSimulations.sol";
+import {
+    EntryPointSimulations
+} from "@account-abstraction/contracts/core/EntryPointSimulations.sol";

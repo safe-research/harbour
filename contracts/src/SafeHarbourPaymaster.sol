@@ -104,8 +104,6 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
         uint96 tokenBalance = quotaStatsForSigner[validator].tokenBalance;
         // If more tokens than locked should be slashed, we slash what we can get
         return
-            tokensToSlash > tokenBalance
-                ? tokenBalance
-                : uint96(tokensToSlash);
+            tokensToSlash > tokenBalance ? tokenBalance : uint96(tokensToSlash);
     }
 }

@@ -169,7 +169,7 @@ export async function serialize(userOp: PackedUserOperationStruct): Promise<User
 		preVerificationGas: ethers.toBeHex(userOp.preVerificationGas),
 		maxFeePerGas: `0x${gasFees.slice(32)}`,
 		maxPriorityFeePerGas: `0x${gasFees.slice(0, 32)}`,
-		signature: hexlify(userOp.signature)
+		signature: hexlify(userOp.signature),
 	};
 }
 
@@ -185,27 +185,27 @@ export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct)
 	);
 }
 
-function decodePaymasterData(paymasterAndData: BytesLike):{
-	paymaster: string | undefined
-	paymasterVerificationGasLimit: string | undefined
-	paymasterPostOpGasLimit: string | undefined
-	paymasterData: string | undefined
+function decodePaymasterData(paymasterAndData: BytesLike): {
+	paymaster: string | undefined;
+	paymasterVerificationGasLimit: string | undefined;
+	paymasterPostOpGasLimit: string | undefined;
+	paymasterData: string | undefined;
 } {
-	const data = hexlify(paymasterAndData)
-	if (!isHexString(data) || data.length != 130) {
+	const data = hexlify(paymasterAndData);
+	if (!isHexString(data) || data.length !== 130) {
 		return {
 			paymaster: undefined,
 			paymasterVerificationGasLimit: undefined,
 			paymasterPostOpGasLimit: undefined,
-			paymasterData: undefined
-		}
+			paymasterData: undefined,
+		};
 	}
 	return {
 		paymaster: getAddress(data.slice(0, 42)),
 		paymasterVerificationGasLimit: toBeHex(toBigInt(`0x${data.slice(42, 74)}`)),
 		paymasterPostOpGasLimit: toBeHex(toBigInt(`0x${data.slice(74, 106)}`)),
-		paymasterData: `0x${data.slice(106, 130)}`
-	}
+		paymasterData: `0x${data.slice(106, 130)}`,
+	};
 }
 
 export async function encodePaymasterData(params: {

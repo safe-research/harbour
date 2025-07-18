@@ -1,8 +1,9 @@
 import { loadFixture, time } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
-import { type BaseContract, type Signer, Wallet } from "ethers";
+import { type Signer, Wallet } from "ethers";
 import { ethers } from "hardhat";
+import { setGasParams } from "../tasks/actions/utils/bundlers";
 import {
 	EntryPoint__factory,
 	SafeHarbourPaymaster__factory,
@@ -24,7 +25,6 @@ import {
 } from "./utils/quota";
 import { getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { buildSlashingConfig } from "./utils/slashing";
-import { setGasParams } from "../tasks/actions/utils/bundlers";
 
 describe("SafeInternationalHarbour.Paymaster", () => {
 	async function deployFixture() {
@@ -71,39 +71,36 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 
 		await testToken.approve(paymaster, ethers.parseUnits("1", 18));
 		await paymaster.depositTokensForSigner(validator, ethers.parseUnits("1", 18));
-		const initialQuota = 1_000_000_000_000_000_000_000n
-		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([initialQuota, 0n, nextResetTimestamp]);
+		const initialQuota = 1_000_000_000_000_000_000_000n;
+		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([
+			initialQuota,
+			0n,
+			nextResetTimestamp,
+		]);
 
 		const signerWallet = Wallet.createRandom();
-		const safeTx: SafeTransaction = buildSafeTx({to: "0xF4f42442E2AE1d7Ea87087aF73B2Abb5536290C2"});
+		const safeTx: SafeTransaction = buildSafeTx({ to: "0xF4f42442E2AE1d7Ea87087aF73B2Abb5536290C2" });
 		const paymasterAndData = await encodePaymasterData({ paymaster });
-		const { userOp } = await buildSignedUserOp(
-			harbour,
-			signerWallet,
-			100n,
-			safeAddress,
-			safeTx,
-			paymasterAndData
-		);
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, 100n, safeAddress, safeTx, paymasterAndData);
 		const gasFee = {
 			maxFeePerGas: "0xb00",
 			maxPriorityFeePerGas: "0xf4240",
 		};
 		const limits = {
-			preVerificationGas: '0xcf5c',
-			verificationGasLimit: '0xf091',
-			callGasLimit: '0x27c9d',
-			paymasterVerificationGasLimit: '0x6ed8',
-			paymasterPostOpGasLimit: '0x1'
-		}
-		setGasParams(userOp, gasFee, limits)
+			preVerificationGas: "0xcf5c",
+			verificationGasLimit: "0xf091",
+			callGasLimit: "0x27c9d",
+			paymasterVerificationGasLimit: "0x6ed8",
+			paymasterPostOpGasLimit: "0x1",
+		};
+		setGasParams(userOp, gasFee, limits);
 		await addValidatorSignature(chainId, entryPoint, userOp, validator);
 
 		const updateTx = await entryPoint.handleOps([userOp], AddressOne);
 
 		const nextResetTimestampAfterUpdate = await calculateNextQuotaResetFromTx(updateTx, 0n);
 		const maxGas = calculateMaxGasUsageForUserOp(userOp);
-		const maxCosts = maxGas * BigInt(gasFee.maxFeePerGas)
+		const maxCosts = maxGas * BigInt(gasFee.maxFeePerGas);
 		expect(await paymaster.availableFreeQuotaForSigner(validator)).to.be.deep.eq([
 			initialQuota - maxCosts,
 			maxCosts,
