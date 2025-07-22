@@ -2,7 +2,8 @@ import { AddressOne } from "@safe-global/safe-contracts";
 import { type Signer, type TransactionReceipt, Wallet } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { build4337Config, buildQuotaConfig, buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
+import { build4337Config, buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
+import { buildQuotaConfig } from "./utils/quota";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {
 	if (!tx || !tx.gasUsed) {
@@ -20,6 +21,7 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 	async function deployFixture() {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
+		// TODO: use test token to include fee payment overhead
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);

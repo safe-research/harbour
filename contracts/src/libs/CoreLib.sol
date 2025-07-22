@@ -98,6 +98,30 @@ library CoreLib {
         }
     }
 
+    function recoverSigner(
+        bytes32 digest,
+        bytes32 r,
+        bytes32 vs
+    ) internal pure returns (address signer) {
+        (bytes32 s, uint8 v) = splitVS(vs);
+        require(s <= SECP256K1_LOW_S_BOUND, InvalidSignatureSValue());
+
+        signer = ecrecover(digest, v, r, s);
+        require(signer != address(0), InvalidSignature());
+    }
+
+    function splitVS(bytes32 vs) internal pure returns (bytes32 s, uint8 v) {
+        assembly ("memory-safe") {
+            // Equivalent to:
+            // vs = bytes32(uint256(v - 27) << 255 | uint256(s));
+            // s = bytes32(uint256(vs) & (uint256(1 << 255) - 1))
+            // v = uint8(uint256(vs >> 255) + 27)
+            // Which should avoid conversion between uint256 and bytes32
+            s := and(sub(shl(255, 1), 1), vs)
+            v := add(shr(255, vs), 27)
+        }
+    }
+
     function safeCastUint256ToUint128(
         uint256 value
     ) internal pure returns (uint128) {

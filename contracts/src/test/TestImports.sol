@@ -7,3 +7,7 @@ import {
 } from "@safe-global/safe-contracts/contracts/proxies/SafeProxyFactory.sol";
 
 import {EntryPoint} from "@account-abstraction/contracts/core/EntryPoint.sol";
+
+import {
+    EntryPointSimulations
+} from "@account-abstraction/contracts/core/EntryPointSimulations.sol";
