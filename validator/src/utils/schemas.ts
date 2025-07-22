@@ -61,8 +61,9 @@ export const relayRequestSchema = z.object({
 	...safeSignatureSchema.shape,
 });
 
-export const buildValidateSchema = (supportedPaymaster: Address) => z.object({
+export const buildValidateSchema = (supportedPaymaster: Address, supportedHarbour: Address) => z.object({
 	...userOpSchema.shape,
+  sender: z.literal(supportedHarbour),
   paymaster: z.literal(supportedPaymaster),
   paymasterData: hexDataSchema.refine((val) => val.length == 26),
   signature: z.literal("0x")

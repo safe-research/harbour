@@ -8,6 +8,7 @@ import { accountFromSeed } from "./utils/signer";
 
 type Bindings = {
   VALIDATOR_SEED: string
+  SUPPORTED_HARBOUR: string
   SUPPORTED_PAYMASTER: string
   SUPPORTED_ENTRYPOINT: string
   SUPPORTED_CHAIN_ID: string
@@ -21,10 +22,11 @@ app.get("/", (c) => {
 
 app.post("/validate", async (c) => {
 	try {
+    const supportedHarbour = getAddress(c.env.SUPPORTED_HARBOUR);
     const supportedPaymaster = getAddress(c.env.SUPPORTED_PAYMASTER);
     const supportedEntrypoint = getAddress(c.env.SUPPORTED_ENTRYPOINT);
     const supportedChainId = BigInt(c.env.SUPPORTED_CHAIN_ID);
-		const request = buildValidateSchema(supportedPaymaster).parse(await c.req.json());
+		const request = buildValidateSchema(supportedPaymaster, supportedHarbour).parse(await c.req.json());
     if (request.paymaster !== supportedPaymaster) throw Error("Unsupported paymaster");
     // Set timeframe in which the validation is valid
     const now = Math.floor(Date.now() / 1000)
@@ -33,6 +35,7 @@ app.post("/validate", async (c) => {
     const validUntil = now + 2 * 3600
     console.log({validAfter, validUntil})
     request.paymasterData = encodePaymasterData({validAfter, validUntil})
+    // TODO: check gas limits
 
     const validatorAccount = accountFromSeed(c.env.VALIDATOR_SEED)
     console.log(validatorAccount.address)

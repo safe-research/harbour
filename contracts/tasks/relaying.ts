@@ -52,6 +52,7 @@ task("relay-signature", "Relays a signature to harbour with a validator")
 		true,
 	)
 	.addParam("harbour", "Override harbour contract address to use", undefined, types.string, true)
+	.addParam("validatorUrl", "Url of external validator", undefined, types.string, true)
 	.setAction(async (taskArgs, hre, runSuper) => {
 		const { relayWithValidator } = await import("./actions/validator");
 		await relayWithValidator(taskArgs, hre, runSuper);

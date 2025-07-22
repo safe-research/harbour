@@ -42,7 +42,8 @@ export const relayWithValidator: ActionType<TaskArguments> = async (taskArgs, hr
         paymaster, 
         paymasterVerificationGas: BigInt(limits.paymasterVerificationGasLimit), 
     });
-    const response = await fetch("http://localhost:8787/validate", {
+    const validatorUrl = taskArgs.validatorUrl ?? "http://localhost:8787"
+    const response = await fetch(`${validatorUrl}/validate`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

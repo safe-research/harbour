@@ -2,13 +2,16 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "validator",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-07-17"
+	"compatibility_date": "2025-07-17",
 	// "compatibility_flags": [
 	//   "nodejs_compat"
 	// ],
-	// "vars": {
-	//   "MY_VAR": "my-variable"
-	// },
+	"vars": {
+		"SUPPORTED_PAYMASTER": "0xfe46c93213FaE147C1ebc18bEefaa23a5BA2E5b3",
+		"SUPPORTED_CHAIN_ID": "11155111",
+		"SUPPORTED_ENTRYPOINT": "0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108",
+		"SUPPORTED_HARBOUR": "0xA9aa342695565d47e70D3097fEe5FF870464ec24"
+	}
 	// "kv_namespaces": [
 	//   {
 	//     "binding": "MY_KV_NAMESPACE",
