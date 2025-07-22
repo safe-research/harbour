@@ -32,7 +32,13 @@ task("fund-paymaster", "Fund the paymaster on the 4337 entrypoint")
 // Example: npm exec hardhat deposit-validator-tokens -- --network sepolia --amount 0.01
 task("deposit-validator-tokens", "Deposits token to the paymaster for a validator")
 	.addParam("amount", "Amount of tokens to deposit for the validator", undefined, types.string)
-	.addParam("validator", "Address of validator to deposit the tokens for (default: address of signer)", undefined, types.string, true)
+	.addParam(
+		"validator",
+		"Address of validator to deposit the tokens for (default: address of signer)",
+		undefined,
+		types.string,
+		true,
+	)
 	.addParam("harbour", "Override harbour contract address to use", undefined, types.string, true)
 	.setAction(async (taskArgs, hre, runSuper) => {
 		// We have to use a dynamic import, as typechain is not immediately available in tasks

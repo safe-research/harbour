@@ -49,9 +49,9 @@ export const submitSignature: ActionType<TaskArguments> = async (taskArgs, hre) 
 	userOp.signature = "0x";
 	setGasParams(userOp, gasFee, limits);
 	if (taskArgs.asPaymaster) {
-		userOp.paymasterAndData = await encodePaymasterData({ 
-			paymaster, 
-			paymasterVerificationGas: BigInt(limits.paymasterVerificationGasLimit), 
+		userOp.paymasterAndData = await encodePaymasterData({
+			paymaster,
+			paymasterVerificationGas: BigInt(limits.paymasterVerificationGasLimit),
 		});
 		await addValidatorSignature(harbourChainId, EntryPoint__factory.connect(supportedEntryPoint), userOp, signer);
 	}
@@ -89,7 +89,7 @@ export const depositValidatorTokens: ActionType<TaskArguments> = async (taskArgs
 	const paymaster = SafeHarbourPaymaster__factory.connect(paymasterAddress, signer);
 	const feeTokenAddress = await paymaster.FEE_TOKEN();
 	console.log(`Use Fee Token at ${feeTokenAddress}`);
-	const validatorAddress = taskArgs.validator ? getAddress(taskArgs.validator) : hardhatSigner.address
+	const validatorAddress = taskArgs.validator ? getAddress(taskArgs.validator) : hardhatSigner.address;
 	console.log(`For Validator ${validatorAddress}`);
 	const feeToken = ERC20__factory.connect(feeTokenAddress, signer);
 	const decimals = await feeToken.decimals();
@@ -98,11 +98,11 @@ export const depositValidatorTokens: ActionType<TaskArguments> = async (taskArgs
 	if (approval < amount) {
 		const approveTx = await feeToken.approve(paymaster, amount - approval);
 		console.log(`Approval Tx: ${approveTx.hash}`);
-		await approveTx.wait()
-		console.log(`Approval done`);
+		await approveTx.wait();
+		console.log("Approval done");
 	}
 	const depositTx = await paymaster.depositTokensForSigner(validatorAddress, amount);
 	console.log(`Deposit Tx: ${depositTx.hash}`);
-	await depositTx.wait()
-	console.log(`Deposit done`);
+	await depositTx.wait();
+	console.log("Deposit done");
 };

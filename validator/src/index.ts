@@ -1,18 +1,22 @@
 import { Hono } from "hono";
+import { getAddress } from "viem";
+import {
+	encodePaymasterData,
+	getUserOpHash,
+	signUserOp,
+} from "./utils/erc4337";
+import { handleError } from "./utils/errors";
 import { bigIntJsonReplacer } from "./utils/replacer";
 import { buildValidateSchema } from "./utils/schemas";
-import { getAddress, hexToBigInt, toHex } from "viem";
-import { handleError } from "./utils/errors";
-import { encodePaymasterData, signUserOp, getUserOpHash } from "./utils/erc4337";
 import { accountFromSeed } from "./utils/signer";
 
 type Bindings = {
-  VALIDATOR_SEED: string
-  SUPPORTED_HARBOUR: string
-  SUPPORTED_PAYMASTER: string
-  SUPPORTED_ENTRYPOINT: string
-  SUPPORTED_CHAIN_ID: string
-}
+	VALIDATOR_SEED: string;
+	SUPPORTED_HARBOUR: string;
+	SUPPORTED_PAYMASTER: string;
+	SUPPORTED_ENTRYPOINT: string;
+	SUPPORTED_CHAIN_ID: string;
+};
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -22,29 +26,42 @@ app.get("/", (c) => {
 
 app.post("/validate", async (c) => {
 	try {
-    const supportedHarbour = getAddress(c.env.SUPPORTED_HARBOUR);
-    const supportedPaymaster = getAddress(c.env.SUPPORTED_PAYMASTER);
-    const supportedEntrypoint = getAddress(c.env.SUPPORTED_ENTRYPOINT);
-    const supportedChainId = BigInt(c.env.SUPPORTED_CHAIN_ID);
-		const request = buildValidateSchema(supportedPaymaster, supportedHarbour).parse(await c.req.json());
-    if (request.paymaster !== supportedPaymaster) throw Error("Unsupported paymaster");
-    // Set timeframe in which the validation is valid
-    const now = Math.floor(Date.now() / 1000)
-    const validAfter = now - 6 * 60
-    // 2 hours valid
-    const validUntil = now + 2 * 3600
-    console.log({validAfter, validUntil})
-    request.paymasterData = encodePaymasterData({validAfter, validUntil})
-    // TODO: check gas limits
+		const supportedHarbour = getAddress(c.env.SUPPORTED_HARBOUR);
+		const supportedPaymaster = getAddress(c.env.SUPPORTED_PAYMASTER);
+		const supportedEntrypoint = getAddress(c.env.SUPPORTED_ENTRYPOINT);
+		const supportedChainId = BigInt(c.env.SUPPORTED_CHAIN_ID);
+		const request = buildValidateSchema(
+			supportedPaymaster,
+			supportedHarbour,
+		).parse(await c.req.json());
+		if (request.paymaster !== supportedPaymaster)
+			throw Error("Unsupported paymaster");
+		// Set timeframe in which the validation is valid
+		const now = Math.floor(Date.now() / 1000);
+		const validAfter = now - 6 * 60;
+		// 2 hours valid
+		const validUntil = now + 2 * 3600;
+		console.log({ validAfter, validUntil });
+		request.paymasterData = encodePaymasterData({ validAfter, validUntil });
+		// TODO: check gas limits
 
-    const validatorAccount = accountFromSeed(c.env.VALIDATOR_SEED)
-    console.log(validatorAccount.address)
-    const userOpHash = await getUserOpHash(supportedChainId, supportedEntrypoint, request)
-    console.log({ supportedChainId, supportedEntrypoint, userOpHash})
-    const signedUserOp = await signUserOp(validatorAccount, supportedChainId, supportedEntrypoint, request)
-		console.log(signedUserOp)
-    
-    // Manually stringify the JSON with the replacer and return a new Response
+		const validatorAccount = accountFromSeed(c.env.VALIDATOR_SEED);
+		console.log(validatorAccount.address);
+		const userOpHash = await getUserOpHash(
+			supportedChainId,
+			supportedEntrypoint,
+			request,
+		);
+		console.log({ supportedChainId, supportedEntrypoint, userOpHash });
+		const signedUserOp = await signUserOp(
+			validatorAccount,
+			supportedChainId,
+			supportedEntrypoint,
+			request,
+		);
+		console.log(signedUserOp);
+
+		// Manually stringify the JSON with the replacer and return a new Response
 		const jsonString = JSON.stringify(signedUserOp, bigIntJsonReplacer);
 		return new Response(jsonString, {
 			status: 200,
@@ -53,9 +70,9 @@ app.post("/validate", async (c) => {
 			},
 		});
 	} catch (e) {
-    const { response, code } = handleError(e)
+		const { response, code } = handleError(e);
 		const jsonString = JSON.stringify(response, bigIntJsonReplacer);
-    console.log(response.issues?.map((i) => i.path))
+		console.log(response.issues?.map((i) => i.path));
 
 		return new Response(jsonString, {
 			status: code,
