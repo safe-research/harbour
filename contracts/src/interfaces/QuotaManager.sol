@@ -6,4 +6,16 @@ abstract contract IQuotaManager {
         address signer,
         uint256 requiredQuota
     ) internal virtual returns (bool);
+
+    function _withdrawSignerTokens(
+        address signer,
+        address beneficiary,
+        uint96 amount,
+        bool ignoreReset
+    ) internal virtual;
+
+    function _transferFeeToken(
+        address beneficiary,
+        uint96 amount
+    ) internal virtual;
 }

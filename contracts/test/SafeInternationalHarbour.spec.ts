@@ -3,7 +3,8 @@ import { expect } from "chai";
 import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
-import { build4337Config, buildQuotaConfig } from "./utils/erc4337";
+import { build4337Config } from "./utils/erc4337";
+import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 

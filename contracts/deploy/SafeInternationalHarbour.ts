@@ -1,23 +1,47 @@
 import type { DeployFunction } from "hardhat-deploy/types";
-import { harbourConfig } from "../config/harbourConfig";
-import { build4337Config, buildQuotaConfig } from "../test/utils/erc4337";
+import { harbourConfigs } from "../config/harbourConfigs";
+import { paymasterConfigs } from "../config/paymasterConfigs";
+import { build4337Config } from "../test/utils/erc4337";
+import { buildQuotaConfig } from "../test/utils/quota";
+import { buildSlashingConfig } from "../test/utils/slashing";
 
 const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId }) => {
 	const { deterministic, log } = deployments;
 	const { deployer } = await getNamedAccounts();
 	const chainId = await getChainId();
-	const config = harbourConfig[chainId];
-	if (!config) throw Error("No configuration for this network");
+	const harbourConfig = harbourConfigs[chainId];
+	const paymasterConfig = paymasterConfigs[chainId];
+	if (!harbourConfig || !paymasterConfig) throw Error("No configuration for this network");
 
-	const result = await deterministic("SafeInternationalHarbour", {
+	const paymasterDeployment = await deterministic("SafeHarbourPaymaster", {
 		from: deployer,
-		args: [build4337Config(config.erc4337config), buildQuotaConfig(config.quotaConfig)],
+		args: [
+			deployer,
+			paymasterConfig.erc4337entryPoint,
+			buildQuotaConfig(paymasterConfig.quotaConfig),
+			buildSlashingConfig(paymasterConfig.slashingConfig),
+		],
+		log: true,
+	});
+	const paymasterDeploymentResult = await paymasterDeployment.deploy();
+
+	log(`SafeHarbourPaymaster deployed at ${paymasterDeployment.address}`);
+
+	const harbourDeployment = await deterministic("SafeInternationalHarbour", {
+		from: deployer,
+		args: [
+			build4337Config({
+				trustedPaymaster: paymasterDeploymentResult.address,
+				...harbourConfig.erc4337config,
+			}),
+			buildQuotaConfig(harbourConfig.quotaConfig),
+		],
 		log: true,
 	});
 
-	await result.deploy();
+	await harbourDeployment.deploy();
 
-	log(`SafeInternationalHarbour deployed at ${result.address}`);
+	log(`SafeInternationalHarbour deployed at ${harbourDeployment.address}`);
 };
 
 export default func;

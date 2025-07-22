@@ -1,37 +1,40 @@
 import {
 	type AddressLike,
 	type BigNumberish,
+	type BytesLike,
 	ethers,
+	getAddress,
 	hexlify,
+	isHexString,
 	recoverAddress,
+	resolveAddress,
 	Signature,
 	type Signer,
 	toBeHex,
+	toBigInt,
 	ZeroAddress,
 	ZeroHash,
 } from "ethers";
-import { ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
+import { type EntryPoint, ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
 import type { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
-import type { ERC4337Mixin, QuotaMixin } from "../../typechain-types/src/SafeInternationalHarbour";
+import type { ERC4337MixinConfigStruct } from "../../typechain-types/src/SafeInternationalHarbour";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
 
-export function buildQuotaConfig(
-	params?: Partial<QuotaMixin.QuotaMixinConfigStruct>,
-): QuotaMixin.QuotaMixinConfigStruct {
-	const feeToken = params?.feeToken || ZeroAddress;
-	return {
-		timeframeQuotaReset: params?.timeframeQuotaReset || 24 * 3600, // Per day quota
-		requiredQuotaMultiplier: params?.requiredQuotaMultiplier || (feeToken === ZeroAddress ? 0 : 1), // Disable quota if no fee token is set
-		freeQuotaPerDepositedFeeToken: params?.freeQuotaPerDepositedFeeToken || 1000,
-		maxFreeQuota: params?.maxFreeQuota || 5000,
-		feeToken,
-		feeTokenDecimals: params?.feeTokenDecimals || 18,
-	};
-}
+const EIP712_PACKED_USEROP_TYPE = {
+	// "PackedUserOperation(address sender,uint256 nonce,bytes initCode,bytes callData,bytes32 accountGasLimits,uint256 preVerificationGas,bytes32 gasFees,bytes paymasterAndData)"
+	PackedUserOperation: [
+		{ type: "address", name: "sender" },
+		{ type: "uint256", name: "nonce" },
+		{ type: "bytes", name: "initCode" },
+		{ type: "bytes", name: "callData" },
+		{ type: "bytes32", name: "accountGasLimits" },
+		{ type: "uint256", name: "preVerificationGas" },
+		{ type: "bytes32", name: "gasFees" },
+		{ type: "bytes", name: "paymasterAndData" },
+	],
+};
 
-export function build4337Config(
-	params?: Partial<ERC4337Mixin.ERC4337MixinConfigStruct>,
-): ERC4337Mixin.ERC4337MixinConfigStruct {
+export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC4337MixinConfigStruct {
 	return {
 		entryPoint: params?.entryPoint || ZeroAddress,
 		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
@@ -39,6 +42,7 @@ export function build4337Config(
 		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
 		verificationGasPerByte: params?.verificationGasPerByte || 200,
 		callGasPerByte: params?.callGasPerByte || 1000,
+		trustedPaymaster: params?.trustedPaymaster || ZeroAddress,
 	};
 }
 
@@ -49,6 +53,8 @@ export function buildUserOp(
 	tx: SafeTransaction,
 	signatureBytes: string,
 	entryPointNonce: BigNumberish,
+	paymasterAndData?: BytesLike,
+	gasFees?: { baseFee: bigint; priorityFee: bigint },
 ): PackedUserOperationStruct {
 	const safeTxHash = getSafeTransactionHash(safe, chainId, tx);
 	const signature = Signature.from(signatureBytes);
@@ -78,9 +84,9 @@ export function buildUserOp(
 		callData,
 		accountGasLimits: toBeHex((callData.length / 2) * 180, 16) + toBeHex((callData.length / 2) * 800, 16).slice(2),
 		preVerificationGas: 0,
-		gasFees: ZeroHash,
-		paymasterAndData: "0x",
-		signature: signature.serialized,
+		gasFees: gasFees ? toBeHex(gasFees.priorityFee, 16) + toBeHex(gasFees.baseFee, 16).slice(2) : ZeroHash,
+		paymasterAndData: paymasterAndData || "0x",
+		signature: "0x",
 	};
 }
 
@@ -105,6 +111,8 @@ export async function buildSignedUserOp(
 	chainId: bigint,
 	safeAddress: string,
 	safeTx: SafeTransaction,
+	paymasterAndData?: BytesLike,
+	gasFees?: { baseFee: bigint; priorityFee: bigint },
 ): Promise<{ userOp: PackedUserOperationStruct; signature: string }> {
 	const signature = await signerWallet.signTypedData(
 		{ chainId, verifyingContract: safeAddress },
@@ -113,7 +121,7 @@ export async function buildSignedUserOp(
 	);
 	const userOpNonce = await harbour.getNonce(await signerWallet.getAddress());
 	return {
-		userOp: buildUserOp(harbour, safeAddress, chainId, safeTx, signature, userOpNonce),
+		userOp: buildUserOp(harbour, safeAddress, chainId, safeTx, signature, userOpNonce, paymasterAndData, gasFees),
 		signature,
 	};
 }
@@ -139,28 +147,122 @@ export type UserOpRequest = {
 	maxPriorityFeePerGas: string;
 
 	// paymasterAndData: BytesLike;
-	// paymaster: string | undefined;
-	// paymasterVerificationGasLimit: string | undefined;
-	// paymasterPostOpGasLimit: string | undefined;
-	// paymasterData: string | undefined;
+	paymaster: string | undefined;
+	paymasterVerificationGasLimit: string | undefined;
+	paymasterPostOpGasLimit: string | undefined;
+	paymasterData: string | undefined;
 
 	signature: string;
 };
 
 export async function serialize(userOp: PackedUserOperationStruct): Promise<UserOpRequest> {
 	if (hexlify(userOp.initCode) !== "0x") throw Error("Unsupported initCode");
-	if (hexlify(userOp.paymasterAndData) !== "0x") throw Error("Unsupported paymasterAndData");
 	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
 	const gasFees = ethers.zeroPadValue(userOp.gasFees, 32).slice(2);
 	return {
+		...decodePaymasterData(userOp.paymasterAndData || "0x"),
 		sender: await ethers.resolveAddress(userOp.sender),
 		nonce: ethers.toBeHex(userOp.nonce),
 		callData: hexlify(userOp.callData),
-		callGasLimit: `0x${gasLimits.slice(0, 32)}`,
-		verificationGasLimit: `0x${gasLimits.slice(32)}`,
+		callGasLimit: `0x${gasLimits.slice(32)}`,
+		verificationGasLimit: `0x${gasLimits.slice(0, 32)}`,
 		preVerificationGas: ethers.toBeHex(userOp.preVerificationGas),
-		maxFeePerGas: `0x${gasFees.slice(0, 32)}`,
-		maxPriorityFeePerGas: `0x${gasFees.slice(32)}`,
+		maxFeePerGas: `0x${gasFees.slice(32)}`,
+		maxPriorityFeePerGas: `0x${gasFees.slice(0, 32)}`,
 		signature: hexlify(userOp.signature),
 	};
+}
+
+export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct): bigint {
+	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
+	const preVerificationGas = ethers.toBigInt(userOp.preVerificationGas);
+	const verificationGasLimit = BigInt(`0x${gasLimits.slice(0, 32)}`);
+	const callGasLimit = BigInt(`0x${gasLimits.slice(32)}`);
+	const paymasterVerificationGasLimit = BigInt(`0x${userOp.paymasterAndData.slice(42, 74)}`);
+	const paymasterPostOpGasLimit = BigInt(`0x${userOp.paymasterAndData.slice(74, 106)}`);
+	return (
+		preVerificationGas + verificationGasLimit + callGasLimit + paymasterVerificationGasLimit + paymasterPostOpGasLimit
+	);
+}
+
+function decodePaymasterData(paymasterAndData: BytesLike): {
+	paymaster: string | undefined;
+	paymasterVerificationGasLimit: string | undefined;
+	paymasterPostOpGasLimit: string | undefined;
+	paymasterData: string | undefined;
+} {
+	const data = hexlify(paymasterAndData);
+	if (!isHexString(data) || data.length !== 130) {
+		return {
+			paymaster: undefined,
+			paymasterVerificationGasLimit: undefined,
+			paymasterPostOpGasLimit: undefined,
+			paymasterData: undefined,
+		};
+	}
+	return {
+		paymaster: getAddress(data.slice(0, 42)),
+		paymasterVerificationGasLimit: toBeHex(toBigInt(`0x${data.slice(42, 74)}`)),
+		paymasterPostOpGasLimit: toBeHex(toBigInt(`0x${data.slice(74, 106)}`)),
+		paymasterData: `0x${data.slice(106, 130)}`,
+	};
+}
+
+export async function encodePaymasterData(params: {
+	paymaster: AddressLike;
+	paymasterVerificationGas?: bigint;
+	validFrom?: bigint;
+	validUntil?: bigint;
+}): Promise<string> {
+	return ethers.solidityPacked(
+		["address", "uint128", "uint128", "uint48", "uint48"],
+		[
+			await resolveAddress(params.paymaster),
+			params.paymasterVerificationGas || 500_000n,
+			0,
+			params.validFrom || 0,
+			params.validUntil || 0,
+		],
+	);
+}
+
+export async function signUserOp(
+	chainId: bigint,
+	entryPoint: EntryPoint,
+	userOp: PackedUserOperationStruct,
+	signer: Signer,
+): Promise<string> {
+	return signer.signTypedData(
+		{
+			name: "ERC4337",
+			version: "1",
+			chainId,
+			verifyingContract: await entryPoint.getAddress(),
+		},
+		EIP712_PACKED_USEROP_TYPE,
+		{
+			...userOp,
+			sender: await ethers.resolveAddress(userOp.sender),
+		},
+	);
+}
+
+export async function getUserOpHash(
+	chainId: bigint,
+	entryPoint: EntryPoint,
+	userOp: PackedUserOperationStruct,
+): Promise<string> {
+	return ethers.TypedDataEncoder.hash(
+		{
+			name: "ERC4337",
+			version: "1",
+			chainId,
+			verifyingContract: await entryPoint.getAddress(),
+		},
+		EIP712_PACKED_USEROP_TYPE,
+		{
+			...userOp,
+			sender: await ethers.resolveAddress(userOp.sender),
+		},
+	);
 }

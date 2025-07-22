@@ -2,12 +2,13 @@ import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "hardhat-deploy";
 import "@nomicfoundation/hardhat-verify";
+import "@nomiclabs/hardhat-solhint";
 import { getSingletonFactoryInfo } from "@safe-global/safe-singleton-factory/dist";
 import * as dotenv from "dotenv";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 
 import "./tasks/deployAndVerify";
-import "./tasks/submitSignature";
+import "./tasks/relaying";
 
 dotenv.config();
 

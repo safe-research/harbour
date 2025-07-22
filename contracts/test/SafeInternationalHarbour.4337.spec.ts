@@ -3,8 +3,9 @@ import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
 import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
-import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
-import { build4337Config, buildQuotaConfig, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { EntryPoint__factory, ERC4337Mixin__factory, SafeInternationalHarbour__factory } from "../typechain-types";
+import { build4337Config, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -62,15 +63,6 @@ describe("SafeInternationalHarbour.4337", () => {
 		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
 	});
 
-	it.skip("should revert if paymaster is set", async () => {
-		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx();
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
-		await expect(entryPoint.handleOps([userOp], AddressOne))
-			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-			.withArgs(0, "AA23 reverted", "0xea42a443");
-	});
-
 	it("should revert if signature length is not 65 bytes", async () => {
 		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const safeTx = buildSafeTx();
@@ -83,10 +75,27 @@ describe("SafeInternationalHarbour.4337", () => {
 
 	it("should revert if provided signature is invalid (ecrecover yields zero address)", async () => {
 		const { entryPoint, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const zeroSignature = `0x${"00".repeat(65)}`;
 		const safeTx = buildSafeTx();
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0);
-		userOp.signature = zeroSignature;
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		userOp.callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
+			safeTxHash,
+			safeAddress,
+			chainId,
+			safeTx.nonce,
+			safeTx.to,
+			safeTx.value,
+			safeTx.data,
+			safeTx.operation,
+			safeTx.safeTxGas,
+			safeTx.baseGas,
+			safeTx.gasPrice,
+			safeTx.gasToken,
+			safeTx.refundReceiver,
+			AddressOne,
+			`0x${"00".repeat(32)}`,
+			`0x${"00".repeat(32)}`,
+		]);
 		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignature"));
@@ -122,6 +131,28 @@ describe("SafeInternationalHarbour.4337", () => {
 			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, safeTx.nonce, 0);
 	});
 
+	it("should revert if paymaster is set", async () => {
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
+		const safeTx = buildSafeTx();
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		userOp.paymasterAndData = ethers.solidityPacked(["address", "uint128", "uint128"], [AddressOne, 0, 0]);
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "InvalidUserOpPaymaster"));
+	});
+
+	it("should revert if signature is set, but no paymaster", async () => {
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
+		const signerWallet = Wallet.createRandom();
+		const safeTx = buildSafeTx();
+		const { userOp, signature } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		userOp.signature = signature;
+		await expect(entryPoint.handleOps([userOp], AddressOne))
+			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
+			.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedUserSignature"));
+	});
+
 	it("should store transaction parameters on first enqueueTransaction call", async () => {
 		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const signerWallet = Wallet.createRandom();
@@ -154,30 +185,26 @@ describe("SafeInternationalHarbour.4337", () => {
 		expect(storedTx.refundReceiver).to.equal(safeTx.refundReceiver);
 	});
 
-	it.skip("should not overwrite existing parameters on subsequent calls with same safeTxHash", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
+	it("should not allow s of upper curve", async () => {
+		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
 		const signerWallet = Wallet.createRandom();
-		const safeTx: SafeTransaction = {
-			to: Wallet.createRandom().address,
-			value: 1n,
-			data: "0x1234",
-			operation: 0,
-			safeTxGas: 100000n,
-			baseGas: 21000n,
-			gasPrice: 1n * 10n ** 9n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 1n,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature = await signerWallet.signTypedData(
+
+		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
+
+		const signature1 = await signerWallet.signTypedData(
 			{ chainId, verifyingContract: safeAddress },
 			EIP712_SAFE_TX_TYPE,
 			safeTx,
 		);
 
-		// First call - should store
-		await harbour.enqueueTransaction(
+		const sig1Bytes = ethers.getBytes(signature1);
+		const r1 = ethers.dataSlice(sig1Bytes, 0, 32);
+
+		const userOpNonce = await harbour.getNonce(signerWallet.address);
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature1, userOpNonce);
+		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
+		userOp.callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
+			safeTxHash,
 			safeAddress,
 			chainId,
 			safeTx.nonce,
@@ -190,79 +217,11 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx.gasPrice,
 			safeTx.gasToken,
 			safeTx.refundReceiver,
-			signature,
-		);
+			AddressOne,
+			r1,
+			"0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A1",
+		]);
 
-		const storedTxBefore = await harbour.retrieveTransaction(safeTxHash);
-
-		// Second call with different parameters but same hash (won't happen in reality, but tests logic)
-		// Use a different signer just to make the second call valid
-		const anotherSigner = Wallet.createRandom();
-		const signature2 = await anotherSigner.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx, // Use same tx to get same hash
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce, // Same nonce
-			Wallet.createRandom().address, // Different 'to'
-			safeTx.value + 1n, // Different value
-			"0xabcd", // Different data
-			1, // Different operation
-			safeTx.safeTxGas + 1n, // Different safeTxGas
-			safeTx.baseGas + 1n, // Different baseGas
-			safeTx.gasPrice + 1n, // Different gasPrice
-			Wallet.createRandom().address, // Different gasToken
-			Wallet.createRandom().address, // Different refundReceiver
-			signature2, // New valid signature for the *original* tx hash
-		);
-
-		const storedTxAfter = await harbour.retrieveTransaction(safeTxHash);
-
-		// Verify parameters are unchanged from the first call
-		expect(storedTxAfter.to).to.equal(storedTxBefore.to);
-		expect(storedTxAfter.value).to.equal(storedTxBefore.value);
-		expect(storedTxAfter.data).to.equal(storedTxBefore.data);
-		expect(storedTxAfter.operation).to.equal(storedTxBefore.operation);
-		expect(storedTxAfter.safeTxGas).to.equal(storedTxBefore.safeTxGas);
-		expect(storedTxAfter.baseGas).to.equal(storedTxBefore.baseGas);
-		expect(storedTxAfter.gasPrice).to.equal(storedTxBefore.gasPrice);
-		expect(storedTxAfter.gasToken).to.equal(storedTxBefore.gasToken);
-		expect(storedTxAfter.refundReceiver).to.equal(storedTxBefore.refundReceiver);
-	});
-
-	it("should not support malleable signatures", async () => {
-		const { harbour, chainId, safeAddress, entryPoint } = await loadFixture(deployFixture);
-		const signerWallet = Wallet.createRandom();
-
-		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
-
-		const signature1 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		// Create malleable signature (r, n-s, v')
-		const sig1Bytes = ethers.getBytes(signature1);
-		const r1 = ethers.dataSlice(sig1Bytes, 0, 32);
-		const s1 = ethers.dataSlice(sig1Bytes, 32, 64);
-		const v1 = Number.parseInt(ethers.dataSlice(sig1Bytes, 64, 65).substring(2), 16);
-
-		const secp256k1N = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-		const s1BN = BigInt(s1);
-		const s2BN = secp256k1N - s1BN;
-		const s2 = ethers.toBeHex(s2BN, 32);
-		const v2 = v1 === 27 ? 28 : 27; // Flip v
-		const signature2 = ethers.concat([r1, s2, ethers.toBeHex(v2, 1)]);
-
-		// Try to enqueue malleable signature
-
-		const userOpNonce = await harbour.getNonce(signerWallet.address);
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature1, userOpNonce);
-		userOp.signature = signature2;
 		await expect(entryPoint.handleOps([userOp], AddressOne))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignatureSValue"));
