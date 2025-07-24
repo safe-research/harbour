@@ -55,7 +55,11 @@ export const getUserOpGasPrice = async (
 	provider: JsonRpcProvider,
 	basePriceMultiplier?: bigint,
 ): Promise<GasFee> => {
-	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest", [100]]);
+	const feeHistory = await provider.send("eth_feeHistory", [
+		"0x1",
+		"latest",
+		[100],
+	]);
 	const maxPriorityFeePerGas = await provider.send(
 		"eth_maxPriorityFeePerGas",
 		[],
@@ -74,10 +78,7 @@ async function encodePaymasterData(params?: {
 }): Promise<string> {
 	return solidityPacked(
 		["uint48", "uint48"],
-		[
-			params?.validAfter ?? 0,
-			params?.validUntil ?? 0,
-		],
+		[params?.validAfter ?? 0, params?.validUntil ?? 0],
 	);
 }
 
@@ -136,7 +137,7 @@ export async function buildUserOp(
 		maxPriorityFeePerGas: toBeHex(0),
 		signature: "0x",
 	};
-	if (!!usePaymaster) {
+	if (usePaymaster) {
 		const paymaster = await harbour.TRUSTED_PAYMASTER();
 		userOp.paymaster = paymaster;
 		// Set dummy values for estimation
@@ -144,7 +145,7 @@ export async function buildUserOp(
 		userOp.paymasterData = paymasterData;
 		userOp.paymasterPostOpGasLimit = toBeHex(500_000n);
 		userOp.paymasterPostOpGasLimit = toBeHex(0);
-		userOp.signature = userSignature.serialized
+		userOp.signature = userSignature.serialized;
 	}
 	const entryPoint = await harbour.SUPPORTED_ENTRYPOINT();
 	const limits =
@@ -158,6 +159,6 @@ export async function buildUserOp(
 	userOp.paymasterVerificationGasLimit = limits.paymasterVerificationGasLimit;
 	userOp.paymasterPostOpGasLimit = limits.paymasterPostOpGasLimit;
 	// Reset signature, as this was only set for estimation
-	userOp.signature = "0x"
+	userOp.signature = "0x";
 	return { userOp, entryPoint };
 }

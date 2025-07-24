@@ -320,9 +320,9 @@ async function signAndEnqueueSafeTransaction(
 			transaction,
 			signature,
 			gasFee,
-			useValidator
+			useValidator,
 		);
-		if (!!useValidator) {
+		if (useValidator) {
 			const response = await fetch(`${currentSettings.validatorUrl}/validate`, {
 				method: "POST",
 				headers: {
@@ -330,8 +330,9 @@ async function signAndEnqueueSafeTransaction(
 				},
 				body: JSON.stringify(userOp),
 			});
-			const validatedUserOp: { paymasterAndData: string, signature: string } = await response.json();
-			userOp.paymasterData = `0x${validatedUserOp.paymasterAndData.slice(106)}`
+			const validatedUserOp: { paymasterAndData: string; signature: string } =
+				await response.json();
+			userOp.paymasterData = `0x${validatedUserOp.paymasterAndData.slice(106)}`;
 			userOp.signature = validatedUserOp.signature;
 		}
 		console.log({ userOp });
