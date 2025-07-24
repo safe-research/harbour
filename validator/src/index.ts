@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from 'hono/cors'
 import { getAddress } from "viem";
 import {
 	encodePaymasterData,
@@ -19,6 +20,8 @@ type Bindings = {
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.use('/*', cors())
 
 app.get("/", (c) => {
 	return c.text("Hello Hono!");
