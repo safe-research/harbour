@@ -31,6 +31,7 @@ const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
 const HARBOUR_ABI = [
 	"function FEE_TOKEN() view returns (address feeToken)",
 	"function SUPPORTED_ENTRYPOINT() view returns (address supportedEntrypoint)",
+	"function TRUSTED_PAYMASTER() view returns (address paymaster)",
 	"function getNonce(address signer) view returns (uint256 userOpNonce)",
 	"function depositTokensForSigner(address signer, uint128 amount)",
 	"function quotaStatsForSigner(address signer) view returns (uint128 tokenBalance, uint64 usedQuota, uint64 nextQuotaReset)",
@@ -311,6 +312,7 @@ async function signAndEnqueueSafeTransaction(
 		const harbourProvider = new JsonRpcProvider(rpcUrl);
 		const harbour = harbourAt(currentSettings.harbourAddress, harbourProvider);
 		const gasFee = await getUserOpGasPrice(harbourProvider);
+		const useValidator = !!currentSettings.validatorUrl;
 		const { userOp, entryPoint } = await buildUserOp(
 			bundlerProvider,
 			harbour,
@@ -318,7 +320,20 @@ async function signAndEnqueueSafeTransaction(
 			transaction,
 			signature,
 			gasFee,
+			useValidator
 		);
+		if (!!useValidator) {
+			const response = await fetch(`${currentSettings.validatorUrl}/validate`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(userOp),
+			});
+			const validatedUserOp: { paymasterAndData: string, signature: string } = await response.json();
+			userOp.paymasterData = `0x${validatedUserOp.paymasterAndData.slice(106)}`
+			userOp.signature = validatedUserOp.signature;
+		}
 		console.log({ userOp });
 		const hash = await bundlerProvider.send("eth_sendUserOperation", [
 			userOp,

@@ -1,6 +1,10 @@
 # Notes on 4337 Paymaster usage with Harbour
 
-`for now accept that there is always the chance that the user quota is used first`
+```
+Since paymasterAndData are not signed by the user it is possible to to replace the paymaster.
+To evaluate if we should encode the used paymaster into the refund receiver
+For now accept that there is always the chance that the user quota is used first
+```
 
 The challenge is that to optimize the UX the user should only sign a Safe transaction when submitting data to harbour. As the Safe transaction does not contain information about the user operation (including the paymaster) verification of related parameters has to be done via other means.
 

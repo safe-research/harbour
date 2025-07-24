@@ -44,6 +44,7 @@ const createSettingsFormSchema = () =>
 		harbourAddress: z.union([ethereumAddressSchema, z.literal("")]),
 		rpcUrl: z.union([z.string().url(), z.literal("")]),
 		bundlerUrl: z.union([z.string().url(), z.literal("")]),
+		validatorUrl: z.union([z.string().url(), z.literal("")]),
 	});
 
 export type SettingsFormData = z.infer<
@@ -105,6 +106,12 @@ function SettingsForm({
 				register={register}
 				error={errors.bundlerUrl}
 				label="Bundler Url"
+			/>
+			<FormItem
+				id="validatorUrl"
+				register={register}
+				error={errors.validatorUrl}
+				label="Validator Url"
 			/>
 
 			<SubmitItem
