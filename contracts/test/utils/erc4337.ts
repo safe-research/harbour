@@ -54,7 +54,7 @@ export function buildUserOp(
 	signatureBytes: string,
 	entryPointNonce: BigNumberish,
 	paymasterAndData?: BytesLike,
-	gasFees?: { baseFee: bigint; priorityFee: bigint },
+	gasFees?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
 ): PackedUserOperationStruct {
 	const safeTxHash = getSafeTransactionHash(safe, chainId, tx);
 	const signature = Signature.from(signatureBytes);
@@ -84,7 +84,7 @@ export function buildUserOp(
 		callData,
 		accountGasLimits: toBeHex((callData.length / 2) * 180, 16) + toBeHex((callData.length / 2) * 800, 16).slice(2),
 		preVerificationGas: 0,
-		gasFees: gasFees ? toBeHex(gasFees.priorityFee, 16) + toBeHex(gasFees.baseFee, 16).slice(2) : ZeroHash,
+		gasFees: gasFees ? toBeHex(gasFees.maxPriorityFeePerGas, 16) + toBeHex(gasFees.maxFeePerGas, 16).slice(2) : ZeroHash,
 		paymasterAndData: paymasterAndData || "0x",
 		signature: "0x",
 	};
@@ -112,7 +112,7 @@ export async function buildSignedUserOp(
 	safeAddress: string,
 	safeTx: SafeTransaction,
 	paymasterAndData?: BytesLike,
-	gasFees?: { baseFee: bigint; priorityFee: bigint },
+	gasFees?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
 ): Promise<{ userOp: PackedUserOperationStruct; signature: string }> {
 	const signature = await signerWallet.signTypedData(
 		{ chainId, verifyingContract: safeAddress },
