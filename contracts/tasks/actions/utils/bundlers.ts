@@ -36,8 +36,10 @@ type GasFee = {
 };
 
 export const getUserOpGasPrice = async (provider: EthereumProvider, basePriceMultiplier?: bigint): Promise<GasFee> => {
-	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest"]);
+	const feeHistory = await provider.send("eth_feeHistory", ["0x1", "latest", [100]]);
+	console.log({ feeHistory });
 	const maxPriorityFeePerGas = await provider.send("eth_maxPriorityFeePerGas", []);
+	console.log({ maxPriorityFeePerGas });
 	return {
 		maxFeePerGas: `0x${(BigInt(feeHistory.baseFeePerGas[0]) * (basePriceMultiplier ?? 2n) + BigInt(maxPriorityFeePerGas)).toString(16)}`,
 		maxPriorityFeePerGas,
@@ -62,7 +64,6 @@ export const getUserOpGasLimits = async (
 		serializedUserOp.maxFeePerGas = gasFee.maxFeePerGas;
 		serializedUserOp.maxPriorityFeePerGas = gasFee.maxPriorityFeePerGas;
 	}
-	console.log({ serializedUserOp });
 	const limits = await call<GasLimits>("eth_estimateUserOperationGas", [serializedUserOp, entryPoint]);
 	return limits;
 };

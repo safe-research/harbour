@@ -5,7 +5,6 @@ import {
     PackedUserOperation
 } from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 import {ISlashingCondition} from "../interfaces/Conditions.sol";
-import {PaymasterLib} from "../libs/PaymasterLib.sol";
 
 contract SupportedHarbourCondition is ISlashingCondition {
     address public immutable SUPPORTED_HARBOUR;

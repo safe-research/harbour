@@ -108,7 +108,7 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
 
     // Can be used to adjust slashing amount, i.e. based on quota relation
     function _adjustSlashingAmount(
-        address,
+        address validator,
         uint96 slashingAmount
     ) internal virtual returns (uint96);
 
