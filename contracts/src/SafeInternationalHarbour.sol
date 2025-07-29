@@ -47,15 +47,16 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     /// Note: A single list entry here could contain signatures for *different* `safeTxHash` values
     /// if those transactions share the same (safe, chainId, nonce). Use `_hasSignerSignedTx`
     /// to ensure a signer only signs a specific `safeTxHash` once.
-    mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureDataWithTxHashIndex[]))))
+
+    struct SignatureData {
+        bytes32 r;
+        bytes32 vs;
+    }
+    mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[]))))
         private _sigData;
 
-    /// @dev Tracks if a signer has already submitted *any* signature for a specific safeTxHash,
-    ///      preventing duplicate signatures for the *exact same* transaction digest.
-    ///      This complements `_sigData` by ensuring uniqueness per (safeTxHash, signer) pair.
-    /// Mapping `safeTxHash → signer → bool`
-    mapping(bytes32 safeTxHash => mapping(address signer => bool))
-        private _hasSignerSignedTx;
+    mapping(bytes32 signatureHash => bytes32 safeTxHash)
+        private _signatureLink;
 
     constructor(
         ERC4337MixinConfig memory _erc4337Mixinconfig
@@ -148,7 +149,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(safeTxHash, signer),
+            !_signerSignedTx(keccak256(abi.encodePacked(r, vs)), signer),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
         return
@@ -205,9 +206,8 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         view
         returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount)
     {
-        SignatureDataWithTxHashIndex[] storage all = _sigData[signerAddress][
-            safeAddress
-        ][chainId][nonce];
+        SignatureData[] storage all = 
+        _sigData[signerAddress][safeAddress][chainId][nonce];
         totalCount = all.length;
         if (start >= totalCount)
             return (new SignatureDataWithTxHashIndex[](0), totalCount);
@@ -218,7 +218,13 @@ contract SafeInternationalHarbour is ERC4337Mixin {
 
         page = new SignatureDataWithTxHashIndex[](len);
         for (uint256 i; i < len; ++i) {
-            page[i] = all[start + i];
+            bytes32 r = all[start + i].r;
+            bytes32 vs = all[start + i].vs;
+            page[i] = SignatureDataWithTxHashIndex({
+                r: r,
+                vs: vs,
+                txHash: _signatureLink[keccak256(abi.encodePacked(r, vs))]
+            });
         }
     }
 
@@ -248,14 +254,14 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     /**
      * @dev Internal function to store the transaction data and signature after validation.
      *
-     * @param safeTxHash    EIP-712 digest of the transaction.
+     * @param signatureHash    EIP-712 digest of the transaction.
      * @param signer        Signer address to be checked.
      */
     function _signerSignedTx(
-        bytes32 safeTxHash,
+        bytes32 signatureHash,
         address signer
     ) internal view override returns (bool signed) {
-        signed = _hasSignerSignedTx[safeTxHash][signer];
+        signed = _signatureLink[signatureHash] != 0;
     }
 
     /**
@@ -361,15 +367,15 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         bytes32 r,
         bytes32 vs
     ) internal override returns (uint256 listIndex) {
-        _hasSignerSignedTx[safeTxHash][signer] = true;
+        _signatureLink[keccak256(abi.encodePacked(r, vs))] = safeTxHash;
 
-        SignatureDataWithTxHashIndex[] storage list = _sigData[signer][
+        SignatureData[] storage list = _sigData[signer][
             safeAddress
         ][chainId][nonce];
         listIndex = list.length;
 
         list.push(
-            SignatureDataWithTxHashIndex({r: r, vs: vs, txHash: safeTxHash})
+            SignatureData({r: r, vs: vs})
         );
 
         emit SignatureStored(

@@ -85,7 +85,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(safeTxHash, signer),
+            !_signerSignedTx(keccak256(abi.encodePacked(r, vs)), signer),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
 
