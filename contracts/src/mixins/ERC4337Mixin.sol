@@ -88,24 +88,11 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         bytes32,
         uint256
     ) external override returns (uint256 validationData) {
-        // Assumption:
-        //   - UserOp signature is SafeTx signature
-        // Requirements:
-        //   - [x] Check entrypoint
-        //   - [x] No paymaster support
-        // Steps:
-        //   - [x] decode callData
-        //   - [x] recover signer from SafeTx signature
-        //   - [x] check that signer has not submitted signature
-        //   - [x] check that nonce key is signer address
-        //   - [x] check limits on fee params
-        //   - [ ] usage checks
-
         require(
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
         );
-        // TODO: as signature check should happen in paymaster
+        // TODO: remove as signature check should happen in paymaster
         require(
             userOp.signature.length == 65 || userOp.signature.length == 0,
             InvalidECDSASignatureLength()
@@ -142,9 +129,11 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         // OR: for now accept that there is always the chance that the user quota is used first
         if (userOp.paymasterAndData.length != 0) {
             address paymaster = userOp.extractPaymaster();
+            // TODO: remove as there is no real need to limit the execution to a pasmaster
             require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
             return _packValidationData(false, 0, 0);
         } else {
+            // TODO: remove the option to send a userOp without a paymaster
             // UserOp Signature is used for validators (via the paymaster) and should be empty when no paymaster is used
             require(userOp.signature.length == 0, UnexpectedUserSignature());
         }

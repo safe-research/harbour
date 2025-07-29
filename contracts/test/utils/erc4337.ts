@@ -211,7 +211,7 @@ function decodePaymasterData(paymasterAndData: BytesLike): {
 export async function encodePaymasterData(params: {
 	paymaster: AddressLike;
 	paymasterVerificationGas?: bigint;
-	validFrom?: bigint;
+	validAfter?: bigint;
 	validUntil?: bigint;
 }): Promise<string> {
 	return ethers.solidityPacked(
@@ -220,7 +220,7 @@ export async function encodePaymasterData(params: {
 			await resolveAddress(params.paymaster),
 			params.paymasterVerificationGas || 500_000n,
 			0,
-			params.validFrom || 0,
+			params.validAfter || 0,
 			params.validUntil || 0,
 		],
 	);
