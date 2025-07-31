@@ -92,7 +92,7 @@ export function BatchTransactionForm({
 			<div className="flex space-x-4">
 				<button
 					type="button"
-					onClick={() => signAndEnqueue()}
+					onClick={() => signAndEnqueue(undefined)}
 					disabled={isSubmitting || transactions.length === 0}
 					className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
