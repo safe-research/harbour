@@ -4,8 +4,8 @@ import {
 	EntryPoint__factory,
 	SafeHarbourPaymaster__factory,
 	SafeInternationalHarbour__factory,
+	TestToken__factory,
 } from "../typechain-types";
-import { TestToken__factory } from "../typechain-types/factories/src/test/TestQuotaManager.sol";
 import { build4337Config, buildSafeTx, buildSignedUserOp, encodePaymasterData } from "./utils/erc4337";
 import { addValidatorSignature, buildQuotaConfig } from "./utils/quota";
 import { buildSlashingConfig } from "./utils/slashing";
