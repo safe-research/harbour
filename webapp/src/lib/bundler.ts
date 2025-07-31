@@ -67,7 +67,7 @@ export const getUserOpGasPrice = async (
 	const baseFee =
 		BigInt(feeHistory.baseFeePerGas[0]) * (basePriceMultiplier ?? 2n);
 	return {
-		maxFeePerGas: toBeHex(baseFee * BigInt(maxPriorityFeePerGas)),
+		maxFeePerGas: toBeHex(baseFee + BigInt(maxPriorityFeePerGas)),
 		maxPriorityFeePerGas,
 	};
 };

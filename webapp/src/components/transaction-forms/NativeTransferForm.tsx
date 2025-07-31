@@ -1,13 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useNativeBalance } from "@/hooks/useNativeBalance";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import { getSafeTransaction } from "@/lib/safe";
+import { useSignAndEnqueue } from "@/hooks/useSignAndEnqueue";
 import {
 	ethereumAddressSchema,
 	nonceSchema,
@@ -17,7 +14,7 @@ import type { CommonTransactionFormProps } from "./types";
 
 const createNativeTransferFormSchema = (currentSafeNonce: string) =>
 	z.object({
-		recipient: ethereumAddressSchema,
+		to: ethereumAddressSchema,
 		amount: positiveAmountSchema,
 		nonce: nonceSchema(currentSafeNonce),
 	});
@@ -38,10 +35,13 @@ export function NativeTransferForm({
 	rpcProvider,
 	config,
 }: CommonTransactionFormProps) {
-	const navigate = useNavigate();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [txHash, setTxHash] = useState<string>();
-	const [error, setError] = useState<string>();
+	const { isSubmitting, error, txHash, signAndEnqueue } = useSignAndEnqueue({
+		safeAddress,
+		chainId,
+		browserProvider,
+		config,
+		parser: (i) => i,
+	});
 	const { addTransaction } = useBatch();
 
 	const {
@@ -59,7 +59,7 @@ export function NativeTransferForm({
 
 	const handleAddToBatch = handleSubmit((data: NativeTransferFormData) => {
 		const tx = {
-			to: data.recipient,
+			to: data.to,
 			value: ethers.parseEther(data.amount).toString(),
 			data: "0x",
 			safeAddress,
@@ -74,42 +74,9 @@ export function NativeTransferForm({
 		error: balanceError,
 	} = useNativeBalance(rpcProvider, safeAddress, chainId);
 
-	const onSubmit = async (data: NativeTransferFormData) => {
-		setError(undefined);
-		setTxHash(undefined);
-
-		const currentNonce =
-			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
-
-		try {
-			setIsSubmitting(true);
-
-			const transaction = getSafeTransaction({
-				chainId,
-				safeAddress,
-				to: data.recipient,
-				value: ethers.parseEther(data.amount).toString(),
-				nonce: currentNonce.toString(),
-			});
-
-			const receipt = await signAndEnqueueSafeTransaction(
-				browserProvider,
-				transaction,
-			);
-
-			setTxHash(receipt.transactionHash);
-			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Transaction failed";
-			setError(message);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+			<form onSubmit={handleSubmit(signAndEnqueue)} className="space-y-6">
 				<div>
 					<label
 						htmlFor="recipient"
@@ -118,16 +85,14 @@ export function NativeTransferForm({
 						Recipient Address
 					</label>
 					<input
-						id="recipient"
+						id="to"
 						type="text"
-						{...register("recipient")}
+						{...register("to")}
 						placeholder="0x..."
 						className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 					/>
-					{errors.recipient && (
-						<p className="mt-1 text-sm text-red-600">
-							{errors.recipient.message}
-						</p>
+					{errors.to && (
+						<p className="mt-1 text-sm text-red-600">{errors.to.message}</p>
 					)}
 				</div>
 

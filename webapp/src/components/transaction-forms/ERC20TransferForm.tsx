@@ -1,14 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { useERC20TokenDetails } from "@/hooks/useERC20TokenDetails";
+import { useSignAndEnqueue } from "@/hooks/useSignAndEnqueue";
 import { encodeERC20Transfer } from "@/lib/erc20";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import { getSafeTransaction } from "@/lib/safe";
 import {
 	ethereumAddressSchema,
 	nonceSchema,
@@ -41,11 +38,6 @@ export function ERC20TransferForm({
 	config,
 	tokenAddress: initialTokenAddress,
 }: ERC20TransferFormProps) {
-	const navigate = useNavigate();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [txHash, setTxHash] = useState<string>();
-	const [error, setError] = useState<string>();
-
 	const {
 		register,
 		handleSubmit,
@@ -70,6 +62,34 @@ export function ERC20TransferForm({
 	} = useERC20TokenDetails(rpcProvider, tokenAddress, safeAddress, chainId);
 	const decimals = tokenDetails?.decimals ?? null;
 
+	const parser = (input: ERC20TransferFormData) => {
+		if (decimals === null) {
+			throw Error(
+				"Token decimals could not be determined. Please check the token address and network.",
+			);
+		}
+		const amountInSmallestUnit = ethers.parseUnits(input.amount, decimals);
+		const encodedTransferData = encodeERC20Transfer(
+			input.recipient,
+			amountInSmallestUnit,
+		);
+
+		return {
+			to: input.tokenAddress,
+			value: "0",
+			data: encodedTransferData,
+			nonce: input.nonce,
+		};
+	};
+
+	const { isSubmitting, error, txHash, signAndEnqueue } = useSignAndEnqueue({
+		safeAddress,
+		chainId,
+		browserProvider,
+		config,
+		parser,
+	});
+
 	// Determine if the form has all prerequisites fulfilled for batching
 	const recipient = watch("recipient");
 	const amount = watch("amount");
@@ -81,53 +101,6 @@ export function ERC20TransferForm({
 		recipient.trim() !== "" &&
 		amount.trim() !== "" &&
 		Object.keys(errors).length === 0;
-
-	const onSubmit = async (data: ERC20TransferFormData) => {
-		setError(undefined);
-		setTxHash(undefined);
-
-		if (decimals === null) {
-			setError(
-				"Token decimals could not be determined. Please check the token address and network.",
-			);
-			return;
-		}
-
-		const currentNonce =
-			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
-
-		try {
-			setIsSubmitting(true);
-
-			const amountInSmallestUnit = ethers.parseUnits(data.amount, decimals);
-			const encodedTransferData = encodeERC20Transfer(
-				data.recipient,
-				amountInSmallestUnit,
-			);
-
-			const transaction = getSafeTransaction({
-				chainId,
-				safeAddress,
-				to: data.tokenAddress,
-				value: "0",
-				data: encodedTransferData,
-				nonce: currentNonce.toString(),
-			});
-
-			const receipt = await signAndEnqueueSafeTransaction(
-				browserProvider,
-				transaction,
-			);
-
-			setTxHash(receipt.transactionHash);
-			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Transaction failed";
-			setError(message);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
 
 	const isTokenAddressValid = tokenAddress && !errors.tokenAddress;
 
@@ -150,7 +123,7 @@ export function ERC20TransferForm({
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+			<form onSubmit={handleSubmit(signAndEnqueue)} className="space-y-6">
 				<div>
 					<label
 						htmlFor="tokenAddress"

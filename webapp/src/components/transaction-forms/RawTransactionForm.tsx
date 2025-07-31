@@ -1,12 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import { getSafeTransaction } from "@/lib/safe";
+import { useSignAndEnqueue } from "@/hooks/useSignAndEnqueue";
 import {
 	ethereumAddressSchema,
 	ethValueSchema,
@@ -38,10 +35,14 @@ export function RawTransactionForm({
 	browserProvider,
 	config,
 }: CommonTransactionFormProps) {
-	const navigate = useNavigate();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [txHash, setTxHash] = useState<string>();
-	const [error, setError] = useState<string>();
+	const { isSubmitting, error, txHash, signAndEnqueue } = useSignAndEnqueue({
+		safeAddress,
+		chainId,
+		browserProvider,
+		config,
+		parser: (i) => i,
+	});
+
 	const { addTransaction } = useBatch();
 
 	const {
@@ -59,40 +60,6 @@ export function RawTransactionForm({
 		},
 	});
 
-	const onSubmit = async (data: RawTransactionFormData) => {
-		setError(undefined);
-		setTxHash(undefined);
-
-		const currentNonce =
-			data.nonce === "" ? BigInt(config.nonce) : BigInt(data.nonce);
-
-		try {
-			setIsSubmitting(true);
-
-			const transaction = getSafeTransaction({
-				chainId,
-				safeAddress,
-				to: data.to,
-				value: ethers.parseEther(data.value || "0").toString(),
-				data: data.data || "0x",
-				nonce: currentNonce.toString(),
-			});
-
-			const receipt = await signAndEnqueueSafeTransaction(
-				browserProvider,
-				transaction,
-			);
-
-			setTxHash(receipt.transactionHash);
-			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
-		} catch (err: unknown) {
-			const message = err instanceof Error ? err.message : "Transaction failed";
-			setError(message);
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	const handleAddToBatch = handleSubmit((data: RawTransactionFormData) => {
 		const tx = {
 			to: data.to,
@@ -106,7 +73,7 @@ export function RawTransactionForm({
 
 	return (
 		<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+			<form onSubmit={handleSubmit(signAndEnqueue)} className="space-y-6">
 				<div>
 					<label
 						htmlFor="to"
