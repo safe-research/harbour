@@ -3,8 +3,8 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
+import { useWaku } from "@/contexts/WakuContext";
 import type { ChainId } from "@/lib/types";
-
 import { ActionCard } from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
@@ -23,7 +23,6 @@ import { type NonceGroup, signAndEnqueueSafeTransaction } from "../lib/harbour";
 import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
 import { safeIdSchema } from "../lib/validators";
-import { useWaku } from "@/contexts/WakuContext";
 
 // Define the route before the component so Route is in scope
 /**
@@ -63,7 +62,7 @@ function QueueContent({
 	safeConfig,
 	chainId,
 }: QueueContentProps) {
-	const waku = useWaku()
+	const waku = useWaku();
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,

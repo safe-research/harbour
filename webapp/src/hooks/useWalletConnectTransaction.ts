@@ -1,10 +1,10 @@
 import type { BrowserProvider } from "ethers";
 import { ethers } from "ethers";
 import { useCallback, useState } from "react";
+import { useWaku } from "@/contexts/WakuContext";
 import { useWalletConnect } from "@/hooks/walletConnect";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
-import { useWaku } from "@/contexts/WakuContext";
 
 type WalletConnectTransactionParams = {
 	safeAddress: string;
@@ -75,7 +75,7 @@ export function useWalletConnectTransaction() {
 				const receipt = await signAndEnqueueSafeTransaction(
 					browserProvider,
 					transaction,
-					waku
+					waku,
 				);
 
 				// 2. Attempt to respond to WalletConnect session (separate from transaction success)
@@ -146,7 +146,7 @@ export function useWalletConnectTransaction() {
 				});
 			}
 		},
-		[walletkit],
+		[walletkit, waku],
 	);
 
 	/**
