@@ -84,7 +84,9 @@ export function buildUserOp(
 		callData,
 		accountGasLimits: toBeHex((callData.length / 2) * 180, 16) + toBeHex((callData.length / 2) * 800, 16).slice(2),
 		preVerificationGas: 0,
-		gasFees: gasFees ? toBeHex(gasFees.maxPriorityFeePerGas, 16) + toBeHex(gasFees.maxFeePerGas, 16).slice(2) : ZeroHash,
+		gasFees: gasFees
+			? toBeHex(gasFees.maxPriorityFeePerGas, 16) + toBeHex(gasFees.maxFeePerGas, 16).slice(2)
+			: ZeroHash,
 		paymasterAndData: paymasterAndData || "0x",
 		signature: "0x",
 	};
