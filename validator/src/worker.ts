@@ -48,7 +48,7 @@ async function initializeWorker() {
 		validatorAccount,
 		config.SUPPORTED_CHAIN_ID,
 		config.SUPPORTED_HARBOUR,
-        config.SUPPORTED_ENTRYPOINT,
+		config.SUPPORTED_ENTRYPOINT,
 		config.SUPPORTED_PAYMASTER,
 		config.HARBOUR_RPC,
 		config.BUNDLER_RPC,
