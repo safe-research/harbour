@@ -23,6 +23,7 @@ import { type NonceGroup, signAndEnqueueSafeTransaction } from "../lib/harbour";
 import type { SafeConfiguration } from "../lib/safe";
 import type { FullSafeTransaction } from "../lib/types";
 import { safeIdSchema } from "../lib/validators";
+import { useWaku } from "@/contexts/WakuContext";
 
 // Define the route before the component so Route is in scope
 /**
@@ -62,6 +63,7 @@ function QueueContent({
 	safeConfig,
 	chainId,
 }: QueueContentProps) {
+	const waku = useWaku()
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,
@@ -127,7 +129,7 @@ function QueueContent({
 				safeAddress,
 				chainId,
 			};
-			await signAndEnqueueSafeTransaction(walletProvider, fullTx);
+			await signAndEnqueueSafeTransaction(walletProvider, fullTx, waku);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {
 			const errMsg =

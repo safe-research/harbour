@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useWalletConnect } from "@/hooks/walletConnect";
 import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
+import { useWaku } from "@/contexts/WakuContext";
 
 type WalletConnectTransactionParams = {
 	safeAddress: string;
@@ -32,6 +33,7 @@ type WalletConnectTransactionResult = {
  * @returns Object containing transaction result state and submission functions
  */
 export function useWalletConnectTransaction() {
+	const waku = useWaku();
 	const { walletkit } = useWalletConnect();
 	const [result, setResult] = useState<WalletConnectTransactionResult>({
 		isSubmitting: false,
@@ -73,6 +75,7 @@ export function useWalletConnectTransaction() {
 				const receipt = await signAndEnqueueSafeTransaction(
 					browserProvider,
 					transaction,
+					waku
 				);
 
 				// 2. Attempt to respond to WalletConnect session (separate from transaction success)
