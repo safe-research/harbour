@@ -2,7 +2,6 @@ import type { Signer, TransactionReceipt } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { build4337Config } from "./utils/erc4337";
-import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, type SafeTransaction } from "./utils/safeTx";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {

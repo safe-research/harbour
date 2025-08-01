@@ -30,4 +30,4 @@ error UnexpectedSafeTxHash(bytes32 expectedSafeTxHash);
 error UnexpectedSigner(address recoveredSigner);
 error UnexpectedSignatureR(bytes32 extractedR);
 error UnexpectedSignatureVS(bytes32 extractedVS);
-error UnexpectedNonce(uint256 expectedNonce);
+error UnexpectedNonce(address expectedKey);

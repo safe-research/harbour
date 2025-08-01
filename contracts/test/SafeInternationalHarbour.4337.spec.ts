@@ -10,7 +10,6 @@ import {
 	TestPaymaster__factory,
 } from "../typechain-types";
 import { build4337Config, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
-import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -73,16 +72,6 @@ describe("SafeInternationalHarbour.4337", () => {
 		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
 	});
 
-	it("should revert if signature length is not 65 bytes", async () => {
-		const { harbour, chainId, safeAddress, entryPoint, paymasterAndData } = await loadFixture(deployFixture);
-		const safeTx = buildSafeTx();
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0, paymasterAndData);
-		userOp.signature = INVALID_SIG; // This is the compact representation which is too short
-		await expect(entryPoint.handleOps([userOp], AddressOne))
-			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-			.withArgs(0, "AA23 reverted", error(harbour, "InvalidECDSASignatureLength"));
-	});
-
 	it("should revert if provided signature is invalid (ecrecover yields zero address)", async () => {
 		const { entryPoint, harbour, chainId, safeAddress, paymasterAndData } = await loadFixture(deployFixture);
 		const safeTx = buildSafeTx();
@@ -123,10 +112,10 @@ describe("SafeInternationalHarbour.4337", () => {
 		);
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature, 0, paymasterAndData);
 
-		const userOpNonce = await harbour.getNonce(signerAddress);
+		const _userOpNonce = await harbour.getNonce(signerAddress);
 		await expect(entryPoint.handleOps([userOp], ZeroAddress))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
-			.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedNonce", [userOpNonce]));
+			.withArgs(0, "AA23 reverted", error(harbour, "UnexpectedNonce", [signerAddress]));
 	});
 
 	it("should emit SignatureStored event with correct parameters on first enqueue", async () => {

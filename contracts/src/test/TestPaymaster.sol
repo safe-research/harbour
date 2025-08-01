@@ -13,8 +13,11 @@ contract TestPaymaster is IPaymaster {
         PackedUserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 maxCost
-    ) external override returns (bytes memory context, uint256 validationData) {
-    }
+    )
+        external
+        override
+        returns (bytes memory context, uint256 validationData)
+    {}
 
     function postOp(
         PostOpMode mode,

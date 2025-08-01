@@ -68,15 +68,10 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         PackedUserOperation calldata userOp,
         bytes32,
         uint256
-    ) external override view returns (uint256 validationData) {
+    ) external view override returns (uint256 validationData) {
         require(
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
-        );
-        // TODO: remove as signature check should happen in paymaster
-        require(
-            userOp.signature.length == 65 || userOp.signature.length == 0,
-            InvalidECDSASignatureLength()
         );
 
         require(
@@ -99,10 +94,10 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
 
         _verifySignature(safeTxHash, signer, r, vs);
 
-        uint256 nonce = getNonce(signer);
-        // TODO: This is done by the entrypoint and we only need to check that the signer is the key
-        // https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/NonceManager.sol#L37
-        require(userOp.nonce == nonce, UnexpectedNonce(nonce));
+        require(
+            uint192(userOp.nonce >> 64) == uint192(uint160(signer)),
+            UnexpectedNonce(signer)
+        );
 
         // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
 

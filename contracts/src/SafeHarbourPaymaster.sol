@@ -72,11 +72,6 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
             InvalidUserOpPaymaster()
         );
 
-        require(
-            userOp.extractPaymaster() == address(this),
-            InvalidTarget(bytes4(userOp.callData))
-        );
-
         (address validator, , ) = CoreLib.recoverSigner(
             userOpHash,
             userOp.signature

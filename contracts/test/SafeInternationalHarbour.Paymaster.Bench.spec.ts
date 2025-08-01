@@ -49,7 +49,7 @@ describe("SafeInternationalHarbour Paymaster [@bench]", () => {
 
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const erc4337config = build4337Config({
-			entryPoint: await entryPoint.getAddress()
+			entryPoint: await entryPoint.getAddress(),
 		});
 		const harbour = await HarbourFactory.deploy(erc4337config);
 

@@ -3,7 +3,6 @@ import { type Signer, type TransactionReceipt, Wallet } from "ethers";
 import { ethers } from "hardhat";
 import { EntryPoint__factory, SafeInternationalHarbour__factory, TestPaymaster__factory } from "../typechain-types";
 import { build4337Config, buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
-import { buildQuotaConfig } from "./utils/quota";
 
 const logGas = (label: string, tx: TransactionReceipt): void => {
 	if (!tx || !tx.gasUsed) {
