@@ -55,8 +55,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(address signer => mapping(address safe => mapping(uint256 chainId => mapping(uint256 nonce => SignatureData[]))))
         private _sigData;
 
-    mapping(bytes32 signatureHash => bytes32 safeTxHash)
-        private _signatureLink;
+    mapping(bytes32 signatureHash => bytes32 safeTxHash) private _signatureLink;
 
     constructor(
         ERC4337MixinConfig memory _erc4337Mixinconfig
@@ -149,7 +148,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(keccak256(abi.encodePacked(r, vs)), signer),
+            !_signerSignedTx(keccak256(abi.encodePacked(r, vs))),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
         return
@@ -206,8 +205,9 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         view
         returns (SignatureDataWithTxHashIndex[] memory page, uint256 totalCount)
     {
-        SignatureData[] storage all = 
-        _sigData[signerAddress][safeAddress][chainId][nonce];
+        SignatureData[] storage all = _sigData[signerAddress][safeAddress][
+            chainId
+        ][nonce];
         totalCount = all.length;
         if (start >= totalCount)
             return (new SignatureDataWithTxHashIndex[](0), totalCount);
@@ -255,11 +255,9 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @dev Internal function to store the transaction data and signature after validation.
      *
      * @param signatureHash    EIP-712 digest of the transaction.
-     * @param signer        Signer address to be checked.
      */
     function _signerSignedTx(
-        bytes32 signatureHash,
-        address signer
+        bytes32 signatureHash
     ) internal view override returns (bool signed) {
         signed = _signatureLink[signatureHash] != 0;
     }
@@ -369,14 +367,12 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     ) internal override returns (uint256 listIndex) {
         _signatureLink[keccak256(abi.encodePacked(r, vs))] = safeTxHash;
 
-        SignatureData[] storage list = _sigData[signer][
-            safeAddress
-        ][chainId][nonce];
+        SignatureData[] storage list = _sigData[signer][safeAddress][chainId][
+            nonce
+        ];
         listIndex = list.length;
 
-        list.push(
-            SignatureData({r: r, vs: vs})
-        );
+        list.push(SignatureData({r: r, vs: vs}));
 
         emit SignatureStored(
             signer,
