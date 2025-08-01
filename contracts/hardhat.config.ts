@@ -25,8 +25,8 @@ if (PRIVATE_KEY) {
 	};
 }
 
-const SOLC_CONFIGURATION = (viaIR = true) => ({
-	version: "0.8.29",
+const SOLC_CONFIGURATION = (viaIR = true, version = "0.8.29") => ({
+	version,
 	settings: {
 		optimizer: {
 			enabled: true,

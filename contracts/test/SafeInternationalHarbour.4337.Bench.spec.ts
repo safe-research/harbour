@@ -1,7 +1,7 @@
 import { AddressOne } from "@safe-global/safe-contracts";
 import { type Signer, type TransactionReceipt, Wallet } from "ethers";
 import { ethers } from "hardhat";
-import { EntryPoint__factory, SafeInternationalHarbour__factory } from "../typechain-types";
+import { EntryPoint__factory, SafeInternationalHarbour__factory, TestPaymaster__factory } from "../typechain-types";
 import { build4337Config, buildSafeTx, buildSignedUserOp } from "./utils/erc4337";
 import { buildQuotaConfig } from "./utils/quota";
 
@@ -24,58 +24,77 @@ describe("SafeInternationalHarbour 4337 [@bench]", () => {
 		// TODO: use test token to include fee payment overhead
 		const EntryPointFactory = new EntryPoint__factory(deployer as unknown as Signer);
 		const entryPoint = await EntryPointFactory.deploy();
+		const TestPaymasterFactory = new TestPaymaster__factory(deployer as unknown as Signer);
+		const paymaster = await TestPaymasterFactory.deploy();
+		const paymasterAddress = await paymaster.getAddress();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const erc4337config = build4337Config({ entryPoint: await entryPoint.getAddress() });
 		const harbour = await HarbourFactory.deploy(erc4337config, buildQuotaConfig());
 
+		const paymasterAndData = ethers.solidityPacked(["address", "uint128", "uint128"], [paymasterAddress, 500_000, 0]);
+
 		const safeAddress = await alice.getAddress();
-		return { entryPoint, deployer, alice, harbour, chainId, safeAddress };
+		return { entryPoint, deployer, alice, harbour, chainId, safeAddress, paymasterAndData };
 	}
 
 	it("Enqueuing a transaction with empty transaction data (native transfer)", async () => {
-		const { entryPoint, deployer, harbour, chainId, safeAddress } = await deployFixture();
+		const { entryPoint, deployer, harbour, chainId, safeAddress, paymasterAndData } = await deployFixture();
 		const signerWallet = Wallet.createRandom();
 		const safeTx = buildSafeTx({ to: deployer.address });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("native_transfer_0b", receipt);
 	});
 
 	it("Enqueuing a transaction with ERC20 transfer data (68 bytes)", async () => {
-		const { entryPoint, harbour, chainId, safeAddress } = await deployFixture();
+		const { entryPoint, harbour, chainId, safeAddress, paymasterAndData } = await deployFixture();
 		const signerWallet = Wallet.createRandom();
 		const recipient = Wallet.createRandom().address;
 		const amount = 1n * 10n ** 18n;
 		const erc20Iface = new ethers.Interface(["function transfer(address to,uint256 amount)"]);
 		const data = erc20Iface.encodeFunctionData("transfer", [recipient, amount]);
 		const safeTx = buildSafeTx({ to: recipient, data });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("erc20_transfer_68b", receipt);
 	});
 
 	it("Enqueuing a transaction with large transaction data", async () => {
-		const { entryPoint, deployer, harbour, chainId, safeAddress } = await deployFixture();
+		const { entryPoint, deployer, harbour, chainId, safeAddress, paymasterAndData } = await deployFixture();
 		const signerWallet = Wallet.createRandom();
 		const data = `0x${"ff".repeat(1024)}`;
 		const safeTx = buildSafeTx({ to: deployer.address, data });
-		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		const tx = await entryPoint.handleOps([userOp], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("large_tx_data_1024b", receipt);
 	});
 
 	it("Appending a signature to an existing transaction", async () => {
-		const { entryPoint, deployer, harbour, chainId, safeAddress } = await deployFixture();
+		const { entryPoint, deployer, harbour, chainId, safeAddress, paymasterAndData } = await deployFixture();
 		const signerWallet1 = Wallet.createRandom();
 		const safeTx = buildSafeTx({ to: deployer.address });
-		const { userOp: userOp1 } = await buildSignedUserOp(harbour, signerWallet1, chainId, safeAddress, safeTx);
+		const { userOp: userOp1 } = await buildSignedUserOp(
+			harbour,
+			signerWallet1,
+			chainId,
+			safeAddress,
+			safeTx,
+			paymasterAndData,
+		);
 		await entryPoint.handleOps([userOp1], AddressOne);
 
 		const signerWallet2 = Wallet.createRandom();
-		const { userOp: userOp2 } = await buildSignedUserOp(harbour, signerWallet2, chainId, safeAddress, safeTx);
+		const { userOp: userOp2 } = await buildSignedUserOp(
+			harbour,
+			signerWallet2,
+			chainId,
+			safeAddress,
+			safeTx,
+			paymasterAndData,
+		);
 		const tx = await entryPoint.handleOps([userOp2], AddressOne);
 		const receipt = (await tx.wait()) as TransactionReceipt;
 		await logGas("append_sig_same_tx", receipt);

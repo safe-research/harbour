@@ -1,5 +1,4 @@
 // // SPDX-License-Identifier: GPL-3.0-only
-/* solhint-disable no-unused-import */
 pragma solidity ^0.8.29;
 
 import {CoreLib} from "../libs/CoreLib.sol";
