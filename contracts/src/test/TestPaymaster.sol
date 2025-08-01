@@ -8,21 +8,17 @@ import {
     PackedUserOperation
 } from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
+/* solhint-disable no-empty-blocks */
 contract TestPaymaster is IPaymaster {
     function validatePaymasterUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32 userOpHash,
-        uint256 maxCost
-    )
-        external
-        override
-        returns (bytes memory context, uint256 validationData)
-    {}
+        PackedUserOperation calldata,
+        bytes32,
+        uint256
+    ) external override returns (bytes memory, uint256) {
+        // All transactions are allowed
+    }
 
-    function postOp(
-        PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost,
-        uint256 actualUserOpFeePerGas
-    ) external {}
+    function postOp(PostOpMode, bytes calldata, uint256, uint256) external {
+        // No post op checks are performed
+    }
 }

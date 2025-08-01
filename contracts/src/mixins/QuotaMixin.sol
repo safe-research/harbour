@@ -7,6 +7,12 @@ import {
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IQuotaManager} from "../interfaces/QuotaManager.sol";
 import {CoreLib} from "../libs/CoreLib.sol";
+import {
+    WithdrawalAlreadyPerformed,
+    InsufficientTokensForWithdrawal,
+    TokensInUse,
+    QuotaOverflow
+} from "../interfaces/Errors.sol";
 
 struct QuotaStats {
     uint96 tokenBalance; // uint96 might also be enough, as this would be more tokens than most project have in circulation
@@ -97,7 +103,7 @@ abstract contract QuotaMixin is IQuotaManager {
         // Check that withdrawal was not executed yet
         require(
             withdrawsForSigner[signer][withdrawHash] == 0,
-            "Withdrawal was already performed"
+            WithdrawalAlreadyPerformed(withdrawHash)
         );
         withdrawsForSigner[signer][withdrawHash] = block.timestamp;
 
@@ -113,19 +119,23 @@ abstract contract QuotaMixin is IQuotaManager {
         bool skipResetCheck
     ) internal override {
         QuotaStats storage stats = quotaStatsForSigner[signer];
-        require(stats.tokenBalance >= amount, "Insufficient Tokens");
+        require(
+            stats.tokenBalance >= amount,
+            InsufficientTokensForWithdrawal()
+        );
         // We use the quota reset timeframe as a unlock timeframe
         // -> currently the signer is not allowed to sign any Safe transaction during this timeframe
         // TODO: have dedicated unlock logic (also to avoid some fee exploit flows)
         require(
             skipResetCheck || stats.nextQuotaReset < block.timestamp,
-            "Tokens have been used during this timeframe"
+            TokensInUse()
         );
 
         stats.tokenBalance -= amount;
 
-        if (beneficiary != address(this))
+        if (beneficiary != address(this)) {
             _transferFeeToken(beneficiary, amount);
+        }
     }
 
     function _transferFeeToken(
@@ -170,7 +180,7 @@ abstract contract QuotaMixin is IQuotaManager {
 
         require(
             maxSignerQuota <= type(uint96).max,
-            "Max signer quota too high"
+            QuotaOverflow(maxSignerQuota)
         );
 
         uint96 freeSignerQuota = uint96(maxSignerQuota);

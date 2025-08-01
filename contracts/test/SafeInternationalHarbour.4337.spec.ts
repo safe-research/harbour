@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
-import { type BaseContract, type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
+import { type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
 import {
 	EntryPoint__factory,
@@ -10,6 +10,7 @@ import {
 	TestPaymaster__factory,
 } from "../typechain-types";
 import { build4337Config, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
+import { error } from "./utils/error";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -30,10 +31,6 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint, paymasterAndData };
-	}
-
-	function error(contract: BaseContract, name: string, values: unknown[] = []): string {
-		return contract.interface.encodeErrorResult(name, values);
 	}
 
 	const INVALID_SIG = `${"0x".padEnd(128, "a")}1f`;

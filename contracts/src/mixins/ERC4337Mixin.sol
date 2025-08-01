@@ -15,18 +15,15 @@ import {
     UserOperationLib
 } from "@account-abstraction/contracts/core/UserOperationLib.sol";
 import {
-    InvalidECDSASignatureLength,
     InvalidEntryPoint,
     InvalidTarget,
     SignerAlreadySignedTransaction,
     UnexpectedNonce,
     InvalidUserOpPaymaster,
-    UnexpectedUserSignature,
     UnexpectedSafeTxHash,
     UnexpectedSigner
 } from "../interfaces/Errors.sol";
 import {IHarbourStore} from "../interfaces/HarbourStore.sol";
-import {IQuotaManager} from "../interfaces/QuotaManager.sol";
 import {PaymasterLib} from "../libs/PaymasterLib.sol";
 import {CoreLib} from "../libs/CoreLib.sol";
 

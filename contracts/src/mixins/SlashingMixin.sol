@@ -13,7 +13,18 @@ import {PaymasterLib} from "../libs/PaymasterLib.sol";
 import {CoreLib} from "../libs/CoreLib.sol";
 import {IERC4337InfoProvider} from "../interfaces/ERC4337.sol";
 import {ISlashingCondition} from "../interfaces/Conditions.sol";
-import {InvalidUserOpPaymaster} from "../interfaces/Errors.sol";
+import {
+    InsufficientTokensForWithdrawal,
+    InvalidUserOpPaymaster,
+    ConditionWasNotActive,
+    ConditionAlreadyEnabled,
+    ConditionAlreadyDisabled,
+    ConditionNotEnabled,
+    ConditionNotOffended,
+    UserOpAlreadySlashed,
+    NothingToSlash,
+    InvalidBeneficiary
+} from "../interfaces/Errors.sol";
 
 struct SlashingMixinConfig {
     uint48 enableCoditionsDelay;
@@ -79,7 +90,7 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
             (conditionStatus.enabledAfter < validUntil || validUntil == 0) &&
                 (validAfter < conditionStatus.enabledUntil ||
                     conditionStatus.enabledUntil == 0),
-            "Condition not active"
+            ConditionWasNotActive()
         );
         bytes32 userOpHash = getSupportedEntrypoint().getUserOpHash(userOp);
         bytes32 digest = PaymasterLib.computeValidatorConfirmationHash(
@@ -92,12 +103,12 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
         );
         require(
             offendingCondition.shouldBeSlashed(validator, userOp),
-            "UserOp does not offend the condition"
+            ConditionNotOffended()
         );
-        require(slashedUserOps[userOpHash] == 0, "UserOp was already slashed");
+        require(slashedUserOps[userOpHash] == 0, UserOpAlreadySlashed());
         uint96 usedQuota = uint96(userOp.calculateRequiredPrefund());
         uint96 slashingAmount = _adjustSlashingAmount(validator, usedQuota);
-        require(slashingAmount > 0, "Nothing to slash");
+        require(slashingAmount > 0, NothingToSlash());
         // Currently only the slashed amount is stored, more information could be stored if necessary
         slashedUserOps[userOpHash] = slashingAmount;
         slashedTokens += slashingAmount;
@@ -115,7 +126,7 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
     function _enableCondition(ISlashingCondition condition) internal {
         require(
             enabledConditions[condition].enabledAfter == 0,
-            "Condition already enabled"
+            ConditionAlreadyEnabled()
         );
         uint48 enabledAfter = uint48(block.timestamp) + ENABLE_CONDITIONS_DELAY;
         enabledConditions[condition] = ConditionStatus({
@@ -127,11 +138,8 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
 
     function _disableCondition(ISlashingCondition condition) internal {
         ConditionStatus memory conditionStatus = enabledConditions[condition];
-        require(conditionStatus.enabledAfter != 0, "Condition not enabled");
-        require(
-            conditionStatus.enabledUntil == 0,
-            "Condition already disabled"
-        );
+        require(conditionStatus.enabledAfter != 0, ConditionNotEnabled());
+        require(conditionStatus.enabledUntil == 0, ConditionAlreadyDisabled());
         uint48 enabledUntil = uint48(block.timestamp) + ENABLE_CONDITIONS_DELAY;
         enabledConditions[condition].enabledUntil = enabledUntil;
         emit EnableCondition(condition, enabledUntil);
@@ -141,11 +149,8 @@ abstract contract SlashingMixin is IQuotaManager, IERC4337InfoProvider {
         address beneficiary,
         uint96 amount
     ) internal {
-        require(
-            beneficiary != address(this),
-            "Cannot transfer to this account"
-        );
-        require(amount <= slashedTokens, "Amount too high");
+        require(beneficiary != address(this), InvalidBeneficiary());
+        require(amount <= slashedTokens, InsufficientTokensForWithdrawal());
         unchecked {
             slashedTokens -= amount;
         }

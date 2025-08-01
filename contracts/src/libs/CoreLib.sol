@@ -1,10 +1,16 @@
 // // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import "../interfaces/Constants.sol";
-import "../interfaces/Types.sol";
-import "../interfaces/Errors.sol";
-import "../interfaces/Events.sol";
+import {
+    DOMAIN_TYPEHASH,
+    SAFE_TX_TYPEHASH,
+    SECP256K1_LOW_S_BOUND
+} from "../interfaces/Constants.sol";
+import {
+    InvalidSignatureSValue,
+    InvalidSignature,
+    ValueDoesNotFitInUint128
+} from "../interfaces/Errors.sol";
 
 library CoreLib {
     // ------------------------------------------------------------------
@@ -111,6 +117,7 @@ library CoreLib {
     }
 
     function splitVS(bytes32 vs) internal pure returns (bytes32 s, uint8 v) {
+        // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             // Equivalent to:
             // vs = bytes32(uint256(v - 27) << 255 | uint256(s));
