@@ -83,7 +83,7 @@ library CoreLib {
         bytes32 digest,
         bytes calldata sig
     ) internal pure returns (address signer, bytes32 r, bytes32 vs) {
-        uint8 v;
+        uint256 v;
         bytes32 s;
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
@@ -93,14 +93,10 @@ library CoreLib {
         }
         require(s <= SECP256K1_LOW_S_BOUND, InvalidSignatureSValue());
 
-        signer = ecrecover(digest, v, r, s);
+        signer = ecrecover(digest, uint8(v), r, s);
         require(signer != address(0), InvalidSignature());
-        // solhint-disable-next-line no-inline-assembly
-        assembly ("memory-safe") {
-            // Equivalent to:
-            // vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
-            // Assembly is slighly more gas efficient here
-            vs := or(shl(255, sub(v, 27)), s)
+        unchecked {
+            vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
         }
     }
 
@@ -120,7 +116,6 @@ library CoreLib {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             // Equivalent to:
-            // vs = bytes32(uint256(v - 27) << 255 | uint256(s));
             // s = bytes32(uint256(vs) & (uint256(1 << 255) - 1))
             // v = uint8(uint256(vs >> 255) + 27)
             // Assembly is slighly more gas efficient here
