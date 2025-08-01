@@ -1,6 +1,6 @@
 import { type Address, type Hex, hashTypedData, zeroAddress } from "viem";
-import { SAFE_TX_TYPE } from "../safe/constants";
-import type { SafeTransactionWithDomain } from "../safe/types";
+import { SAFE_TX_TYPE } from "../safe/constants.js";
+import type { SafeTransactionWithDomain } from "../safe/types.js";
 
 /**
  * Signs a Safe transaction using EIP-712 typed data

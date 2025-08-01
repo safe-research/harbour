@@ -4,14 +4,14 @@ import {
 	type IDecodedMessage,
 } from "@waku/sdk";
 import dotenv from "dotenv";
-import { workerConfigSchema } from "./config/schemas";
-import { accountFromSeed } from "./utils/signer";
-import { SafeTransactionHandler } from "./validator/handler";
-import { validateSafeTransactionRequestSchema } from "./validator/schemas";
+import { workerConfigSchema } from "./config/schemas.js";
+import { accountFromSeed } from "./utils/signer.js";
+import { SafeTransactionHandler } from "./validator/handler.js";
+import { validateSafeTransactionRequestSchema } from "./validator/schemas.js";
 import {
 	SafeHarbourTopicTransactionsV1,
 	SafeTransactionPacket,
-} from "./waku/safe";
+} from "./waku/safe.js";
 
 dotenv.config({ path: ".dev.vars" });
 

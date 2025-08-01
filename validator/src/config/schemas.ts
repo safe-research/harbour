@@ -1,5 +1,5 @@
 import z from "zod";
-import { bigintStringSchema, checkedAddressSchema } from "../utils/schemas";
+import { bigintStringSchema, checkedAddressSchema } from "../utils/schemas.js";
 
 export const configSchema = z.object({
 	VALIDATOR_PK_SEED: z.string().nonempty(),

@@ -3,7 +3,7 @@ import {
 	bigintStringSchema,
 	checkedAddressSchema,
 	hexDataSchema,
-} from "../utils/schemas";
+} from "../utils/schemas.js";
 
 export const gasLimitsSchema = z.object({
 	preVerificationGas: bigintStringSchema,

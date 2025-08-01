@@ -11,13 +11,13 @@ import {
 	signatureToCompactSignature,
 	toHex,
 } from "viem";
-import type { GasFee } from "../ethereum/types";
-import { HARBOUR_ABI } from "../harbour/constants";
-import { getHarbour } from "../harbour/contracts";
-import { getSafeTransactionHash } from "../safe/transactions";
-import type { SignedSafeTransaction } from "../safe/types";
-import { entrypoint712Types } from "./constants";
-import type { GasLimits, PackedUserOp, RpcUserOp, UserOp } from "./types";
+import type { GasFee } from "../ethereum/types.js";
+import { HARBOUR_ABI } from "../harbour/constants.js";
+import { getHarbour } from "../harbour/contracts.js";
+import { getSafeTransactionHash } from "../safe/transactions.js";
+import type { SignedSafeTransaction } from "../safe/types.js";
+import { entrypoint712Types } from "./constants.js";
+import type { GasLimits, PackedUserOp, RpcUserOp, UserOp } from "./types.js";
 
 const DUMMY_SIGNATURE =
 	"0x6e100a352ec6ad1b70802290e18aeed190704973570f3b8ed42cb9808e2ea6bf4a90a229a244495b41890987806fcbd2d5d23fc0dbe5f5256c2613c039d76db81c";

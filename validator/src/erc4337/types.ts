@@ -1,6 +1,6 @@
 import type { Address, Hex } from "viem";
 import type z from "zod";
-import type { gasLimitsSchema, userOpSchema } from "./schemas";
+import type { gasLimitsSchema, userOpSchema } from "./schemas.js";
 
 export type UserOp = z.infer<typeof userOpSchema>;
 

@@ -4,7 +4,7 @@ import {
 	checkedAddressSchema,
 	ecdsaSignatureSchema,
 	hexDataSchema,
-} from "../utils/schemas";
+} from "../utils/schemas.js";
 
 export const safeTransactionSchema = z.object({
 	to: checkedAddressSchema,

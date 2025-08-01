@@ -1,5 +1,5 @@
-import type { Client } from "viem";
-import type { GasFee } from "./types";
+import { type Client, hexToBigInt } from "viem";
+import type { GasFee } from "./types.js";
 
 export const getGasFee = async (
 	harbourClient: Client,

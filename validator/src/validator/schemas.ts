@@ -1,12 +1,12 @@
 import type { Address } from "viem";
 import z from "zod";
-import { userOpSchema } from "../erc4337/schemas";
+import { userOpSchema } from "../erc4337/schemas.js";
 import {
 	safeIdSchema,
 	safeSignatureSchema,
 	safeTransactionSchema,
-} from "../safe/schemas";
-import { hexDataSchema } from "../utils/schemas";
+} from "../safe/schemas.js";
+import { hexDataSchema } from "../utils/schemas.js";
 
 export const validateSafeTransactionRequestSchema = z.object({
 	...safeTransactionSchema.shape,

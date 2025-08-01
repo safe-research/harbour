@@ -6,10 +6,10 @@ import {
 	type LocalAccount,
 } from "viem";
 import { createBundlerClient } from "viem/account-abstraction";
-import { encodePaymasterData } from "../erc4337/paymaster";
-import { buildUserOp, sendUserOp, signUserOp } from "../erc4337/userOp";
-import { getGasFee } from "../ethereum/fees";
-import type { SignedSafeTransaction } from "../safe/types";
+import { encodePaymasterData } from "../erc4337/paymaster.js";
+import { buildUserOp, sendUserOp, signUserOp } from "../erc4337/userOp.js";
+import { getGasFee } from "../ethereum/fees.js";
+import type { SignedSafeTransaction } from "../safe/types.js";
 
 export class SafeTransactionHandler {
 	private publicClient: Client;
