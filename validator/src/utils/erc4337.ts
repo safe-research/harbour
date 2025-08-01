@@ -70,7 +70,7 @@ export function packUserOp(userOp: UserOp): PackedUserOp {
 				userOp.paymasterData,
 			],
 		),
-		signature: "0x",
+		signature: userOp.signature,
 	};
 }
 

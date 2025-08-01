@@ -120,6 +120,8 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         _verifySignature(safeTxHash, signer, r, vs);
 
         uint256 nonce = getNonce(signer);
+        // TODO: This is done by the entrypoint and we only need to check that the signer is the key
+        // https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/NonceManager.sol#L37
         require(userOp.nonce == nonce, UnexpectedNonce(nonce));
 
         // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
