@@ -13,7 +13,7 @@ describe("SafeInternationalHarbour", () => {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
 		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy(build4337Config(), buildQuotaConfig());
+		const harbour = await Factory.deploy(build4337Config());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress };

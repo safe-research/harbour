@@ -68,7 +68,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         PackedUserOperation calldata userOp,
         bytes32,
         uint256
-    ) external override returns (uint256 validationData) {
+    ) external override view returns (uint256 validationData) {
         require(
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
@@ -87,8 +87,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
             bytes32 safeTxHash,
             address signer,
             bytes32 r,
-            bytes32 vs,
-            uint256 computedDataLength
+            bytes32 vs
         ) = _verifySafeTxData(userOp.callData[4:]);
 
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
@@ -114,7 +113,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
 
     function _verifySafeTxData(
         bytes calldata callData
-    ) private pure returns (bytes32, address, bytes32, bytes32, uint256) {
+    ) private pure returns (bytes32, address, bytes32, bytes32) {
         (
             bytes32 safeTxHash,
             address safeAddress,
@@ -174,7 +173,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         );
         // The computed length when properly encoded is based on the data length and the number of params
         // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length + 32 bytes buffer for padding
-        return (safeTxHash, signer, r, vs, data.length + 18 * 32 + 4);
+        return (safeTxHash, signer, r, vs);
     }
 
     function _verifySignature(

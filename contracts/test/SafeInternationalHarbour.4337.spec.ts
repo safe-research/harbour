@@ -25,7 +25,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const paymasterAddress = await paymaster.getAddress();
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const erc4337config = build4337Config({ entryPoint: await entryPoint.getAddress() });
-		const harbour = await HarbourFactory.deploy(erc4337config, buildQuotaConfig());
+		const harbour = await HarbourFactory.deploy(erc4337config);
 
 		const paymasterAndData = ethers.solidityPacked(["address", "uint128", "uint128"], [paymasterAddress, 500_000, 0]);
 

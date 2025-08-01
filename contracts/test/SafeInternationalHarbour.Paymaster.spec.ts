@@ -53,8 +53,7 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 			entryPoint: await entryPoint.getAddress(),
 		});
 		const harbour = await HarbourFactory.deploy(
-			erc4337config,
-			buildQuotaConfig({ feeToken: await testToken.getAddress() }),
+			erc4337config
 		);
 
 		const safeAddress = await alice.getAddress();
