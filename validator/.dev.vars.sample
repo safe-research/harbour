@@ -1,4 +1,4 @@
-VALIDATOR_PK_SEED="type some random stuff here as entropy ;D"
+VALIDATOR_PK_SEED=type some random stuff here as entropy ;D
 # Overwrite validator params
 SUPPORTED_PAYMASTER=
 SUPPORTED_CHAIN_ID=
