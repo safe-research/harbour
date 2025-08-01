@@ -93,7 +93,7 @@ library CoreLib {
         assembly ("memory-safe") {
             // Equivalent to:
             // vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
-            // Which should avoid conversion between uint256 and bytes32
+            // Assembly is slighly more gas efficient here
             vs := or(shl(255, sub(v, 27)), s)
         }
     }
@@ -116,7 +116,7 @@ library CoreLib {
             // vs = bytes32(uint256(v - 27) << 255 | uint256(s));
             // s = bytes32(uint256(vs) & (uint256(1 << 255) - 1))
             // v = uint8(uint256(vs >> 255) + 27)
-            // Which should avoid conversion between uint256 and bytes32
+            // Assembly is slighly more gas efficient here
             s := and(sub(shl(255, 1), 1), vs)
             v := add(shr(255, vs), 27)
         }
