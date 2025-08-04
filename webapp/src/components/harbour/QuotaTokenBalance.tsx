@@ -8,7 +8,8 @@ import { useQuotaTokenStats } from "@/hooks/useQuotaStats";
 import { switchToChain } from "@/lib/chains";
 import { getShortAddress } from "@/lib/encoding";
 import { type ERC20TokenDetails, encodeERC20Approval } from "@/lib/erc20";
-import { getHarbourChainId, harbourAt } from "@/lib/harbour";
+import { getHarbourChainId } from "@/lib/harbour";
+import { quotaManagerAt } from "@/lib/quotaManager";
 import { positiveAmountSchema } from "@/lib/validators";
 import { FormItem, SubmitItem } from "../Forms";
 
@@ -31,19 +32,19 @@ function buildAmountLabel(
 function QuotaTokenBalance({
 	signerAddress,
 	harbourProvider,
-	harbourAddress,
+	quotaManagerAddress,
 	className,
 }: {
 	signerAddress: string | undefined;
 	harbourProvider: JsonRpcApiProvider | null;
-	harbourAddress: string | undefined;
+	quotaManagerAddress: string | undefined;
 	className?: string;
 }) {
 	const provider = useBrowserProvider();
 	const { quotaTokenStats, isLoading } = useQuotaTokenStats(
 		harbourProvider,
 		signerAddress,
-		harbourAddress,
+		quotaManagerAddress,
 	);
 
 	const {
@@ -55,7 +56,7 @@ function QuotaTokenBalance({
 	});
 
 	const onSubmit = async (data: TokenTopUpFormData) => {
-		if (!provider || !quotaTokenStats) return;
+		if (!provider || !quotaTokenStats || !quotaManagerAddress) return;
 		const chainId = await getHarbourChainId();
 		console.log({ chainId });
 		await switchToChain(provider, chainId);
@@ -63,17 +64,17 @@ function QuotaTokenBalance({
 			data.amount,
 			quotaTokenStats.tokenInfo.decimals,
 		);
-		const harbour = harbourAt(harbourAddress);
+		const quotaManager = quotaManagerAt(quotaManagerAddress);
 		const approveTx = {
 			to: quotaTokenStats.tokenInfo.address,
-			data: encodeERC20Approval(await harbour.getAddress(), amountInAtoms),
+			data: encodeERC20Approval(quotaManagerAddress, amountInAtoms),
 		};
 		const depositTx = {
-			to: await harbour.getAddress(),
-			data: harbour.interface.encodeFunctionData("depositTokensForSigner", [
-				signerAddress,
-				amountInAtoms,
-			]),
+			to: quotaManagerAddress,
+			data: quotaManager.interface.encodeFunctionData(
+				"depositTokensForSigner",
+				[signerAddress, amountInAtoms],
+			),
 		};
 		try {
 			const batchedResponse = await provider.send("wallet_sendCalls", [

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
 import { fetchERC20TokenDetails } from "@/lib/erc20";
-import { harbourAt } from "@/lib/harbour";
+import { quotaManagerAt } from "@/lib/quotaManager";
 
 interface QuotaStats {
 	availableFreeQuota: number;
@@ -18,22 +18,22 @@ const EMPTY_QUOTA_STATS: QuotaStats = {
 function useQuotaStats(
 	provider: JsonRpcApiProvider | null,
 	signerAddress: string | null | undefined,
-	harbourAddress?: string,
+	quotaManagerAddress?: string,
 ) {
-	const queryKey = ["quotaStats", harbourAddress, signerAddress];
+	const queryKey = ["quotaStats", quotaManagerAddress, signerAddress];
 	const queryFn = async () => {
-		if (!provider || !signerAddress) {
+		if (!provider || !signerAddress || !quotaManagerAddress) {
 			return EMPTY_QUOTA_STATS;
 		}
-		const harbour = harbourAt(harbourAddress, provider);
-		const stats = await harbour.availableFreeQuotaForSigner(signerAddress);
+		const quotaManager = quotaManagerAt(quotaManagerAddress, provider);
+		const stats = await quotaManager.availableFreeQuotaForSigner(signerAddress);
 		return {
 			availableFreeQuota: Number(stats.availableFreeQuota),
 			usedSignerQuota: Number(stats.usedSignerQuota),
 			nextSignerQuotaReset: Number(stats.nextSignerQuotaReset),
 		};
 	};
-	const enabled = !!provider && !!signerAddress && !!harbourAddress;
+	const enabled = !!provider && !!signerAddress && !!quotaManagerAddress;
 	const {
 		data: quotaStats = EMPTY_QUOTA_STATS,
 		isPending,
@@ -66,27 +66,27 @@ interface QuotaTokenStats {
 function useQuotaTokenStats(
 	provider: JsonRpcApiProvider | null,
 	signerAddress: string | null | undefined,
-	harbourAddress?: string,
+	quotaManagerAddress?: string,
 ) {
-	const queryKey = ["quotaTokenStats", harbourAddress, signerAddress];
+	const queryKey = ["quotaTokenStats", quotaManagerAddress, signerAddress];
 	const queryFn = async (): Promise<QuotaTokenStats> => {
-		if (!provider || !signerAddress) {
+		if (!provider || !signerAddress || !quotaManagerAddress) {
 			throw Error("Not initialized");
 		}
-		const harbour = harbourAt(harbourAddress, provider);
-		const tokenAddress = await harbour.FEE_TOKEN();
+		const quotaManager = quotaManagerAt(quotaManagerAddress, provider);
+		const tokenAddress = await quotaManager.FEE_TOKEN();
 		const tokenInfo = await fetchERC20TokenDetails(
 			provider,
 			tokenAddress,
 			signerAddress,
 		);
-		const stats = await harbour.quotaStatsForSigner(signerAddress);
+		const stats = await quotaManager.quotaStatsForSigner(signerAddress);
 		return {
 			tokenInfo: tokenInfo || { address: tokenAddress },
 			lockedTokens: BigInt(stats.tokenBalance),
 		};
 	};
-	const enabled = !!provider && !!signerAddress && !!harbourAddress;
+	const enabled = !!provider && !!signerAddress && !!quotaManagerAddress;
 	const {
 		data: quotaTokenStats,
 		isPending,
