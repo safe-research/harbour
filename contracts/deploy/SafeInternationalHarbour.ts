@@ -23,7 +23,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 		],
 		log: true,
 	});
-	const paymasterDeploymentResult = await paymasterDeployment.deploy();
+	await paymasterDeployment.deploy();
 
 	log(`SafeHarbourPaymaster deployed at ${paymasterDeployment.address}`);
 
