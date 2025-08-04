@@ -7,7 +7,7 @@ import {
 	zeroAddress,
 } from "viem";
 
-export function decodePaymasterData(paymasterAndData: Hex): {
+export function decodePaymasterAndData(paymasterAndData: Hex): {
 	paymaster: Address;
 	paymasterVerificationGasLimit: bigint;
 	paymasterPostOpGasLimit: bigint;

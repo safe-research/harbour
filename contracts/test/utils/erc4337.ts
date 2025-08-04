@@ -36,13 +36,7 @@ const EIP712_PACKED_USEROP_TYPE = {
 
 export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC4337MixinConfigStruct {
 	return {
-		entryPoint: params?.entryPoint || ZeroAddress,
-		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
-		preVerificationGasPerByte: params?.preVerificationGasPerByte || 25,
-		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
-		verificationGasPerByte: params?.verificationGasPerByte || 200,
-		callGasPerByte: params?.callGasPerByte || 1000,
-		trustedPaymaster: params?.trustedPaymaster || ZeroAddress,
+		entryPoint: params?.entryPoint || ZeroAddress
 	};
 }
 
@@ -162,7 +156,7 @@ export async function serialize(userOp: PackedUserOperationStruct): Promise<User
 	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
 	const gasFees = ethers.zeroPadValue(userOp.gasFees, 32).slice(2);
 	return {
-		...decodePaymasterData(userOp.paymasterAndData || "0x"),
+		...decodePaymasterAndData(userOp.paymasterAndData || "0x"),
 		sender: await ethers.resolveAddress(userOp.sender),
 		nonce: ethers.toBeHex(userOp.nonce),
 		callData: hexlify(userOp.callData),
@@ -187,7 +181,7 @@ export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct)
 	);
 }
 
-function decodePaymasterData(paymasterAndData: BytesLike): {
+function decodePaymasterAndData(paymasterAndData: BytesLike): {
 	paymaster: string | undefined;
 	paymasterVerificationGasLimit: string | undefined;
 	paymasterPostOpGasLimit: string | undefined;
