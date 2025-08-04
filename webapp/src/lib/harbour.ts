@@ -10,6 +10,7 @@ import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
+import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
@@ -296,6 +297,7 @@ async function getHarbourChainId(): Promise<bigint> {
 async function signAndEnqueueSafeTransaction(
 	walletProvider: JsonRpcApiProvider,
 	transaction: FullSafeTransaction,
+	waku: WakuManager,
 ) {
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
@@ -304,6 +306,13 @@ async function signAndEnqueueSafeTransaction(
 
 	const currentSettings = await loadCurrentSettings();
 	// If a bundler URL is set we will use that to relay the transaction
+	if (waku.isAvailable()) {
+		console.log("Use Waku");
+		if (await waku.send(transaction, signature)) {
+			return { hash: "", transactionHash: "" };
+		}
+	}
+	// TODO: deprecate this
 	if (currentSettings.bundlerUrl) {
 		console.log("Use Bundler");
 		const bundlerProvider = new JsonRpcProvider(currentSettings.bundlerUrl);
@@ -323,6 +332,7 @@ async function signAndEnqueueSafeTransaction(
 			useValidator,
 		);
 		if (useValidator) {
+			console.log("Use Validator");
 			const response = await fetch(`${currentSettings.validatorUrl}/validate`, {
 				method: "POST",
 				headers: {
