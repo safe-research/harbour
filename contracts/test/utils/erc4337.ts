@@ -36,7 +36,7 @@ const EIP712_PACKED_USEROP_TYPE = {
 
 export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC4337MixinConfigStruct {
 	return {
-		entryPoint: params?.entryPoint || ZeroAddress
+		entryPoint: params?.entryPoint || ZeroAddress,
 	};
 }
 

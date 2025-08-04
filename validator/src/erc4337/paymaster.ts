@@ -1,7 +1,4 @@
-import {
-	encodePacked,
-	type Hex,
-} from "viem";
+import { encodePacked, type Hex } from "viem";
 
 export function encodePaymasterData(params?: {
 	validAfter?: number;
