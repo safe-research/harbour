@@ -162,7 +162,7 @@ export async function serialize(userOp: PackedUserOperationStruct): Promise<User
 	const gasLimits = ethers.zeroPadValue(userOp.accountGasLimits, 32).slice(2);
 	const gasFees = ethers.zeroPadValue(userOp.gasFees, 32).slice(2);
 	return {
-		...decodePaymasterData(userOp.paymasterAndData || "0x"),
+		...decodePaymasterAndData(userOp.paymasterAndData || "0x"),
 		sender: await ethers.resolveAddress(userOp.sender),
 		nonce: ethers.toBeHex(userOp.nonce),
 		callData: hexlify(userOp.callData),
@@ -187,7 +187,7 @@ export function calculateMaxGasUsageForUserOp(userOp: PackedUserOperationStruct)
 	);
 }
 
-function decodePaymasterData(paymasterAndData: BytesLike): {
+function decodePaymasterAndData(paymasterAndData: BytesLike): {
 	paymaster: string | undefined;
 	paymasterVerificationGasLimit: string | undefined;
 	paymasterPostOpGasLimit: string | undefined;

@@ -23,7 +23,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 		],
 		log: true,
 	});
-	const paymasterDeploymentResult = await paymasterDeployment.deploy();
+	await paymasterDeployment.deploy();
 
 	log(`SafeHarbourPaymaster deployed at ${paymasterDeployment.address}`);
 
@@ -31,7 +31,6 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 		from: deployer,
 		args: [
 			build4337Config({
-				trustedPaymaster: paymasterDeploymentResult.address,
 				...harbourConfig.erc4337config,
 			}),
 			buildQuotaConfig(harbourConfig.quotaConfig),

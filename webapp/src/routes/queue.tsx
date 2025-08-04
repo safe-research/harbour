@@ -3,8 +3,8 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
+import { useWaku } from "@/contexts/WakuContext";
 import type { ChainId } from "@/lib/types";
-
 import { ActionCard } from "../components/ActionCard";
 import { BackToDashboardButton } from "../components/BackButton";
 import { QueueTransactionItem } from "../components/QueueTransactionItem";
@@ -62,6 +62,7 @@ function QueueContent({
 	safeConfig,
 	chainId,
 }: QueueContentProps) {
+	const waku = useWaku();
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,
@@ -127,7 +128,7 @@ function QueueContent({
 				safeAddress,
 				chainId,
 			};
-			await signAndEnqueueSafeTransaction(walletProvider, fullTx);
+			await signAndEnqueueSafeTransaction(walletProvider, fullTx, waku);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {
 			const errMsg =

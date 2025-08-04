@@ -6,6 +6,7 @@ import {
 	SettingsForm,
 	useCurrentSettings,
 } from "@/components/settings/SettingsForm";
+import { WakuForm } from "@/components/settings/WakuForm";
 
 /**
  * Page component for the Harbour settings.
@@ -27,6 +28,9 @@ export function SettingsPage() {
 			<ConditionalBackButton />
 			<ContainerTitle>Settings</ContainerTitle>
 			<Box>
+				<WakuForm />
+			</Box>
+			<Box className="mt-4">
 				{currentSettings ? (
 					<SettingsForm currentSettings={currentSettings} />
 				) : (

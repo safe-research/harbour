@@ -1,15 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getAddress } from "viem";
-import {
-	encodePaymasterData,
-	getUserOpHash,
-	signUserOp,
-} from "./utils/erc4337";
-import { handleError } from "./utils/errors";
-import { bigIntJsonReplacer } from "./utils/replacer";
-import { buildValidateSchema } from "./utils/schemas";
-import { accountFromSeed } from "./utils/signer";
+import { encodePaymasterData } from "./erc4337/paymaster.js";
+import { getUserOpHash, signUserOp } from "./erc4337/userOp.js";
+import { handleError } from "./utils/errors.js";
+import { bigIntJsonReplacer } from "./utils/replacer.js";
+import { accountFromSeed } from "./utils/signer.js";
+import { buildValidateUserOpSchema } from "./validator/schemas.js";
 
 type Bindings = {
 	VALIDATOR_SEED: string;
@@ -33,7 +30,7 @@ app.post("/validate", async (c) => {
 		const supportedPaymaster = getAddress(c.env.SUPPORTED_PAYMASTER);
 		const supportedEntrypoint = getAddress(c.env.SUPPORTED_ENTRYPOINT);
 		const supportedChainId = BigInt(c.env.SUPPORTED_CHAIN_ID);
-		const request = buildValidateSchema(
+		const request = buildValidateUserOpSchema(
 			supportedPaymaster,
 			supportedHarbour,
 		).parse(await c.req.json());
