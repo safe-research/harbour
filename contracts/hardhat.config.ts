@@ -8,7 +8,8 @@ import * as dotenv from "dotenv";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 
 import "./tasks/deployAndVerify";
-import "./tasks/relaying";
+import "./tasks/harbour";
+import "./tasks/paymaster";
 
 dotenv.config();
 

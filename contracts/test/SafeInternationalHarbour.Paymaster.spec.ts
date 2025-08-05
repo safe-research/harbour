@@ -3,7 +3,7 @@ import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
 import { type Signer, Wallet } from "ethers";
 import { ethers } from "hardhat";
-import { setGasParams } from "../tasks/actions/utils/bundlers";
+import { setGasParams } from "../tasks/utils/bundlers";
 import {
 	EntryPoint__factory,
 	SafeHarbourPaymaster__factory,
