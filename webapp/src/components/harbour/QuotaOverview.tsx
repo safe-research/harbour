@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Box } from "@/components/Groups";
-import type { SettingsFormData } from "@/components/settings/SettingsForm";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
 import { checkedAddressSchema } from "@/lib/validators";
 import { FormItem, SubmitItem } from "../Forms";
@@ -22,10 +21,10 @@ type QuotaStatsFormData = z.infer<
 >;
 
 function QuotaOverview({
-	currentSettings,
+	quotaManagerAddress,
 	className,
 }: {
-	currentSettings: Partial<SettingsFormData>;
+	quotaManagerAddress: string;
 	className: string;
 }) {
 	const [{ wallet }] = useConnectWallet();
@@ -76,7 +75,7 @@ function QuotaOverview({
 				/>
 			</form>
 			<QuotaStats
-				harbourAddress={currentSettings.harbourAddress}
+				quotaManagerAddress={quotaManagerAddress}
 				signerAddress={signerAddress}
 				harbourProvider={harbourProvider}
 				refreshTrigger={refreshCounter}
@@ -84,7 +83,7 @@ function QuotaOverview({
 			/>
 			<QuotaTokenBalance
 				key={refreshCounter}
-				harbourAddress={currentSettings.harbourAddress}
+				quotaManagerAddress={quotaManagerAddress}
 				signerAddress={signerAddress}
 				harbourProvider={harbourProvider}
 				className="mt-2"

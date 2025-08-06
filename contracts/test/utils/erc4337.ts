@@ -37,12 +37,6 @@ const EIP712_PACKED_USEROP_TYPE = {
 export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC4337MixinConfigStruct {
 	return {
 		entryPoint: params?.entryPoint || ZeroAddress,
-		maxPriorityFee: params?.maxPriorityFee || ethers.parseUnits("2", "gwei"),
-		preVerificationGasPerByte: params?.preVerificationGasPerByte || 25,
-		preVerificationBaseGas: params?.preVerificationBaseGas || 40000,
-		verificationGasPerByte: params?.verificationGasPerByte || 200,
-		callGasPerByte: params?.callGasPerByte || 1000,
-		trustedPaymaster: params?.trustedPaymaster || ZeroAddress,
 	};
 }
 

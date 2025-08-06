@@ -8,7 +8,8 @@ import * as dotenv from "dotenv";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 
 import "./tasks/deployAndVerify";
-import "./tasks/relaying";
+import "./tasks/harbour";
+import "./tasks/paymaster";
 
 dotenv.config();
 
@@ -25,8 +26,8 @@ if (PRIVATE_KEY) {
 	};
 }
 
-const SOLC_CONFIGURATION = (viaIR = true) => ({
-	version: "0.8.29",
+const SOLC_CONFIGURATION = (viaIR = true, version = "0.8.29") => ({
+	version,
 	settings: {
 		optimizer: {
 			enabled: true,

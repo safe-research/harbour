@@ -1,10 +1,11 @@
-// // SPDX-License-Identifier: GPL-3.0-only
-/* solhint-disable no-unused-import */
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {SlashingMixin, SlashingMixinConfig} from "../mixins/SlashingMixin.sol";
 import {IEntryPoint} from "../interfaces/ERC4337.sol";
+import {NotImplemented} from "./TestErrors.sol";
 
+/* solhint-disable no-empty-blocks */
 contract TestSlasher is SlashingMixin {
     error TestOverQuota();
 
@@ -33,29 +34,26 @@ contract TestSlasher is SlashingMixin {
         address,
         uint256
     ) internal pure override returns (bool) {
-        revert("Should not be used");
+        revert NotImplemented();
     }
 
     function _withdrawSignerTokens(
-        address signer,
-        address beneficiary,
-        uint96 amount,
-        bool skipResetCheck
-    ) internal override {
-        revert("Should not be used");
+        address,
+        address,
+        uint96,
+        bool
+    ) internal pure override {
+        // noop
     }
 
-    function _transferFeeToken(
-        address beneficiary,
-        uint96 amount
-    ) internal override {
-        revert("Should not be used");
+    function _transferFeeToken(address, uint96) internal pure override {
+        revert NotImplemented();
     }
 
     function _adjustSlashingAmount(
         address,
         uint96 slashingAmount
-    ) internal override returns (uint96) {
+    ) internal pure override returns (uint96) {
         return slashingAmount;
     }
 }

@@ -3,7 +3,7 @@ import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
 import { type Signer, Wallet } from "ethers";
 import { ethers } from "hardhat";
-import { setGasParams } from "../tasks/actions/utils/bundlers";
+import { setGasParams } from "../tasks/utils/bundlers";
 import {
 	EntryPoint__factory,
 	SafeHarbourPaymaster__factory,
@@ -51,12 +51,8 @@ describe("SafeInternationalHarbour.Paymaster", () => {
 		const HarbourFactory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
 		const erc4337config = build4337Config({
 			entryPoint: await entryPoint.getAddress(),
-			trustedPaymaster: await paymaster.getAddress(),
 		});
-		const harbour = await HarbourFactory.deploy(
-			erc4337config,
-			buildQuotaConfig({ feeToken: await testToken.getAddress() }),
-		);
+		const harbour = await HarbourFactory.deploy(erc4337config);
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint, paymaster, validator, testToken };

@@ -15,32 +15,23 @@ import {
     UserOperationLib
 } from "@account-abstraction/contracts/core/UserOperationLib.sol";
 import {
-    InvalidECDSASignatureLength,
     InvalidEntryPoint,
     InvalidTarget,
     SignerAlreadySignedTransaction,
     UnexpectedNonce,
     InvalidUserOpPaymaster,
-    UnexpectedUserSignature,
     UnexpectedSafeTxHash,
     UnexpectedSigner
 } from "../interfaces/Errors.sol";
 import {IHarbourStore} from "../interfaces/HarbourStore.sol";
-import {IQuotaManager} from "../interfaces/QuotaManager.sol";
 import {PaymasterLib} from "../libs/PaymasterLib.sol";
 import {CoreLib} from "../libs/CoreLib.sol";
 
 struct ERC4337MixinConfig {
     address entryPoint;
-    uint256 maxPriorityFee;
-    uint256 preVerificationGasPerByte;
-    uint256 preVerificationBaseGas;
-    uint256 verificationGasPerByte;
-    uint256 callGasPerByte;
-    address trustedPaymaster;
 }
 
-abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
+abstract contract ERC4337Mixin is IAccount, IHarbourStore {
     using UserOperationLib for PackedUserOperation;
     using PaymasterLib for PackedUserOperation;
 
@@ -52,28 +43,15 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
      * @notice The address of the EntryPoint contract supported by this module.
      */
     address public immutable SUPPORTED_ENTRYPOINT;
-    // TODO evaluate if this should be upgradable
-    uint256 public immutable MAX_PRIORITY_FEE;
-    uint256 public immutable PRE_VERIFICATION_GAS_PER_BYTE;
-    uint256 public immutable PRE_VERIFICATION_BASE_GAS;
-    uint256 public immutable VERIFICATION_GAS_PER_BYTE;
-    uint256 public immutable CALL_GAS_PER_BYTE;
-    address public immutable TRUSTED_PAYMASTER;
 
     constructor(ERC4337MixinConfig memory _config) {
         SUPPORTED_ENTRYPOINT = _config.entryPoint;
-        MAX_PRIORITY_FEE = _config.maxPriorityFee;
-        PRE_VERIFICATION_GAS_PER_BYTE = _config.preVerificationGasPerByte;
-        PRE_VERIFICATION_BASE_GAS = _config.preVerificationBaseGas;
-        VERIFICATION_GAS_PER_BYTE = _config.verificationGasPerByte;
-        CALL_GAS_PER_BYTE = _config.callGasPerByte;
-        TRUSTED_PAYMASTER = _config.trustedPaymaster;
     }
 
     /**
-     * Return the account nonce.
-     * This method returns the next sequential nonce.
-     * For a nonce of a specific key, use `entrypoint.getNonce(account, key)`
+     * @notice Return the nonce for a specific signer.
+     * @param signer Address of the signer of the Safe transaction.
+     * @return Nonce for the signer
      */
     function getNonce(address signer) public view virtual returns (uint256) {
         return
@@ -87,15 +65,10 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         PackedUserOperation calldata userOp,
         bytes32,
         uint256
-    ) external override returns (uint256 validationData) {
+    ) external view override returns (uint256 validationData) {
         require(
             msg.sender == SUPPORTED_ENTRYPOINT,
             InvalidEntryPoint(msg.sender)
-        );
-        // TODO: remove as signature check should happen in paymaster
-        require(
-            userOp.signature.length == 65 || userOp.signature.length == 0,
-            InvalidECDSASignatureLength()
         );
 
         require(
@@ -106,80 +79,33 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
             bytes32 safeTxHash,
             address signer,
             bytes32 r,
-            bytes32 vs,
-            uint256 computedDataLength
+            bytes32 vs
         ) = _verifySafeTxData(userOp.callData[4:]);
 
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(safeTxHash, signer),
+            !_signatureStored(keccak256(abi.encodePacked(r, vs))),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
 
         _verifySignature(safeTxHash, signer, r, vs);
 
-        uint256 nonce = getNonce(signer);
-        // TODO: This is done by the entrypoint and we only need to check that the signer is the key
-        // https://github.com/eth-infinitism/account-abstraction/blob/develop/contracts/core/NonceManager.sol#L37
-        require(userOp.nonce == nonce, UnexpectedNonce(nonce));
+        require(
+            uint192(userOp.nonce >> 64) == uint192(uint160(signer)),
+            UnexpectedNonce(signer)
+        );
 
         // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
 
-        // Since paymasterAndData are not signed it is possible to to replace the paymaster
-        // TODO: To evaluate if we should encode the used paymaster into the refund receiver
-        // OR: for now accept that there is always the chance that the user quota is used first
-        if (userOp.paymasterAndData.length != 0) {
-            address paymaster = userOp.extractPaymaster();
-            // TODO: remove as there is no real need to limit the execution to a pasmaster
-            require(paymaster == TRUSTED_PAYMASTER, InvalidUserOpPaymaster());
-            return _packValidationData(false, 0, 0);
-        } else {
-            // TODO: remove the option to send a userOp without a paymaster
-            // UserOp Signature is used for validators (via the paymaster) and should be empty when no paymaster is used
-            require(userOp.signature.length == 0, UnexpectedUserSignature());
-        }
-
-        // `computedDataLength` is used for validations, as userOp.callData can be extended to manipulate the fees
-        bool validationFailed = !_validGasFees(userOp) ||
-            !_validGasLimits(userOp, computedDataLength) ||
-            !_checkAndUpdateQuota(signer, computedDataLength);
-        return _packValidationData(validationFailed, 0, 0);
-    }
-
-    function _validGasFees(
-        PackedUserOperation calldata userOp
-    ) private view returns (bool) {
-        uint256 maxPriorityFeePerGas = userOp.unpackMaxPriorityFeePerGas();
-        return maxPriorityFeePerGas <= MAX_PRIORITY_FEE;
-    }
-
-    function _validGasLimits(
-        PackedUserOperation calldata userOp,
-        uint256 computedDataLength
-    ) private view returns (bool) {
-        // Base calculations of gas limits on calldata size, this is a simple workaround for now
-        //      -> an alernative for verificationGas could be to do internal gas metering
-        // Employ a maximum gas limit based on locked tokens
-        if (
-            userOp.preVerificationGas >
-            computedDataLength *
-                PRE_VERIFICATION_GAS_PER_BYTE +
-                PRE_VERIFICATION_BASE_GAS
-        ) return false;
-        uint256 verificationGasLimit = userOp.unpackVerificationGasLimit();
-        if (
-            verificationGasLimit >
-            computedDataLength * VERIFICATION_GAS_PER_BYTE
-        ) return false;
-        uint256 callGasLimit = userOp.unpackCallGasLimit();
-        if (callGasLimit > computedDataLength * CALL_GAS_PER_BYTE) return false;
-        return true;
+        // Harbour can only be used with a paymaster when using 4337
+        require(userOp.paymasterAndData.length > 0, InvalidUserOpPaymaster());
+        return _packValidationData(false, 0, 0);
     }
 
     function _verifySafeTxData(
         bytes calldata callData
-    ) private pure returns (bytes32, address, bytes32, bytes32, uint256) {
+    ) private pure returns (bytes32, address, bytes32, bytes32) {
         (
             bytes32 safeTxHash,
             address safeAddress,
@@ -239,7 +165,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore, IQuotaManager {
         );
         // The computed length when properly encoded is based on the data length and the number of params
         // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length + 32 bytes buffer for padding
-        return (safeTxHash, signer, r, vs, data.length + 18 * 32 + 4);
+        return (safeTxHash, signer, r, vs);
     }
 
     function _verifySignature(

@@ -6,14 +6,14 @@ import { useQuotaStats } from "@/hooks/useQuotaStats";
 function QuotaStats({
 	signerAddress,
 	harbourProvider,
-	harbourAddress,
+	quotaManagerAddress,
 	updateIsLoading,
 	className,
 	refreshTrigger,
 }: {
 	signerAddress: string | undefined;
 	harbourProvider: JsonRpcApiProvider | null;
-	harbourAddress: string | undefined;
+	quotaManagerAddress: string | undefined;
 	refreshTrigger?: number;
 	updateIsLoading?: (isLoading: boolean) => void;
 	className?: string;
@@ -22,7 +22,7 @@ function QuotaStats({
 		quotaStats,
 		isLoading: isLoadingQuota,
 		refresh,
-	} = useQuotaStats(harbourProvider, signerAddress, harbourAddress);
+	} = useQuotaStats(harbourProvider, signerAddress, quotaManagerAddress);
 
 	useEffect(() => {
 		updateIsLoading?.(isLoadingQuota);
