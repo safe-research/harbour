@@ -28,12 +28,12 @@ struct SafeTransaction {
 }
 
 /**
- * @dev Minimal, storage‑optimised representation of an ECDSA signature.
+ * @dev Minimal, storage-optimised representation of an ECDSA signature.
  */
 struct SignatureDataWithTxHashIndex {
     bytes32 r;
     // vs is the compact representation of s and v coming from
     // EIP-2098: https://eips.ethereum.org/EIPS/eip-2098
     bytes32 vs;
-    bytes32 txHash; // EIP‑712 digest this signature belongs to
+    bytes32 txHash; // EIP-712 digest this signature belongs to
 }

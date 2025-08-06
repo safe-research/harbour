@@ -9,11 +9,11 @@ pragma solidity ^0.8.29;
  * @notice Emitted whenever a new signature is stored (and possibly the parameters on first sight).
  *
  * @param signer     Address recovered from the provided signature.
- * @param safe       Safe Smart‑Account the transaction targets.
- * @param safeTxHash EIP‑712 hash identifying the SafeTx.
+ * @param safe       Safe Smart-Account the transaction targets.
+ * @param safeTxHash EIP-712 hash identifying the SafeTx.
  * @param chainId    Intended execution chain.
  * @param nonce      Safe nonce.
- * @param listIndex  Position of the signature in the signer‑specific array.
+ * @param listIndex  Position of the signature in the signer-specific array.
  */
 event SignatureStored(
     address indexed signer,

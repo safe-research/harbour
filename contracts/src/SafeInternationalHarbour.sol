@@ -15,24 +15,24 @@ import {ERC4337Mixin, ERC4337MixinConfig} from "./mixins/ERC4337Mixin.sol";
 
 /**
  * @title SafeInternationalHarbour
- * @notice Permissionless, append‑only registry that lets **any EOA signer** publish Safe
- *         transactions ("SafeTx") and their signatures. Clients without an off‑chain indexer can reconstruct the full multisig payload with only:
+ * @notice Permissionless, append-only registry that lets **any EOA signer** publish Safe
+ *         transactions ("SafeTx") and their signatures. Clients without an off-chain indexer can reconstruct the full multisig payload with only:
  *         1. the Safe address;
  *         2. the target `chainId`;
  *         3. the Safe `nonce`; and
  *         4. the current Safe owners set.
  *
- * Each unique `safeTxHash` (EIP‑712 digest of the SafeTx struct) is persisted **once** together with
+ * Each unique `safeTxHash` (EIP-712 digest of the SafeTx struct) is persisted **once** together with
  * its parameters. Signatures are appended under the composite key
- * `(signer, safe, chainId, nonce)`, enabling on‑chain, gas‑efficient look‑ups.
+ * `(signer, safe, chainId, nonce)`, enabling on-chain, gas-efficient look-ups.
  *
- * ### ⚠️ Contract‑based signers unsupported
- * Only ECDSA signatures from externally‑owned accounts (EOAs) are supported. Contract wallets that
- * rely on ERC‑1271 or similar cannot be verified on‑chain in a chain‑agnostic way and are therefore
+ * ### ⚠️ Contract-based signers unsupported
+ * Only ECDSA signatures from externally-owned accounts (EOAs) are supported. Contract wallets that
+ * rely on ERC-1271 or similar cannot be verified on-chain in a chain-agnostic way and are therefore
  * **not supported**.
  *
  * @dev The {SignatureStored} event is the only hook required by indexers; however, the contract is
- *      fully functional without any off‑chain infrastructure.
+ *      fully functional without any off-chain infrastructure.
  */
 contract SafeInternationalHarbour is ERC4337Mixin {
     // ------------------------------------------------------------------
@@ -71,7 +71,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @dev If `safeTxHash` has been seen before, its parameters are *not* validated nor overwritten –
      *      the call simply appends the `(r,s)` pair for `signer`.
      *
-     * @param safeAddress    Target Safe Smart‑Account.
+     * @param safeAddress    Target Safe Smart-Account.
      * @param chainId        Chain id the transaction is meant for.
      * @param nonce          Safe nonce.
      * @param to             Destination of the inner call/delegatecall.
@@ -81,11 +81,11 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @param safeTxGas      Gas forwarded to the inner call.
      * @param baseGas        Fixed overhead reimbursed to the submitting signer.
      * @param gasPrice       Gas price used for reimbursement.
-     * @param gasToken       ERC‑20 token address for refunds (`address(0)` = ETH).
+     * @param gasToken       ERC-20 token address for refunds (`address(0)` = ETH).
      * @param refundReceiver Address receiving the gas refund.
-     * @param signature      **Single** 65‑byte ECDSA signature.
+     * @param signature      **Single** 65-byte ECDSA signature.
      *
-     * @return listIndex     Index of the stored signature in the signer‑specific list.
+     * @return listIndex     Index of the stored signature in the signer-specific list.
      *
      * @custom:events Emits {SignatureStored}.
      */
@@ -107,7 +107,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         require(signature.length == 65, InvalidECDSASignatureLength());
 
         // ------------------------------------------------------------------
-        // Build the EIP‑712 digest that uniquely identifies the SafeTx
+        // Build the EIP-712 digest that uniquely identifies the SafeTx
         // ------------------------------------------------------------------
         bytes32 safeTxHash = CoreLib.computeSafeTxHash(
             safeAddress,
@@ -170,9 +170,9 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     /**
      * @notice Retrieve the full parameter set of a Safe transaction.
      *
-     * @param safeTxHash EIP‑712 digest of the transaction.
+     * @param safeTxHash EIP-712 digest of the transaction.
      *
-     * @return txParams Struct with all SafeTx parameters (zero‑initialised if unknown).
+     * @return txParams Struct with all SafeTx parameters (zero-initialised if unknown).
      */
     function retrieveTransaction(
         bytes32 safeTxHash
@@ -184,10 +184,10 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @notice Paginated getter for signature entries.
      *
      * @param signerAddress Address that created the signatures.
-     * @param safeAddress   Safe Smart‑Account.
+     * @param safeAddress   Safe Smart-Account.
      * @param chainId       Target chain id.
      * @param nonce         Safe nonce.
-     * @param start         Zero‑based start index of the slice.
+     * @param start         Zero-based start index of the slice.
      * @param count         Maximum number of entries to return.
      *
      * @return page       Array slice `[start … start+count)` (may be shorter).
@@ -232,7 +232,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @notice Convenience getter returning the **number** of signatures stored for the key tuple.
      *
      * @param signerAddress Signer address.
-     * @param safeAddress   Safe Smart‑Account.
+     * @param safeAddress   Safe Smart-Account.
      * @param chainId       Target chain id.
      * @param nonce         Safe nonce.
      *
@@ -266,7 +266,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @dev Internal function to store the transaction data and signature after validation.
      *
      * @param safeTxHash     EIP-712 digest of the transaction.
-     * @param safeAddress    Target Safe Smart‑Account.
+     * @param safeAddress    Target Safe Smart-Account.
      * @param chainId        Chain id the transaction is meant for.
      * @param nonce          Safe nonce.
      * @param to             Destination of the inner call/delegatecall.
@@ -276,7 +276,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
      * @param safeTxGas      Gas forwarded to the inner call.
      * @param baseGas        Fixed overhead reimbursed to the submitting signer.
      * @param gasPrice       Gas price used for reimbursement.
-     * @param gasToken       ERC‑20 token address for refunds (`address(0)` = ETH).
+     * @param gasToken       ERC-20 token address for refunds (`address(0)` = ETH).
      * @param refundReceiver Address receiving the gas refund.
      */
     function _storeTransaction(

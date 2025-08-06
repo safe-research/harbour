@@ -38,7 +38,7 @@ abstract contract IHarbourStore {
      * @dev Internal function to store the transaction data and signature after validation.
      *
      * @param safeTxHash     EIP-712 digest of the transaction.
-     * @param safeAddress    Target Safe Smart‑Account.
+     * @param safeAddress    Target Safe Smart-Account.
      * @param chainId        Chain id the transaction is meant for.
      * @param nonce          Safe nonce.
      * @param to             Destination of the inner call/delegatecall.
@@ -48,7 +48,7 @@ abstract contract IHarbourStore {
      * @param safeTxGas      Gas forwarded to the inner call.
      * @param baseGas        Fixed overhead reimbursed to the submitting signer.
      * @param gasPrice       Gas price used for reimbursement.
-     * @param gasToken       ERC‑20 token address for refunds (`address(0)` = ETH).
+     * @param gasToken       ERC-20 token address for refunds (`address(0)` = ETH).
      * @param refundReceiver Address receiving the gas refund.
      */
     function _storeTransaction(
