@@ -49,9 +49,9 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
     }
 
     /**
-     * Return the account nonce.
-     * This method returns the next sequential nonce.
-     * For a nonce of a specific key, use `entrypoint.getNonce(account, key)`
+     * @notice Return the nonce for a specific signer.
+     * @param signer Address of the signer of the Safe transaction.
+     * @return Nonce for the signer
      */
     function getNonce(address signer) public view virtual returns (uint256) {
         return
@@ -85,7 +85,7 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(keccak256(abi.encodePacked(r, vs))),
+            !_signatureStored(keccak256(abi.encodePacked(r, vs))),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
 

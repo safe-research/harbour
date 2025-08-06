@@ -12,6 +12,9 @@ import {
 import {SignatureStored, NewTransaction} from "./interfaces/Events.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
 import {ERC4337Mixin, ERC4337MixinConfig} from "./mixins/ERC4337Mixin.sol";
+// Imported for natspec inheritance
+// solhint-disable-next-line no-unused-import
+import {IHarbourStore} from "./interfaces/HarbourStore.sol";
 
 /**
  * @title SafeInternationalHarbour
@@ -39,15 +42,14 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     // Storage
     // ------------------------------------------------------------------
 
-    /// Mapping `safeTxHash → SafeTransaction` parameters
+    // Mapping `safeTxHash → SafeTransaction` parameters
     mapping(bytes32 => SafeTransaction) private _txDetails;
 
-    /// Mapping `signer → safe → chainId → nonce → SignatureDataWithTxHashIndex[]`
-    /// Stores the list of signatures provided by a signer for a given Safe context.
-    /// Note: A single list entry here could contain signatures for *different* `safeTxHash` values
-    /// if those transactions share the same (safe, chainId, nonce). Use `_hasSignerSignedTx`
-    /// to ensure a signer only signs a specific `safeTxHash` once.
-
+    // Mapping `signer → safe → chainId → nonce → SignatureData[]`
+    // Stores the list of signatures provided by a signer for a given Safe context.
+    // Note: A single list entry here could contain signatures for *different* `safeTxHash` values
+    // if those transactions share the same (safe, chainId, nonce). Use `_hasSignerSignedTx`
+    // to ensure a signer only signs a specific `safeTxHash` once.
     struct SignatureData {
         bytes32 r;
         bytes32 vs;
@@ -148,7 +150,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
         // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
         require(
-            !_signerSignedTx(keccak256(abi.encodePacked(r, vs))),
+            !_signatureStored(keccak256(abi.encodePacked(r, vs))),
             SignerAlreadySignedTransaction(signer, safeTxHash)
         );
         return
@@ -252,32 +254,16 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     // ------------------------------------------------------------------
 
     /**
-     * @dev Internal function to store the transaction data and signature after validation.
-     *
-     * @param signatureHash    EIP-712 digest of the transaction.
+     * @inheritdoc IHarbourStore
      */
-    function _signerSignedTx(
+    function _signatureStored(
         bytes32 signatureHash
     ) internal view override returns (bool signed) {
         signed = _signatureLink[signatureHash] != 0;
     }
 
     /**
-     * @dev Internal function to store the transaction data and signature after validation.
-     *
-     * @param safeTxHash     EIP-712 digest of the transaction.
-     * @param safeAddress    Target Safe Smart-Account.
-     * @param chainId        Chain id the transaction is meant for.
-     * @param nonce          Safe nonce.
-     * @param to             Destination of the inner call/delegatecall.
-     * @param value          ETH value forwarded by the Safe.
-     * @param data           Calldata executed by the Safe.
-     * @param operation      0 = CALL, 1 = DELEGATECALL.
-     * @param safeTxGas      Gas forwarded to the inner call.
-     * @param baseGas        Fixed overhead reimbursed to the submitting signer.
-     * @param gasPrice       Gas price used for reimbursement.
-     * @param gasToken       ERC-20 token address for refunds (`address(0)` = ETH).
-     * @param refundReceiver Address receiving the gas refund.
+     * @inheritdoc IHarbourStore
      */
     function _storeTransaction(
         bytes32 safeTxHash,
@@ -344,17 +330,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     }
 
     /**
-     * @dev Internal function to store a signature after validation.
-     *
-     * @param signer        Address that signed the transaction.
-     * @param safeAddress   Target Safe Smart-Account.
-     * @param chainId       Chain id the transaction is meant for.
-     * @param nonce         Safe nonce.
-     * @param safeTxHash    EIP-712 digest of the transaction.
-     * @param r             First 32 bytes of the signature.
-     * @param vs            Compact representation of s and v from EIP-2098.
-     *
-     * @return listIndex    Index of the stored signature in the signer-specific list.
+     * @inheritdoc IHarbourStore
      */
     function _storeSignature(
         address signer,

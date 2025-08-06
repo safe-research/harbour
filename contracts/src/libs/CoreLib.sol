@@ -96,7 +96,7 @@ library CoreLib {
         signer = ecrecover(digest, uint8(v), r, s);
         require(signer != address(0), InvalidSignature());
         unchecked {
-            vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
+            vs = bytes32((uint256(v - 27) << 255) | uint256(s));
         }
     }
 

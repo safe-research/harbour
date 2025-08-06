@@ -114,7 +114,7 @@ export class WakuManager {
 		if (node === undefined || !this.isAvailable())
 			throw Error("Waku is not available");
 		console.log({ transaction, signature });
-		/// Create a new message object
+		// Create a new message object
 		const protoMessage = SafeTransactionPacket.create({
 			...transaction,
 			safe: transaction.safeAddress,
