@@ -1,7 +1,7 @@
 import { toBeHex } from "ethers";
 import type { EthereumProvider } from "hardhat/types";
-import { serialize } from "../../../test/utils/erc4337";
-import type { PackedUserOperationStruct } from "../../../typechain-types/src/SafeHarbourPaymaster";
+import { serialize } from "../../test/utils/erc4337";
+import type { PackedUserOperationStruct } from "../../typechain-types/src/SafeHarbourPaymaster";
 
 type JsonRpcResult<R> = {
 	jsonrpc: "2.0";

@@ -102,7 +102,10 @@ describe("QuotaMixin", () => {
 			0n, // Used Signer Quota
 			0n, // Next Signer Quota Reset
 		]);
-		await expect(quotaManager.checkAndUpdateQuota(alice, 100)).to.be.revertedWith("Max signer quota too high");
+		await expect(quotaManager.checkAndUpdateQuota(alice, 100)).to.be.revertedWithCustomError(
+			quotaManager,
+			"QuotaOverflow",
+		);
 	});
 
 	it("should max out available quote for signer", async () => {
@@ -165,9 +168,9 @@ describe("QuotaMixin", () => {
 			0n, // Next Signer Quota Reset
 		]);
 
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("500", 18), bob, 0)).to.be.revertedWith(
-			"Withdrawal was already performed",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("500", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "WithdrawalAlreadyPerformed");
 		expect(await quotaManager.quotaStatsForSigner(alice)).to.be.deep.eq([
 			ethers.parseUnits("500", 18), // Signer Token Balance
 			0n, // Used Signer Quota
@@ -201,9 +204,9 @@ describe("QuotaMixin", () => {
 		await testToken.approve(await quotaManager.getAddress(), ethers.parseUnits("1", 18));
 		await quotaManager.depositTokensForSigner(alice, ethers.parseUnits("1", 18));
 		const sig = await signWithdrawal(alice, quotaManager, ethers.parseUnits("500", 18), bob.address);
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("2", 18), bob, 0)).to.be.revertedWith(
-			"Insufficient Tokens",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("2", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "InsufficientTokensForWithdrawal");
 	});
 
 	it("should revert if signature for different amount is used", async () => {
@@ -211,9 +214,9 @@ describe("QuotaMixin", () => {
 		await testToken.approve(await quotaManager.getAddress(), ethers.parseUnits("1", 18));
 		await quotaManager.depositTokensForSigner(alice, ethers.parseUnits("1", 18));
 		const sig = await signWithdrawal(alice, quotaManager, ethers.parseUnits("500", 18), bob.address);
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0)).to.be.revertedWith(
-			"Insufficient Tokens",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "InsufficientTokensForWithdrawal");
 	});
 
 	it("should revert if signature for different domain is used", async () => {
@@ -221,9 +224,9 @@ describe("QuotaMixin", () => {
 		await testToken.approve(await quotaManager.getAddress(), ethers.parseUnits("1", 18));
 		await quotaManager.depositTokensForSigner(alice, ethers.parseUnits("1", 18));
 		const sig = await signWithdrawal(alice, quotaManager, ethers.parseUnits("500", 18), bob.address);
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0)).to.be.revertedWith(
-			"Insufficient Tokens",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "InsufficientTokensForWithdrawal");
 	});
 
 	it("should revert if not tokens deposited", async () => {
@@ -325,9 +328,9 @@ describe("QuotaMixin", () => {
 
 		await quotaManager.checkAndUpdateQuota(alice, 1);
 		const sig = await signWithdrawal(alice, quotaManager, ethers.parseUnits("1", 18), bob.address);
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0)).to.be.revertedWith(
-			"Tokens have been used during this timeframe",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "TokensInUse");
 	});
 
 	it("should be able to use quota after reset", async () => {
@@ -390,9 +393,9 @@ describe("QuotaMixin", () => {
 		]);
 
 		const sig = await signWithdrawal(alice, quotaManager, ethers.parseUnits("1", 18), bob.address);
-		await expect(quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0)).to.be.revertedWith(
-			"Tokens have been used during this timeframe",
-		);
+		await expect(
+			quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0),
+		).to.be.revertedWithCustomError(quotaManager, "TokensInUse");
 
 		const newTime = await time.increase(24 * 3600);
 		await quotaManager.widthdrawTokensForSigner(sig, ethers.parseUnits("1", 18), bob, 0);

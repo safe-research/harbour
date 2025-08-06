@@ -21,7 +21,7 @@ export const Route = createFileRoute("/settings")({
  * @returns JSX element for the dashboard page.
  */
 export function SettingsPage() {
-	const [currentSettings] = useCurrentSettings();
+	const [currentSettings, loadSettings] = useCurrentSettings();
 
 	return (
 		<Container>
@@ -32,13 +32,19 @@ export function SettingsPage() {
 			</Box>
 			<Box className="mt-4">
 				{currentSettings ? (
-					<SettingsForm currentSettings={currentSettings} />
+					<SettingsForm
+						currentSettings={currentSettings}
+						onSubmitted={loadSettings}
+					/>
 				) : (
 					"Loading..."
 				)}
 			</Box>
-			{currentSettings && (
-				<QuotaOverview currentSettings={currentSettings} className="mt-4" />
+			{currentSettings?.quotaManagerAddress && (
+				<QuotaOverview
+					quotaManagerAddress={currentSettings.quotaManagerAddress}
+					className="mt-4"
+				/>
 			)}
 		</Container>
 	);

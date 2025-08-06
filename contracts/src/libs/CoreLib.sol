@@ -1,10 +1,16 @@
-// // SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import "../interfaces/Constants.sol";
-import "../interfaces/Types.sol";
-import "../interfaces/Errors.sol";
-import "../interfaces/Events.sol";
+import {
+    DOMAIN_TYPEHASH,
+    SAFE_TX_TYPEHASH,
+    SECP256K1_LOW_S_BOUND
+} from "../interfaces/Constants.sol";
+import {
+    InvalidSignatureSValue,
+    InvalidSignature,
+    ValueDoesNotFitInUint128
+} from "../interfaces/Errors.sol";
 
 library CoreLib {
     // ------------------------------------------------------------------
@@ -77,7 +83,7 @@ library CoreLib {
         bytes32 digest,
         bytes calldata sig
     ) internal pure returns (address signer, bytes32 r, bytes32 vs) {
-        uint8 v;
+        uint256 v;
         bytes32 s;
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
@@ -87,14 +93,10 @@ library CoreLib {
         }
         require(s <= SECP256K1_LOW_S_BOUND, InvalidSignatureSValue());
 
-        signer = ecrecover(digest, v, r, s);
+        signer = ecrecover(digest, uint8(v), r, s);
         require(signer != address(0), InvalidSignature());
-        // solhint-disable-next-line no-inline-assembly
-        assembly ("memory-safe") {
-            // Equivalent to:
-            // vs = bytes32(uint256(v - 27)  << 255 | uint256(s));
-            // Which should avoid conversion between uint256 and bytes32
-            vs := or(shl(255, sub(v, 27)), s)
+        unchecked {
+            vs = bytes32((uint256(v - 27) << 255) | uint256(s));
         }
     }
 
@@ -111,12 +113,12 @@ library CoreLib {
     }
 
     function splitVS(bytes32 vs) internal pure returns (bytes32 s, uint8 v) {
+        // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
             // Equivalent to:
-            // vs = bytes32(uint256(v - 27) << 255 | uint256(s));
             // s = bytes32(uint256(vs) & (uint256(1 << 255) - 1))
             // v = uint8(uint256(vs >> 255) + 27)
-            // Which should avoid conversion between uint256 and bytes32
+            // Assembly is slighly more gas efficient here
             s := and(sub(shl(255, 1), 1), vs)
             v := add(shr(255, vs), 27)
         }

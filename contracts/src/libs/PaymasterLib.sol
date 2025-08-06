@@ -1,4 +1,4 @@
-// // SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
 import {
@@ -7,6 +7,7 @@ import {
 import {
     PackedUserOperation
 } from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import {InvalidValidatorData} from "../interfaces/Errors.sol";
 
 library PaymasterLib {
     using UserOperationLib for PackedUserOperation;
@@ -21,7 +22,7 @@ library PaymasterLib {
     ) internal pure returns (uint48 validAfter, uint48 validUntil) {
         require(
             userOp.paymasterAndData.length >= PAYMASTER_VALID_UNTIL_END,
-            "Invalid Validator Data"
+            InvalidValidatorData()
         );
         validAfter = uint48(
             bytes6(

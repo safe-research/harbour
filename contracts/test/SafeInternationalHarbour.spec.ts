@@ -4,7 +4,6 @@ import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
 import { build4337Config } from "./utils/erc4337";
-import { buildQuotaConfig } from "./utils/quota";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -13,7 +12,7 @@ describe("SafeInternationalHarbour", () => {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
 		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy(build4337Config(), buildQuotaConfig());
+		const harbour = await Factory.deploy(build4337Config());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress };

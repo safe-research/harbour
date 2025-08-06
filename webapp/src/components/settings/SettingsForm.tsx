@@ -42,6 +42,10 @@ function useCurrentSettings(): [
 const createSettingsFormSchema = () =>
 	z.object({
 		harbourAddress: z.union([ethereumAddressSchema, z.literal("")]),
+		quotaManagerAddress: z.union([
+			ethereumAddressSchema,
+			z.literal("").optional(),
+		]),
 		rpcUrl: z.union([z.string().url(), z.literal("")]),
 		bundlerUrl: z.union([z.string().url(), z.literal("")]),
 		validatorUrl: z.union([z.string().url(), z.literal("")]),
@@ -99,6 +103,13 @@ function SettingsForm({
 				register={register}
 				error={errors.harbourAddress}
 				label="Harbour Address"
+				placeholder="0x...."
+			/>
+			<FormItem
+				id="quotaManagerAddress"
+				register={register}
+				error={errors.quotaManagerAddress}
+				label="Quota Manager Address"
 				placeholder="0x...."
 			/>
 			<FormItem
