@@ -33,7 +33,6 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 			build4337Config({
 				...harbourConfig.erc4337config,
 			}),
-			buildQuotaConfig(harbourConfig.quotaConfig),
 		],
 		log: true,
 	});
