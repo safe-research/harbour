@@ -7,6 +7,7 @@ import {
     SECP256K1_LOW_S_BOUND
 } from "../interfaces/Constants.sol";
 import {
+    InvalidECDSASignatureLength,
     InvalidSignatureSValue,
     InvalidSignature,
     ValueDoesNotFitInUint128
@@ -47,10 +48,7 @@ library CoreLib {
         address gasToken,
         address refundReceiver
     ) internal pure returns (bytes32 safeTxHash) {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, chainId, safeAddress)
-        );
-        bytes32 structHash = keccak256(
+        bytes32 safeTxStructHash = keccak256(
             abi.encode(
                 SAFE_TX_TYPEHASH,
                 to,
@@ -65,8 +63,30 @@ library CoreLib {
                 nonce
             )
         );
+        safeTxHash = computePartialSafeTxHash(
+            chainId,
+            safeAddress,
+            safeTxStructHash
+        );
+    }
+
+    /**
+     * @notice Computes a Safe transaction hash from partial data.
+     * @param chainId Chain ID included in the domain separator.
+     * @param safeAddress Address of the target Safe Smart Account.
+     * @param safeTxStructHash The EIP-712 struct hash of the Safe transaction data.
+     * @return safeTxHash Keccak256 digest of the EIP-712 encoded SafeTx.
+     */
+    function computePartialSafeTxHash(
+        uint256 chainId,
+        address safeAddress,
+        bytes32 safeTxStructHash
+    ) internal pure returns (bytes32 safeTxHash) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, chainId, safeAddress)
+        );
         safeTxHash = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, structHash)
+            abi.encodePacked("\x19\x01", domainSeparator, safeTxStructHash)
         );
     }
 
@@ -83,6 +103,7 @@ library CoreLib {
         bytes32 digest,
         bytes calldata sig
     ) internal pure returns (address signer, bytes32 r, bytes32 vs) {
+        require(sig.length == 65, InvalidECDSASignatureLength());
         uint256 v;
         bytes32 s;
         // solhint-disable-next-line no-inline-assembly
