@@ -57,7 +57,7 @@ event NewTransaction(
 );
 
 /**
- * @notice Emitted whenever a an encryption key is registered for a signer.
+ * @notice Emitted whenever an encryption key is registered for a signer.
  *
  * @param signer        The signer for which the key was registered.
  * @param encryptionKey Encrypted Safe transaction data.
