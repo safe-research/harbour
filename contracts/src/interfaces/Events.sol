@@ -60,6 +60,21 @@ event NewTransaction(
  * @notice Emitted whenever an encryption key is registered for a signer.
  *
  * @param signer        The signer for which the key was registered.
- * @param encryptionKey Encrypted Safe transaction data.
+ * @param encryptionKey A 32-byte encryption key. The exact format of the key is left up to the
+ *                      application.
  */
 event EncryptionKeyRegistered(address indexed signer, bytes32 encryptionKey);
+
+/**
+ * @notice Emitted whenever a signed encrypted Safe transaction is registered.
+ *
+ * @param uid             A unique registration identifier that can be used for event filtering.
+ * @param safeTxHash      EIP-712 hash identifying the Safe transaction.
+ * @param encryptedSafeTx Encrypted Safe transaction data.
+ */
+event SafeTransactionRegistered(
+    bytes32 indexed uid,
+    bytes32 indexed safeTxHash,
+    bytes signature,
+    bytes encryptedSafeTx
+);
