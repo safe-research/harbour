@@ -103,7 +103,7 @@ export function buildSafeTx(params: Partial<SafeTransaction> = {}): SafeTransact
 
 export async function buildSignedUserOp(
 	harbour: SafeInternationalHarbour,
-	signerWallet: Signer,
+	signerWallet: Pick<Signer, "getAddress" | "signTypedData">,
 	chainId: bigint,
 	safeAddress: string,
 	safeTx: SafeTransaction,
@@ -226,7 +226,7 @@ export async function signUserOp(
 	chainId: bigint,
 	entryPoint: EntryPoint,
 	userOp: PackedUserOperationStruct,
-	signer: Signer,
+	signer: Pick<Signer, "signTypedData">,
 ): Promise<string> {
 	return signer.signTypedData(
 		{
