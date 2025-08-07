@@ -57,7 +57,7 @@ function DashboardContent({
 	const walletConnectDisabled = !canUseWalletConnect();
 
 	return (
-		<div className="min-h-screen bg-gray-50">
+		<div className="bg-gray-50">
 			<div className="max-w-5xl mx-auto p-6 space-y-8">
 				<div>
 					<BackButton to="/">Back to home</BackButton>

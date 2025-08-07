@@ -54,7 +54,7 @@ function WalletConnectContent({ safe, chainId }: WalletConnectContentProps) {
 	const hasActiveSessions = sessionEntries.length > 0;
 
 	return (
-		<div className="min-h-screen bg-gray-50">
+		<div className="bg-gray-50">
 			<div className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8 space-y-8">
 				<div>
 					<BackToDashboardButton safeAddress={safe} chainId={chainId} />

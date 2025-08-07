@@ -3,6 +3,7 @@ import { safeIdSchema } from "@/lib/validators";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
+import { SafeResearchBanner } from "./SafeResearch";
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
@@ -44,6 +45,7 @@ export default function Header() {
 					Harbour
 				</Link>
 			</nav>
+			<SafeResearchBanner />
 			<div className="flex items-center gap-2">
 				{/* Batch cart button */}
 				{totalCount > 0 && safeAddressParam && chainIdParamNum && (
