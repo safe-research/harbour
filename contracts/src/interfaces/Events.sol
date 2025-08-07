@@ -62,4 +62,4 @@ event NewTransaction(
  * @param signer        The signer for which the key was registered.
  * @param encryptionKey Encrypted Safe transaction data.
  */
-event EncryptionKeyRegistered(address indexed signer, uint256 encryptionKey);
+event EncryptionKeyRegistered(address indexed signer, bytes32 encryptionKey);

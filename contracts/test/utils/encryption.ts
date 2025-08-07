@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 
 interface X25519Key {
 	readonly decryptionKey: CryptoKey;
-	readonly encryptionKey: bigint;
+	readonly encryptionKey: string;
 }
 
 async function randomX25519KeyPair(): Promise<X25519Key> {
@@ -14,9 +14,9 @@ async function randomX25519KeyPair(): Promise<X25519Key> {
 	};
 }
 
-async function exportX25519PublicKey(publicKey: CryptoKey): Promise<bigint> {
+async function exportX25519PublicKey(publicKey: CryptoKey): Promise<string> {
 	const raw = await crypto.subtle.exportKey("raw", publicKey);
-	return ethers.toBigInt(new Uint8Array(raw));
+	return ethers.hexlify(new Uint8Array(raw));
 }
 
 export { randomX25519KeyPair };

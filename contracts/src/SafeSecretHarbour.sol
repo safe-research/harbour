@@ -18,7 +18,8 @@ import {EncryptionKeyRegistered} from "./interfaces/Events.sol";
  *         than once, to allow rotating the encryption.
  *
  *         Additionally, this contract contains a public encryption key registry, and functions as
- *         a trustless channel for signers to communicate encryption keys amongst themselves.
+ *         a trustless channel for signers to communicate public encryption keys amongst themselves
+           in order to support asymmetric encryption schemes of the transaction data.
  */
 contract SafeSecretHarbour {
     // ------------------------------------------------------------------
@@ -29,9 +30,9 @@ contract SafeSecretHarbour {
      * Mapping of signers to a public encryption key.
      * @dev This contract does not enforce any key format, but uses Curve25519 public encryption
      *      keys in the reference client implementation. The only restriction is that the key must
-     *      fit in 256 bits.
+     *      fit in 32 bytes.
      */
-    mapping(address signer => uint256 publicKey) private _encryptionKeys;
+    mapping(address signer => bytes32 publicKey) private _encryptionKeys;
 
     // ------------------------------------------------------------------
     // External & public write functions
@@ -43,7 +44,7 @@ contract SafeSecretHarbour {
      * @param encryptionKey The public encryption key to be registered for the
      *                      `msg.sender` signer.
      */
-    function registerEncryptionKey(uint256 encryptionKey) external {
+    function registerEncryptionKey(bytes32 encryptionKey) external {
         _encryptionKeys[msg.sender] = encryptionKey;
         emit EncryptionKeyRegistered(msg.sender, encryptionKey);
     }
@@ -64,8 +65,8 @@ contract SafeSecretHarbour {
      */
     function retrieveEncryptionKeys(
         address[] calldata signers
-    ) external view returns (uint256[] memory encryptionKeys) {
-        encryptionKeys = new uint256[](signers.length);
+    ) external view returns (bytes32[] memory encryptionKeys) {
+        encryptionKeys = new bytes32[](signers.length);
         for (uint256 i = 0; i < signers.length; i++) {
             encryptionKeys[i] = _encryptionKeys[signers[i]];
         }

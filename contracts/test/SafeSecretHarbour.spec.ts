@@ -17,19 +17,27 @@ describe("SafeInternationalHarbour", () => {
 	it("should register a public encryption key", async () => {
 		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
 
+		await harbour.connect(signer).registerEncryptionKey(encryptionKey);
+		const [storedEncryptionKey] = await harbour.retrieveEncryptionKeys([signer]);
+		expect(storedEncryptionKey).to.equal(encryptionKey);
+	});
+
+	it("should emit a key registration event", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
 		await expect(harbour.connect(signer).registerEncryptionKey(encryptionKey))
 			.to.emit(harbour, "EncryptionKeyRegistered")
 			.withArgs(signer.address, encryptionKey);
 	});
 
-	it("should be able to retrieve a public encryption keys for signers", async () => {
+	it("should be able to retrieve a public encryption keys for multiple signers at a time", async () => {
 		const { signer, alice, harbour, encryptionKey } = await loadFixture(deployFixture);
 
 		const signers = [];
 		const keys = [];
 		for (const { account, key } of [
 			{ account: signer, key: encryptionKey },
-			{ account: alice, key: BigInt(ethers.id("alice")) },
+			{ account: alice, key: ethers.id("alice") },
 		]) {
 			await harbour.connect(account).registerEncryptionKey(key);
 
