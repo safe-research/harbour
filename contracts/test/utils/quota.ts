@@ -37,7 +37,7 @@ export async function addValidatorSignature(
 	chainId: bigint,
 	entryPoint: EntryPoint,
 	userOp: PackedUserOperationStruct,
-	validator: Signer,
+	validator: Pick<Signer, "signTypedData">,
 ) {
 	const validatorSig = Signature.from(await signUserOp(chainId, entryPoint, userOp, validator));
 	userOp.signature = validatorSig.serialized;
