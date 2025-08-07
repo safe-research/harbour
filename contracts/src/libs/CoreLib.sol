@@ -7,6 +7,7 @@ import {
     SECP256K1_LOW_S_BOUND
 } from "../interfaces/Constants.sol";
 import {
+    InvalidECDSASignatureLength,
     InvalidSignatureSValue,
     InvalidSignature,
     ValueDoesNotFitInUint128
@@ -102,6 +103,7 @@ library CoreLib {
         bytes32 digest,
         bytes calldata sig
     ) internal pure returns (address signer, bytes32 r, bytes32 vs) {
+        require(sig.length == 65, InvalidECDSASignatureLength());
         uint256 v;
         bytes32 s;
         // solhint-disable-next-line no-inline-assembly

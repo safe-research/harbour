@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {InvalidECDSASignatureLength} from "./interfaces/Errors.sol";
 import {
     EncryptionKeyRegistered,
     SafeTransactionRegistered
@@ -96,8 +95,6 @@ contract SafeSecretHarbour {
         bytes calldata signature,
         bytes calldata encryptedSafeTx
     ) external returns (bytes32 uid) {
-        require(signature.length == 65, InvalidECDSASignatureLength());
-
         bytes32 safeTxHash = CoreLib.computePartialSafeTxHash(
             chainId,
             safe,

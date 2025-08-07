@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {
-    InvalidECDSASignatureLength,
-    SignerAlreadySignedTransaction
-} from "./interfaces/Errors.sol";
+import {SignerAlreadySignedTransaction} from "./interfaces/Errors.sol";
 import {
     SafeTransaction,
     SignatureDataWithTxHashIndex
@@ -106,8 +103,6 @@ contract SafeInternationalHarbour is ERC4337Mixin {
         address refundReceiver,
         bytes calldata signature
     ) external returns (uint256 listIndex) {
-        require(signature.length == 65, InvalidECDSASignatureLength());
-
         // ------------------------------------------------------------------
         // Build the EIP-712 digest that uniquely identifies the SafeTx
         // ------------------------------------------------------------------
