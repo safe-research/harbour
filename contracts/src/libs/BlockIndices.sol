@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-/// @title Block Indices
-/// @notice A storage efficient list of block indices.
-/// @dev The storage layout is similar to that of an `uint64[]` dynamic array, with the exception
-///      that the first 3 elements are stored in the same slot as the array length. This is a nice
-///      optimization which makes short lists be stored in a single slot. Note that this implicitely
-///      limits blocks to the range `[0, type(uint64).max)` and length to `type(uint64).max`.
+/**
+ * @title Block Indices
+ * @notice A storage efficient list of block indices.
+ * @dev The storage layout is similar to that of an `uint64[]` dynamic array, with the exception
+ *      that the first 3 elements are stored in the same slot as the array length. This is a nice
+ *      optimization which makes short lists be stored in a single slot. Note that this implicitely
+ *      limits blocks to the range `[0, type(uint64).max)` and length to `type(uint64).max`.
+ */
 library BlockIndices {
     struct T {
         uint256 prefix;
@@ -20,8 +22,10 @@ library BlockIndices {
         bool first;
     }
 
-    /// Appends a new block index to the list.
-    /// @return index The index at which the new item was added.
+    /**
+     * @notice Appends a new block index to the list.
+     * @return index The index at which the new item was added.
+     */
     function append(
         T storage self,
         uint256 blockIndex
@@ -52,13 +56,17 @@ library BlockIndices {
         }
     }
 
-    /// Get the length of the block index list.
+    /**
+     * @notice Get the length of the block index list.
+     */
     function len(T storage self) internal view returns (uint256 length) {
         return self.prefix & type(uint64).max;
     }
 
-    /// Create an iterator over the block indices.
-    /// @dev The iterator is implemented to minimize storage reads.
+    /**
+     * @notice Create an iterator over the block indices.
+     * @dev The iterator is implemented to minimize storage reads.
+     */
     function iter(T storage self) internal view returns (Iterator memory it) {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
@@ -74,20 +82,26 @@ library BlockIndices {
         }
     }
 
-    /// Returns the count of remaining items in the iterator.
+    /**
+     * @notice Returns the count of remaining items in the iterator.
+     */
     function count(
         Iterator memory self
     ) internal pure returns (uint256 length) {
         return self.cnt;
     }
 
-    /// Moves the iterator to the next block index.
+    /**
+     * @notice Moves the iterator to the next block index.
+     */
     function next(Iterator memory self) internal view returns (bool remaining) {
         remaining = self.cnt != 0;
         skip(self, 1);
     }
 
-    /// Skips items in the iterator.
+    /**
+     * @notice Skips items in the iterator.
+     */
     function skip(Iterator memory self, uint256 n) internal view {
         if (self.cnt < n) {
             self.cnt = 0;
@@ -123,23 +137,29 @@ library BlockIndices {
         }
     }
 
-    /// Truncates the iterator to a maximum of `cnt` items.
+    /**
+     * @notice Truncates the iterator to a maximum of `cnt` items.
+     */
     function take(Iterator memory self, uint256 cnt) internal pure {
         if (self.cnt > cnt) {
             self.cnt = cnt;
         }
     }
 
-    /// Returns the current value of the iterator.
-    /// @dev The caller must only call this function after a call to `next` which returned `true`.
+    /**
+     * @notice Returns the current value of the iterator.
+     * @dev The caller must only call this function after a call to `next` which returned `true`.
+     */
     function value(
         Iterator memory self
     ) internal pure returns (uint256 blockIndex) {
         return self.data & type(uint64).max;
     }
 
-    /// @dev Generate an overflow panic.
-    ///      <https://docs.soliditylang.org/en/v0.8.29/control-structures.html#panic-via-assert-and-error-via-require>
+    /**
+     * @dev Generate an overflow panic.
+     *      <https://docs.soliditylang.org/en/v0.8.29/control-structures.html#panic-via-assert-and-error-via-require>
+     */
     function _panicOverflow() private pure {
         // solhint-disable-next-line no-inline-assembly
         assembly ("memory-safe") {
