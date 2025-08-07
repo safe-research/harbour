@@ -6,6 +6,7 @@ import {
     SafeTransactionRegistered
 } from "./interfaces/Events.sol";
 import {SafeTransactionRegistrationHandle} from "./interfaces/Types.sol";
+import {BlockIndices} from "./libs/BlockIndices.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
 
 /**
@@ -27,6 +28,9 @@ import {CoreLib} from "./libs/CoreLib.sol";
  *         in order to support asymmetric encryption schemes of the transaction data.
  */
 contract SafeSecretHarbour {
+    using BlockIndices for BlockIndices.T;
+    using BlockIndices for BlockIndices.Iterator;
+
     // ------------------------------------------------------------------
     // Storage
     // ------------------------------------------------------------------
@@ -47,7 +51,7 @@ contract SafeSecretHarbour {
      *      set of keys (in the case a signer registered or rotated an encryption key after the
      *      transaction was initially registered).
      */
-    mapping(uint256 chainId => mapping(address safe => mapping(uint256 nonce => mapping(address signer => uint256[]))))
+    mapping(uint256 chainId => mapping(address safe => mapping(uint256 nonce => mapping(address signer => BlockIndices.T))))
         private _registrations;
 
     // ------------------------------------------------------------------
@@ -169,27 +173,22 @@ contract SafeSecretHarbour {
             uint256 totalCount
         )
     {
-        uint256[] storage blocks = _registrations[chainId][safe][nonce][signer];
+        BlockIndices.T storage blocks = _registrations[chainId][safe][nonce][
+            signer
+        ];
+        BlockIndices.Iterator memory it = blocks.iter();
 
-        totalCount = blocks.length;
-        if (start >= totalCount) {
-            return (page, totalCount);
-        }
+        totalCount = it.count();
+        it.skip(start);
+        it.take(count);
 
-        uint256 end = start + count;
-        if (end > totalCount) {
-            end = totalCount;
-        }
-        uint256 len = end - start;
-
-        page = new SafeTransactionRegistrationHandle[](len);
-        for (uint256 i; i < len; i++) {
-            uint256 blockIndex = blocks[start + i];
-            bytes32 uid = _registrationUid(blocks, start + i);
-            page[i] = SafeTransactionRegistrationHandle({
-                blockIndex: blockIndex,
-                uid: uid
-            });
+        page = new SafeTransactionRegistrationHandle[](it.count());
+        unchecked {
+            for (uint256 i = 0; it.next(); i++) {
+                SafeTransactionRegistrationHandle memory item = page[i];
+                item.blockIndex = it.value();
+                item.uid = _registrationUid(blocks, start + i);
+            }
         }
     }
 
@@ -210,7 +209,7 @@ contract SafeSecretHarbour {
         uint256 nonce,
         address signer
     ) external view returns (uint256 count) {
-        count = _registrations[chainId][safe][nonce][signer].length;
+        count = _registrations[chainId][safe][nonce][signer].len();
     }
 
     // ------------------------------------------------------------------
@@ -239,9 +238,10 @@ contract SafeSecretHarbour {
         bytes calldata signature,
         bytes calldata encryptedSafeTx
     ) internal returns (bytes32 uid) {
-        uint256[] storage blocks = _registrations[chainId][safe][nonce][signer];
-        uint256 index = blocks.length;
-        blocks.push(block.number);
+        BlockIndices.T storage blocks = _registrations[chainId][safe][nonce][
+            signer
+        ];
+        uint256 index = blocks.append(block.number);
 
         uid = _registrationUid(blocks, index);
         emit SafeTransactionRegistered(
@@ -262,7 +262,7 @@ contract SafeSecretHarbour {
      * @return uid   A unique identifier for the registration.
      */
     function _registrationUid(
-        uint256[] storage blocks,
+        BlockIndices.T storage blocks,
         uint256 index
     ) internal pure returns (bytes32 uid) {
         // solhint-disable-next-line no-inline-assembly
