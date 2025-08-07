@@ -37,3 +37,11 @@ struct SignatureDataWithTxHashIndex {
     bytes32 vs;
     bytes32 txHash; // EIP-712 digest this signature belongs to
 }
+
+/**
+ * @dev An encrypted Safe transaction registration handle.
+ */
+struct SafeTransactionRegistrationHandle {
+    uint256 blockIndex;
+    bytes32 uid;
+}
