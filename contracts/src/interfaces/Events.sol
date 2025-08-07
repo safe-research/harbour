@@ -55,3 +55,11 @@ event NewTransaction(
     address refundReceiver,
     bytes data
 );
+
+/**
+ * @notice Emitted whenever a an encryption key is registered for a signer.
+ *
+ * @param signer        The signer for which the key was registered.
+ * @param encryptionKey Encrypted Safe transaction data.
+ */
+event EncryptionKeyRegistered(address indexed signer, uint256 encryptionKey);
