@@ -1,13 +1,13 @@
-import {
-	ethereumAddressSchema,
-	hexDataSchema,
-	safeIdSchema,
-} from "@/lib/validators";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import type { ReactNode } from "react";
 import z from "zod";
+import {
+	ethereumAddressSchema,
+	hexDataSchema,
+	safeIdSchema,
+} from "@/lib/validators";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import { BatchTransactionForm } from "../components/transaction-forms/BatchTransactionForm";
@@ -15,7 +15,7 @@ import { ERC20TransferForm } from "../components/transaction-forms/ERC20Transfer
 import { NativeTransferForm } from "../components/transaction-forms/NativeTransferForm";
 import { RawTransactionForm } from "../components/transaction-forms/RawTransactionForm";
 import { WalletConnectTransactionForm } from "../components/transaction-forms/WalletConnectTransactionForm";
-import { useChainlistRpcProvider } from "../hooks/useChainlistRpcProvider";
+import { useChainlistRpcProvider } from "../hooks/useRpcProvider";
 import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
 import type { ChainId } from "../lib/types";
 

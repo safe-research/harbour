@@ -1,6 +1,6 @@
-import { switchToChain } from "@/lib/chains";
 import { type UseMutationResult, useMutation } from "@tanstack/react-query";
 import type { JsonRpcApiProvider, TransactionResponse } from "ethers";
+import { switchToChain } from "@/lib/chains";
 import { executeTransaction } from "../lib/safe";
 import type {
 	ChainId,

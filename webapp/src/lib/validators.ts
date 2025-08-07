@@ -1,3 +1,4 @@
+import { ethers } from "ethers";
 import { z } from "zod";
 
 /**
@@ -14,6 +15,17 @@ const ethereumAddressSchema = z
 	.regex(ETHEREUM_ADDRESS_REGEX, "Invalid Ethereum address");
 
 /**
+ * Zod schema for validating Ethereum addresses with Checksum
+ */
+const checkedAddressSchema = z.string().refine((arg) => {
+	try {
+		return ethers.getAddress(arg) === arg;
+	} catch {
+		return false;
+	}
+}, "Invalid Ethereum address");
+
+/**
  * Zod schema for validating Safe addresses
  * Alias of ethereumAddressSchema for semantic clarity
  */
@@ -23,7 +35,7 @@ const safeAddressSchema = ethereumAddressSchema;
  * Zod schema for validating Chain IDs.
  * Ensures the chain ID is an integer and a positive number.
  */
-const chainIdSchema = z.number().int().positive();
+const chainIdSchema = z.coerce.bigint().positive();
 
 /**
  * Generic schema for validating numeric strings (reusable for any numeric input)
@@ -127,6 +139,7 @@ const ethTransactionParamsSchema = z.object({
 export type { SafeId };
 export {
 	ethereumAddressSchema,
+	checkedAddressSchema,
 	safeAddressSchema,
 	chainIdSchema,
 	numericStringSchema,

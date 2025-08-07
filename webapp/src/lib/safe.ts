@@ -1,5 +1,5 @@
-import { ethers } from "ethers";
 import type { JsonRpcSigner } from "ethers";
+import { ethers } from "ethers";
 import { bytes32ToAddress, compactSignatureToFullSignature } from "./encoding";
 import { aggregateMulticall } from "./multicall";
 import type {
@@ -44,6 +44,21 @@ const GUARD_SLOT =
 	"0x4a204f620c8c5ccdca3fd54d003badd85ba500436a431f0cbda4f558c93c34c8";
 const SINGLETON_SLOT = ethers.zeroPadBytes(ethers.toBeHex(0), 32);
 const SENTINEL = "0x0000000000000000000000000000000000000001";
+
+const SAFE_TX_TYPE = {
+	SafeTx: [
+		{ name: "to", type: "address" },
+		{ name: "value", type: "uint256" },
+		{ name: "data", type: "bytes" },
+		{ name: "operation", type: "uint8" },
+		{ name: "safeTxGas", type: "uint256" },
+		{ name: "baseGas", type: "uint256" },
+		{ name: "gasPrice", type: "uint256" },
+		{ name: "gasToken", type: "address" },
+		{ name: "refundReceiver", type: "address" },
+		{ name: "nonce", type: "uint256" },
+	],
+};
 
 /**
  * Fetches the configuration of a Safe contract using multicall aggregation.
@@ -183,6 +198,7 @@ async function executeTransaction(
 
 	return tx;
 }
+
 /**
  * Signs a Safe transaction using EIP-712 typed data
  * @param signer - The ethers.js signer
@@ -198,35 +214,47 @@ async function signSafeTransaction(
 		verifyingContract: transaction.safeAddress,
 	};
 
-	const types = {
-		SafeTx: [
-			{ name: "to", type: "address" },
-			{ name: "value", type: "uint256" },
-			{ name: "data", type: "bytes" },
-			{ name: "operation", type: "uint8" },
-			{ name: "safeTxGas", type: "uint256" },
-			{ name: "baseGas", type: "uint256" },
-			{ name: "gasPrice", type: "uint256" },
-			{ name: "gasToken", type: "address" },
-			{ name: "refundReceiver", type: "address" },
-			{ name: "nonce", type: "uint256" },
-		],
+	const message = {
+		to: transaction.to,
+		value: transaction.value,
+		data: transaction.data,
+		operation: transaction.operation,
+		safeTxGas: transaction.safeTxGas,
+		baseGas: transaction.baseGas,
+		gasPrice: transaction.gasPrice,
+		gasToken: transaction.gasToken,
+		refundReceiver: transaction.refundReceiver,
+		nonce: transaction.nonce,
+	};
+
+	return signer.signTypedData(domain, SAFE_TX_TYPE, message);
+}
+/**
+ * Signs a Safe transaction using EIP-712 typed data
+ * @param signer - The ethers.js signer
+ * @param transaction - The transaction request parameters
+ * @returns The signature string
+ */
+function getSafeTransactionHash(transaction: FullSafeTransaction): string {
+	const domain = {
+		chainId: transaction.chainId,
+		verifyingContract: transaction.safeAddress,
 	};
 
 	const message = {
 		to: transaction.to,
 		value: transaction.value,
 		data: transaction.data,
-		operation: 0,
-		safeTxGas: 0,
-		baseGas: 0,
-		gasPrice: 0,
-		gasToken: ethers.ZeroAddress,
-		refundReceiver: ethers.ZeroAddress,
+		operation: transaction.operation,
+		safeTxGas: transaction.safeTxGas,
+		baseGas: transaction.baseGas,
+		gasPrice: transaction.gasPrice,
+		gasToken: transaction.gasToken,
+		refundReceiver: transaction.refundReceiver,
 		nonce: transaction.nonce,
 	};
 
-	return signer.signTypedData(domain, types, message);
+	return ethers.TypedDataEncoder.hash(domain, SAFE_TX_TYPE, message);
 }
 
 /**
@@ -235,7 +263,7 @@ async function signSafeTransaction(
  * @returns A FullSafeTransaction object.
  */
 function getSafeTransaction(params: {
-	chainId: number;
+	chainId: bigint;
 	safeAddress: string;
 	to: string;
 	value?: string;
@@ -269,6 +297,7 @@ export {
 	executeTransaction,
 	signSafeTransaction,
 	getSafeTransaction,
+	getSafeTransactionHash,
 };
 
 export type { SafeConfiguration };

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 import {
-	ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 	addERC20TokenAddress,
+	ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 	getERC20TokenAddresses,
 	removeERC20TokenAddress,
 } from "./localStorage";
@@ -43,22 +43,24 @@ describe("localStorage ERC20 Token Management", () => {
 	});
 
 	it("should return an empty array when local storage is empty", () => {
-		expect(getERC20TokenAddresses(1)).toEqual([]);
+		expect(getERC20TokenAddresses(1n)).toEqual([]);
 	});
 
 	it("should add a new valid address correctly", () => {
-		const chainId = 1;
+		const chainId = 1n;
 		const newAddress = "0x1234567890123456789012345678901234567890";
 		addERC20TokenAddress(newAddress, chainId);
 		expect(getERC20TokenAddresses(chainId)).toEqual([newAddress]);
 		const rawStoredValue = localStorageMock.getItem(
 			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 		);
-		expect(rawStoredValue).toBe(JSON.stringify({ [chainId]: [newAddress] }));
+		expect(rawStoredValue).toBe(
+			JSON.stringify({ [chainId.toString()]: [newAddress] }),
+		);
 	});
 
 	it("should retrieve all added addresses", () => {
-		const chainId = 1;
+		const chainId = 1n;
 		const address1 = "0x1234567890123456789012345678901234567890";
 		const address2 = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
 		addERC20TokenAddress(address1, chainId);
@@ -68,7 +70,7 @@ describe("localStorage ERC20 Token Management", () => {
 
 	it("should not add a duplicate address", () => {
 		const address = "0x1234567890123456789012345678901234567890";
-		const chainId = 1;
+		const chainId = 1n;
 
 		addERC20TokenAddress(address, chainId);
 		addERC20TokenAddress(address, chainId); // Try adding again
@@ -78,8 +80,8 @@ describe("localStorage ERC20 Token Management", () => {
 
 	it("should not add an invalid address and should log an error", () => {
 		const invalidAddress = "invalid-address";
-		addERC20TokenAddress(invalidAddress, 1);
-		expect(getERC20TokenAddresses(1)).toEqual([]);
+		addERC20TokenAddress(invalidAddress, 1n);
+		expect(getERC20TokenAddresses(1n)).toEqual([]);
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
 			"Error parsing ERC20 token addresses from local storage:",
 			expect.any(ZodError),
@@ -89,18 +91,18 @@ describe("localStorage ERC20 Token Management", () => {
 	it("should remove an existing address", () => {
 		const address1 = "0x1234567890123456789012345678901234567890";
 		const address2 = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
-		addERC20TokenAddress(address1, 1);
-		addERC20TokenAddress(address2, 1);
-		removeERC20TokenAddress(address1, 1);
-		expect(getERC20TokenAddresses(1)).toEqual([address2]);
+		addERC20TokenAddress(address1, 1n);
+		addERC20TokenAddress(address2, 1n);
+		removeERC20TokenAddress(address1, 1n);
+		expect(getERC20TokenAddresses(1n)).toEqual([address2]);
 	});
 
 	it("should do nothing when trying to remove a non-existent address", () => {
 		const address1 = "0x1234567890123456789012345678901234567890";
 		const nonExistentAddress = "0x0000000000000000000000000000000000000000";
-		addERC20TokenAddress(address1, 1);
-		removeERC20TokenAddress(nonExistentAddress, 1);
-		expect(getERC20TokenAddresses(1)).toEqual([address1]);
+		addERC20TokenAddress(address1, 1n);
+		removeERC20TokenAddress(nonExistentAddress, 1n);
+		expect(getERC20TokenAddresses(1n)).toEqual([address1]);
 	});
 
 	it("should return an empty array and log an error when local storage contains invalid JSON", () => {
@@ -108,7 +110,7 @@ describe("localStorage ERC20 Token Management", () => {
 			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 			"this is not json",
 		);
-		expect(getERC20TokenAddresses(1)).toEqual([]);
+		expect(getERC20TokenAddresses(1n)).toEqual([]);
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
 			"Error parsing ERC20 token addresses from local storage:",
 			expect.any(SyntaxError),
@@ -120,7 +122,7 @@ describe("localStorage ERC20 Token Management", () => {
 			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 			JSON.stringify({ not: "an array" }),
 		);
-		expect(getERC20TokenAddresses(1)).toEqual([]);
+		expect(getERC20TokenAddresses(1n)).toEqual([]);
 		// No console error is expected here by the current implementation, as it's a valid JSON but not the expected type.
 		// The function handles this by returning [], but doesn't log an error for it.
 		// If specific error logging for this case is desired, the main function should be updated.
@@ -131,7 +133,7 @@ describe("localStorage ERC20 Token Management", () => {
 			ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY,
 			JSON.stringify(["0x123", 12345]),
 		);
-		expect(getERC20TokenAddresses(1)).toEqual([]);
+		expect(getERC20TokenAddresses(1n)).toEqual([]);
 		// No console error is expected here by the current implementation
 	});
 });

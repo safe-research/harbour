@@ -1,10 +1,9 @@
 import type { JsonRpcApiProvider } from "ethers";
 import Fuse from "fuse.js";
-import type { ChainId } from "./types";
-
 import { shuffle } from "./arrays";
 import chainsJson from "./chains.json" with { type: "json" };
 import { getEIP1193ProviderFromRPCProvider } from "./providers";
+import type { ChainId } from "./types";
 
 /** Type representing the standard for Etherscan-like explorers. */
 type EtherscanExplorerStandard = "EIP3091";
@@ -16,7 +15,7 @@ type EtherscanExplorerStandard = "EIP3091";
 interface ChainsJsonEntry {
 	name: string;
 	chain: string;
-	chainId: number;
+	chainId: number | string;
 	shortName: string;
 	nativeCurrency: {
 		name: string;
@@ -41,7 +40,7 @@ interface ChainsJsonEntry {
  * Interface for chain search results
  */
 export interface ChainSearchResult {
-	chainId: number;
+	chainId: bigint;
 	name: string;
 	displayName: string; // "Chain Name (Chain ID)"
 }
@@ -80,9 +79,9 @@ const chainsFuse = new Fuse(chainsJson as ChainsJsonEntry[], {
  * @returns The `ChainsJsonEntry` matching the provided chain ID.
  * @throws {Error} When no chain with the given ID exists in `chains.json`.
  */
-function getChainDataByChainId(chainId: number): ChainsJsonEntry {
+function getChainDataByChainId(chainId: bigint): ChainsJsonEntry {
 	const entry = (chainsJson as ChainsJsonEntry[]).find(
-		(e) => e.chainId === chainId,
+		(e) => BigInt(e.chainId) === chainId,
 	);
 	if (!entry) {
 		throw new Error(`no chain with id ${chainId} in chains.json`);
@@ -128,7 +127,7 @@ function mapChainDataToWalletAddEthereumChainParams(
  * @throws {Error} When the `chainId` is not present, no URLs configured, or none respond correctly.
  */
 async function getRpcUrlByChainId(
-	chainId: number,
+	chainId: bigint,
 	verify = true,
 ): Promise<string> {
 	const entry = getChainDataByChainId(chainId);
@@ -168,7 +167,7 @@ async function getRpcUrlByChainId(
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			const j = await res.json();
 			// result is hex string, e.g. '0x1'
-			if (Number.parseInt(j.result, 16) === chainId) {
+			if (BigInt(j.result) === chainId) {
 				return rpc.url;
 			}
 		} catch {
@@ -189,7 +188,7 @@ async function getRpcUrlByChainId(
  * @returns The native currency details for the chain, or the Ether details if not found.
  */
 function getNativeCurrencyByChainId(
-	chainId: number,
+	chainId: bigint,
 ): ChainsJsonEntry["nativeCurrency"] {
 	const entry = getChainDataByChainId(chainId);
 	return (
@@ -259,7 +258,7 @@ export function searchChainsByName(
 	const results = chainsFuse.search(query, { limit: maxResults });
 
 	return results.map(({ item }) => ({
-		chainId: item.chainId,
+		chainId: BigInt(item.chainId),
 		name: item.name,
 		displayName: `${item.name} (${item.chainId})`,
 	}));
@@ -268,16 +267,16 @@ export function searchChainsByName(
 /**
  * Finds a chain by exact chain ID
  */
-export function getChainById(chainId: number): ChainSearchResult | null {
+export function getChainById(chainId: bigint): ChainSearchResult | null {
 	const chains = chainsJson as ChainsJsonEntry[];
-	const chain = chains.find((c) => c.chainId === chainId);
+	const chain = chains.find((c) => BigInt(c.chainId) === chainId);
 
 	if (!chain) {
 		return null;
 	}
 
 	return {
-		chainId: chain.chainId,
+		chainId: BigInt(chain.chainId),
 		name: chain.name,
 		displayName: `${chain.name} (${chain.chainId})`,
 	};
@@ -289,14 +288,14 @@ export function getChainById(chainId: number): ChainSearchResult | null {
  * @param input - Either a numeric chain ID string or a chain name
  * @returns The numeric chain ID, or null if not found
  */
-export function resolveChainIdFromInput(input: string): number | null {
+export function resolveChainIdFromInput(input: string): bigint | null {
 	const trimmedInput = input.trim();
 	const chains = chainsJson as ChainsJsonEntry[];
 
 	// If it's a numeric chain ID, parse and validate
 	if (/^\d+$/.test(trimmedInput)) {
-		const chainId = Number.parseInt(trimmedInput, 10);
-		const exists = chains.some((chain) => chain.chainId === chainId);
+		const chainId = BigInt(trimmedInput);
+		const exists = chains.some((chain) => BigInt(chain.chainId) === chainId);
 		return exists ? chainId : null;
 	}
 
@@ -306,7 +305,7 @@ export function resolveChainIdFromInput(input: string): number | null {
 		(chain) => chain.name.toLowerCase() === normalizedInput,
 	);
 
-	return matchingChain ? matchingChain.chainId : null;
+	return matchingChain ? BigInt(matchingChain.chainId) : null;
 }
 
 export { getRpcUrlByChainId, switchToChain, getNativeCurrencyByChainId };

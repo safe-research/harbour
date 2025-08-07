@@ -1,8 +1,8 @@
-import type { SafeId } from "@/lib/validators";
-import { Link } from "@tanstack/react-router";
 import type { ToPathOption } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react"; // For precise icon typing
 import { ArrowUpRight } from "lucide-react";
+import type { SafeId } from "@/lib/validators";
 
 /**
  * Props for the ActionCard component.

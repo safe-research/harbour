@@ -10,6 +10,11 @@ function getChecksummedAddress(address: string): string {
 	return ethers.getAddress(address);
 }
 
+function getShortAddress(address: string) {
+	const checksummedAddress = getChecksummedAddress(address);
+	return `${checksummedAddress.slice(0, 6)}…${checksummedAddress.slice(-4)}`;
+}
+
 /**
  * Converts a bytes32 string to an Ethereum address.
  * @param bytes32 - The bytes32 string to convert.
@@ -48,5 +53,6 @@ function compactSignatureToFullSignature(signature: HarbourSignature): string {
 export {
 	bytes32ToAddress,
 	getChecksummedAddress,
+	getShortAddress,
 	compactSignatureToFullSignature,
 };

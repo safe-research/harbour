@@ -1,4 +1,4 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -11,6 +11,7 @@ import { routeTree } from "./routeTree.gen";
 import "./lib/onboard";
 
 import "./styles.css";
+import { WakuProvider } from "./contexts/WakuContext.tsx";
 import reportWebVitals from "./reportWebVitals.ts";
 
 /**
@@ -43,9 +44,11 @@ if (rootElement && !rootElement.innerHTML) {
 		<StrictMode>
 			<TanstackQuery.Provider>
 				<ErrorBoundary>
-					<WalletConnectProvider router={router}>
-						<RouterProvider router={router} />
-					</WalletConnectProvider>
+					<WakuProvider>
+						<WalletConnectProvider router={router}>
+							<RouterProvider router={router} />
+						</WalletConnectProvider>
+					</WakuProvider>
 				</ErrorBoundary>
 			</TanstackQuery.Provider>
 		</StrictMode>,

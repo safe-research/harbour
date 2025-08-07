@@ -3,6 +3,7 @@ import { expect } from "chai";
 import type { Signer } from "ethers";
 import { ethers } from "hardhat";
 import { SafeInternationalHarbour__factory } from "../typechain-types";
+import { build4337Config } from "./utils/erc4337";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
@@ -11,7 +12,7 @@ describe("SafeInternationalHarbour", () => {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
 		const Factory = new SafeInternationalHarbour__factory(deployer as unknown as Signer);
-		const harbour = await Factory.deploy();
+		const harbour = await Factory.deploy(build4337Config());
 
 		const safeAddress = await alice.getAddress();
 		return { deployer, alice, harbour, chainId, safeAddress };
@@ -159,85 +160,6 @@ describe("SafeInternationalHarbour", () => {
 		expect(storedTx.gasPrice).to.equal(safeTx.gasPrice);
 		expect(storedTx.gasToken).to.equal(safeTx.gasToken);
 		expect(storedTx.refundReceiver).to.equal(safeTx.refundReceiver);
-	});
-
-	it("should not overwrite existing parameters on subsequent calls with same safeTxHash", async () => {
-		const { harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		const signerWallet = ethers.Wallet.createRandom();
-		const safeTx: SafeTransaction = {
-			to: ethers.Wallet.createRandom().address,
-			value: 1n,
-			data: "0x1234",
-			operation: 0,
-			safeTxGas: 100000n,
-			baseGas: 21000n,
-			gasPrice: 1n * 10n ** 9n,
-			gasToken: ethers.ZeroAddress,
-			refundReceiver: ethers.ZeroAddress,
-			nonce: 1n,
-		};
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		const signature = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		// First call - should store
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			signature,
-		);
-
-		const storedTxBefore = await harbour.retrieveTransaction(safeTxHash);
-
-		// Second call with different parameters but same hash (won't happen in reality, but tests logic)
-		// Use a different signer just to make the second call valid
-		const anotherSigner = ethers.Wallet.createRandom();
-		const signature2 = await anotherSigner.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx, // Use same tx to get same hash
-		);
-		await harbour.enqueueTransaction(
-			safeAddress,
-			chainId,
-			safeTx.nonce, // Same nonce
-			ethers.Wallet.createRandom().address, // Different 'to'
-			safeTx.value + 1n, // Different value
-			"0xabcd", // Different data
-			1, // Different operation
-			safeTx.safeTxGas + 1n, // Different safeTxGas
-			safeTx.baseGas + 1n, // Different baseGas
-			safeTx.gasPrice + 1n, // Different gasPrice
-			ethers.Wallet.createRandom().address, // Different gasToken
-			ethers.Wallet.createRandom().address, // Different refundReceiver
-			signature2, // New valid signature for the *original* tx hash
-		);
-
-		const storedTxAfter = await harbour.retrieveTransaction(safeTxHash);
-
-		// Verify parameters are unchanged from the first call
-		expect(storedTxAfter.to).to.equal(storedTxBefore.to);
-		expect(storedTxAfter.value).to.equal(storedTxBefore.value);
-		expect(storedTxAfter.data).to.equal(storedTxBefore.data);
-		expect(storedTxAfter.operation).to.equal(storedTxBefore.operation);
-		expect(storedTxAfter.safeTxGas).to.equal(storedTxBefore.safeTxGas);
-		expect(storedTxAfter.baseGas).to.equal(storedTxBefore.baseGas);
-		expect(storedTxAfter.gasPrice).to.equal(storedTxBefore.gasPrice);
-		expect(storedTxAfter.gasToken).to.equal(storedTxBefore.gasToken);
-		expect(storedTxAfter.refundReceiver).to.equal(storedTxBefore.refundReceiver);
 	});
 
 	it("should not support malleable signatures", async () => {

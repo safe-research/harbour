@@ -15,9 +15,19 @@ export function TransactionDetails({ details }: TransactionDetailsProps) {
 			</p>
 			<p className="break-all">
 				<strong>Data:</strong>{" "}
-				{details.data === "0x" || details.data === ""
-					? "0x (No data)"
-					: details.data}
+				{details.data === "0x" || details.data === "" ? (
+					"0x (No data)"
+				) : (
+					<>
+						{details.data}{" "}
+						<a
+							href={`https://rimeissner.dev/transaction-decoder/#/?data=${details.data}`}
+							target="_blank"
+						>
+							(decode)
+						</a>
+					</>
+				)}
 			</p>
 			<p>
 				<strong>Operation:</strong>{" "}

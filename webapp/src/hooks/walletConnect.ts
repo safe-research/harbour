@@ -27,7 +27,7 @@ function useWalletConnect() {
  * @param chainId The chain ID where the Safe contract is deployed.
  * @returns void
  */
-function useRegisterSafeContext(safe: string, chainId: number) {
+function useRegisterSafeContext(safe: string, chainId: bigint) {
 	const ctx = useContext(WalletConnectContext);
 
 	useEffect(() => {

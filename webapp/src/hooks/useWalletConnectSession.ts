@@ -1,16 +1,16 @@
+import type { AnyRouter } from "@tanstack/react-router";
+import { ethers } from "ethers";
+import { useCallback, useEffect, useState } from "react";
 import type { SafeId } from "@/lib/validators";
+import { ethTransactionParamsSchema } from "@/lib/validators";
 import {
+	getSdkError,
+	isEthSendTransaction,
 	type SessionTypes,
 	WALLETCONNECT_EVENTS,
 	type WalletKitInstance,
 	type WalletKitTypes,
-	getSdkError,
-	isEthSendTransaction,
 } from "@/lib/walletconnect";
-import type { AnyRouter } from "@tanstack/react-router";
-import { ethers } from "ethers";
-import { useCallback, useEffect, useState } from "react";
-import { ethTransactionParamsSchema } from "@/lib/validators";
 
 type UseWalletConnectSessionProps = {
 	walletkit: WalletKitInstance | null;

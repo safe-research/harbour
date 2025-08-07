@@ -24,7 +24,7 @@ interface SafeAddressFormProps {
 	 * @param {string} safeAddress - The validated Safe address.
 	 * @param {number} chainId - The validated chain ID.
 	 */
-	onSubmit: (safeAddress: string, chainId: number) => void;
+	onSubmit: (safeAddress: string, chainId: bigint) => void;
 }
 
 /**

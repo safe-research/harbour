@@ -21,7 +21,7 @@ export function useSafeConfiguration(
 	const { data: chainId } = useChainId(provider);
 
 	return useQuery<SafeConfiguration, Error>({
-		queryKey: ["safeConfig", chainId, safeAddress],
+		queryKey: ["safeConfig", chainId?.toString(), safeAddress],
 		queryFn: async () => {
 			const result = await getSafeConfiguration(
 				// biome-ignore lint/style/noNonNullAssertion: non-null assertion is safe here because of the enabled check

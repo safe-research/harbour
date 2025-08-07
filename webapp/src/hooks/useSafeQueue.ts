@@ -1,8 +1,8 @@
-import { type NonceGroup, fetchSafeQueue } from "@/lib/harbour";
-import type { SafeConfiguration } from "@/lib/safe";
-import type { ChainId } from "@/lib/types";
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
+import { fetchSafeQueue, type NonceGroup } from "@/lib/harbour";
+import type { SafeConfiguration } from "@/lib/safe";
+import type { ChainId } from "@/lib/types";
 
 interface UseSafeQueueProps {
 	/** Ethers.js JSON RPC API provider for the Harbour chain. */

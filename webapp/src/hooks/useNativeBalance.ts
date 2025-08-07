@@ -20,10 +20,10 @@ import type { JsonRpcApiProvider } from "ethers";
 export function useNativeBalance(
 	provider: JsonRpcApiProvider,
 	safeAddress: string,
-	chainId: number,
+	chainId: bigint,
 ) {
 	return useQuery<bigint, Error>({
-		queryKey: ["nativeBalance", chainId, safeAddress],
+		queryKey: ["nativeBalance", chainId.toString(), safeAddress],
 		queryFn: () => provider.getBalance(safeAddress),
 		enabled: Boolean(provider && safeAddress),
 	});
