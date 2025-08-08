@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {SafeTransactionRegistrationHandle} from "./Types.sol";
+import {EncryptionKey, SafeTransactionRegistrationHandle} from "./Types.sol";
 
 /// @title Safe Secret Harbour Interface
 interface ISafeSecretHarbour {
-    function registerEncryptionKey(bytes32 encryptionKey) external;
+    function registerEncryptionKey(bytes32 context, bytes32 publicKey) external;
 
     function registerTransaction(
         uint256 chainId,
@@ -16,9 +16,13 @@ interface ISafeSecretHarbour {
         bytes calldata encryptedSafeTx
     ) external returns (bytes32 uid);
 
-    function retrieveEncryptionKeys(
+    function retrieveEncryptionPublicKeys(
         address[] calldata signers
-    ) external view returns (bytes32[] memory encryptionKeys);
+    ) external view returns (bytes32[] memory publicKeys);
+
+    function retrieveEncryptionKey(
+        address signers
+    ) external view returns (EncryptionKey memory encryptionKey);
 
     function retrieveRegistrations(
         uint256 chainId,

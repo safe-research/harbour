@@ -39,6 +39,22 @@ struct SignatureDataWithTxHashIndex {
 }
 
 /**
+ * @dev A public encryption key.
+ *
+ * @custom:field context   An application-defined context. This can be used as a salt in
+ *                         deterministic encryption key derivation schemes (for example, it can be
+ *                         the `nonce` and `issuedAt` values for a Sign-in with Ethereum signature
+ *                         to be used as entropy for deriving an X25519 encryption key pair).
+ * @custom:field publicKey The public encryption key. Note that this contract does not enforce any
+ *                         specific key format, the only restriction is that the key must fit in 32
+ *                         bytes. The reference client implementation uses Curve25519 public keys.
+ */
+struct EncryptionKey {
+    bytes32 context;
+    bytes32 publicKey;
+}
+
+/**
  * @dev An encrypted Safe transaction registration handle.
  */
 struct SafeTransactionRegistrationHandle {
