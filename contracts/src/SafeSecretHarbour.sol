@@ -5,7 +5,9 @@ import {
     EncryptionKeyRegistered,
     SafeTransactionRegistered
 } from "./interfaces/Events.sol";
+import {ISafeSecretHarbour} from "./interfaces/Harbour.sol";
 import {SafeTransactionRegistrationHandle} from "./interfaces/Types.sol";
+import {IERC165} from "./interfaces/ERC165.sol";
 import {BlockNumbers} from "./libs/BlockNumbers.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
 
@@ -27,7 +29,7 @@ import {CoreLib} from "./libs/CoreLib.sol";
  *         a trustless channel for signers to communicate public encryption keys amongst themselves
  *         in order to support asymmetric encryption schemes of the transaction data.
  */
-contract SafeSecretHarbour {
+contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     using BlockNumbers for BlockNumbers.T;
     using BlockNumbers for BlockNumbers.Iterator;
 
@@ -53,6 +55,19 @@ contract SafeSecretHarbour {
      */
     mapping(uint256 chainId => mapping(address safe => mapping(uint256 nonce => mapping(address signer => BlockNumbers.T))))
         private _registrations;
+
+    // ------------------------------------------------------------------
+    // ERC-165 Implementation
+    // ------------------------------------------------------------------
+
+    /// @inheritdoc IERC165
+    function supportsInterface(
+        bytes4 interfaceId
+    ) external pure returns (bool) {
+        return
+            interfaceId == type(IERC165).interfaceId ||
+            interfaceId == type(ISafeSecretHarbour).interfaceId;
+    }
 
     // ------------------------------------------------------------------
     // External & public write functions

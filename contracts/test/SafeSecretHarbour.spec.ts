@@ -25,6 +25,21 @@ describe("SafeInternationalHarbour", () => {
 		return { deployer, signer, alice, harbour, chainId, safe, decryptionKey, encryptionKey };
 	}
 
+	it("should report support for the secret harbour interface", async () => {
+		const { harbour } = await loadFixture(deployFixture);
+
+		let secretHarbourId = "0x00000000";
+		const secretHarbour = await ethers.getContractAt("ISafeSecretHarbour", harbour);
+		secretHarbour.interface.forEachFunction((func) => {
+			secretHarbourId = `0x${(BigInt(secretHarbourId) ^ BigInt(func.selector)).toString(16)}`;
+		});
+
+		expect(secretHarbourId).to.equal("0x8a56c054");
+		for (const interfaceId of ["0x01ffc9a7", "0x8a56c054"]) {
+			expect(await harbour.supportsInterface(interfaceId)).to.be.true;
+		}
+	});
+
 	it("should register a public encryption key", async () => {
 		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
 
