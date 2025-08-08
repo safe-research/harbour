@@ -108,7 +108,7 @@ describe("SafeInternationalHarbour", () => {
 			.withArgs(uid, safeTxHash, signature, encryptedSafeTx);
 	});
 
-	it("should store the block index on transaction registration", async () => {
+	it("should store the block number on transaction registration", async () => {
 		const { harbour, chainId, safe, signer, encryptionKey } = await loadFixture(deployFixture);
 
 		const safeTx = populateSafeTransaction({
