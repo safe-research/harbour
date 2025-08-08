@@ -73,4 +73,29 @@ contract TestBlockNumbers {
             blockNumbers[i] = it.value();
         }
     }
+
+    function readAsUint64Array()
+        external
+        returns (uint64[] memory blockNumbers)
+    {
+        uint256 length = blocks.len();
+        if (length < 4) {
+            return blockNumbers;
+        }
+
+        // Read the `blocks` as if it were a Solidity `uint64[] storage` array. We do this to test
+        // that the value slots layout matches Solidity's. Note that we need to skip past the first
+        // 3 items, because Solidity does not pack items into the prefix slot.
+        uint256 oldPrefix = blocks.prefix;
+        blocks.prefix = length - 3;
+        {
+            uint64[] storage solidityLayout;
+            // solhint-disable-next-line no-inline-assembly
+            assembly ("memory-safe") {
+                solidityLayout.slot := blocks.slot
+            }
+            blockNumbers = solidityLayout;
+        }
+        blocks.prefix = oldPrefix;
+    }
 }

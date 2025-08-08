@@ -8,9 +8,11 @@ describe("BlockNumbers", () => {
 		const testBlockNumbersFactory = await ethers.getContractFactory("TestBlockNumbers");
 		const testBlockNumbers = await testBlockNumbersFactory.deploy();
 		const appendN = async (n: number) => {
-			for (let i = 1; i <= n; i++) {
-				await testBlockNumbers.testAppend(i);
+			const blockNumbers = [...Array(n)].map((_, i) => i + 1);
+			for (const blockNumber of blockNumbers) {
+				await testBlockNumbers.testAppend(blockNumber);
 			}
+			return blockNumbers;
 		};
 		return { testBlockNumbers, appendN };
 	}
@@ -110,8 +112,14 @@ describe("BlockNumbers", () => {
 
 	it("should collect items from a starting point and count", async () => {
 		const { testBlockNumbers, appendN } = await loadFixture(deployFixture);
-		await appendN(100);
-		const blockNumbers = await testBlockNumbers.testSlice(17, 12);
-		expect(blockNumbers).to.deep.equal([...Array(12)].map((_, i) => i + 18));
+		const blockNumbers = await appendN(100);
+		const slice = await testBlockNumbers.testSlice(17, 12);
+		expect(slice).to.deep.equal(blockNumbers.slice(17, 17 + 12));
+	});
+
+	it("should match Solidity storage layout for blocks[3..]", async () => {
+		const { testBlockNumbers, appendN } = await loadFixture(deployFixture);
+		const blockNumbers = await appendN(100);
+		expect(await testBlockNumbers.readAsUint64Array.staticCall()).to.deep.equal(blockNumbers.slice(3));
 	});
 });
