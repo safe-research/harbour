@@ -2,14 +2,14 @@
 pragma solidity ^0.8.29;
 
 /**
- * @title Block Indices
- * @notice A storage efficient list of block indices.
+ * @title Block Numbers
+ * @notice A storage efficient list of block numbers.
  * @dev The storage layout is similar to that of an `uint64[]` dynamic array, with the exception
  *      that the first 3 elements are stored in the same slot as the array length. This is a nice
  *      optimization which makes short lists be stored in a single slot. Note that this implicitely
  *      limits blocks to the range `[0, type(uint64).max)` and length to `type(uint64).max`.
  */
-library BlockIndices {
+library BlockNumbers {
     struct T {
         uint256 prefix;
     }
@@ -23,33 +23,33 @@ library BlockIndices {
     }
 
     /**
-     * @notice Appends a new block index to the list.
+     * @notice Appends a new block number to the list.
      * @return index The index at which the new item was added.
      */
     function append(
         T storage self,
-        uint256 blockIndex
+        uint256 blockNumber
     ) internal returns (uint256 index) {
         unchecked {
             uint256 prefix = self.prefix;
             index = prefix & type(uint64).max;
-            if ((index + 1) | blockIndex > type(uint64).max) {
+            if ((index + 1) | blockNumber > type(uint64).max) {
                 _panicOverflow();
             }
 
             if (index < 3) {
                 uint256 shift = (index + 1) << 6;
-                self.prefix = (prefix + 1) | (blockIndex << shift);
+                self.prefix = (prefix + 1) | (blockNumber << shift);
             } else {
                 uint256 j = index - 3;
                 uint256 offset = j >> 2;
                 uint256 shift = (j & 3) << 6;
-                // sstore[keccak256(self.slot) + offset] |= blockIndex << shift
+                // sstore[keccak256(self.slot) + offset] |= blockNumber << shift
                 // solhint-disable-next-line no-inline-assembly
                 assembly ("memory-safe") {
                     mstore(0, self.slot)
                     let slot := add(keccak256(0, 32), offset)
-                    sstore(slot, or(sload(slot), shl(shift, blockIndex)))
+                    sstore(slot, or(sload(slot), shl(shift, blockNumber)))
                 }
                 self.prefix = prefix + 1;
             }
@@ -57,14 +57,14 @@ library BlockIndices {
     }
 
     /**
-     * @notice Get the length of the block index list.
+     * @notice Get the length of the block numbers list.
      */
     function len(T storage self) internal view returns (uint256 length) {
         return self.prefix & type(uint64).max;
     }
 
     /**
-     * @notice Create an iterator over the block indices.
+     * @notice Create an iterator over the block numbers.
      * @dev The iterator is implemented to minimize storage reads.
      */
     function iter(T storage self) internal view returns (Iterator memory it) {
@@ -92,7 +92,7 @@ library BlockIndices {
     }
 
     /**
-     * @notice Moves the iterator to the next block index.
+     * @notice Moves the iterator to the next block number.
      */
     function next(Iterator memory self) internal view returns (bool remaining) {
         remaining = self.cnt != 0;
@@ -152,7 +152,7 @@ library BlockIndices {
      */
     function value(
         Iterator memory self
-    ) internal pure returns (uint256 blockIndex) {
+    ) internal pure returns (uint256 blockNumber) {
         return self.data & type(uint64).max;
     }
 
