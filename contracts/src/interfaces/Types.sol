@@ -42,6 +42,6 @@ struct SignatureDataWithTxHashIndex {
  * @dev An encrypted Safe transaction registration handle.
  */
 struct SafeTransactionRegistrationHandle {
-    uint256 blockIndex;
+    uint256 blockNumber;
     bytes32 uid;
 }
