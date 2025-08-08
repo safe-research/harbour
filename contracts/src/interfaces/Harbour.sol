@@ -13,7 +13,7 @@ interface ISafeSecretHarbour {
         uint256 nonce,
         bytes32 safeTxStructHash,
         bytes calldata signature,
-        bytes calldata encryptedSafeTx
+        bytes calldata encryptionBlob
     ) external returns (bytes32 uid);
 
     function retrieveEncryptionPublicKeys(
@@ -28,7 +28,7 @@ interface ISafeSecretHarbour {
         uint256 chainId,
         address safe,
         uint256 nonce,
-        address signer,
+        address notary,
         uint256 start,
         uint256 count
     )
@@ -38,4 +38,9 @@ interface ISafeSecretHarbour {
             SafeTransactionRegistrationHandle[] memory page,
             uint256 totalCount
         );
+
+    function retrieveSignatures(
+        address[] calldata signers,
+        bytes32 safeTxHash
+    ) external view returns (uint256[] memory blockNumbers);
 }

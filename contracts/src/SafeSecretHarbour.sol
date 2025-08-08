@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
+import {SignerAlreadySignedTransaction} from "./interfaces/Errors.sol";
 import {
     EncryptionKeyRegistered,
-    SafeTransactionRegistered
+    SafeTransactionRegistered,
+    SafeTransactionSigned
 } from "./interfaces/Events.sol";
 import {ISafeSecretHarbour} from "./interfaces/Harbour.sol";
 import {
@@ -13,6 +15,7 @@ import {
 import {IERC165} from "./interfaces/ERC165.sol";
 import {BlockNumbers} from "./libs/BlockNumbers.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
+import {RegistrationKey} from "./libs/RegistrationKey.sol";
 
 /**
  * @title Safe Secret Harbour
@@ -25,7 +28,7 @@ import {CoreLib} from "./libs/CoreLib.sol";
  *         4. the current Safe owners set; and
  *         5. a key to decrypt the transaction payload.
  *
- *         Each unique `safeTxHash` (EIP-712 digest of the SafeTx struct) may be registered more
+ *         Each unique `safeTxHash` (ERC-712 digest of the SafeTx struct) may be registered more
  *         than once, to allow rotating the encryption.
  *
  *         Additionally, this contract contains a public encryption key registry, and functions as
@@ -35,6 +38,7 @@ import {CoreLib} from "./libs/CoreLib.sol";
 contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     using BlockNumbers for BlockNumbers.T;
     using BlockNumbers for BlockNumbers.Iterator;
+    using RegistrationKey for RegistrationKey.T;
 
     // ------------------------------------------------------------------
     // Storage
@@ -46,15 +50,22 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     mapping(address signer => EncryptionKey) private _encryptionKeys;
 
     /**
-     * Mapping of `(chainId, safe, nonce, signer)` to an array of block numbers where a Safe
-     * transaction was registered with the harbour.
-     * @dev Note that the same Safe transaction can be registered **multiple times** with harbour.
-     *      This is important to allow re-submitting the same transaction encrypted for a different
-     *      set of keys (in the case a signer registered or rotated an encryption key after the
-     *      transaction was initially registered).
+     * @dev Mapping of registration key to an array of block numbers where a Safe transaction was
+     *      registered with the harbour.
+     *
+     *      Note that the same Safe transaction can be registered **multiple times** with harbour.
+     *      This is important to allow appending additional encryption data (such as new wrapped
+     *      encryption keys for signers that either rotated or registered their public encryption
+     *      key after the initial transaction submission.
      */
-    mapping(uint256 chainId => mapping(address safe => mapping(uint256 nonce => mapping(address signer => BlockNumbers.T))))
-        private _registrations;
+    mapping(RegistrationKey.T => BlockNumbers.T) private _registrations;
+
+    /**
+     * @dev Mapping per signer from Safe transaction hashes to the block in which a signature was
+     *      registered.
+     */
+    mapping(address signer => mapping(bytes32 safeTxHash => uint256 blockNumber))
+        private _signatures;
 
     // ------------------------------------------------------------------
     // ERC-165 Implementation
@@ -88,26 +99,31 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     }
 
     /**
-     * @notice Publish an encrypted Safe transaction.
+     * @notice Register an encrypted Safe transaction and signature.
      *
-     * @dev If the Safe transaction has already been registered, it will be registered again. This
-     *      allows a signer to re-broadcast the same Safe transaction with new cyphertext, in case
-     *      a new signer encryption key was added or a signer encryption key was rotated.
+     * @dev This function serves two purposes:
+     *      1. To register Safe transaction encryption data
+     *      2. To add signatures to a Safe transaction
      *
      * @param chainId          Chain id the transaction is meant for.
      * @param safe             Target Safe Smart-Account.
      * @param nonce            Safe nonce.
-     * @param safeTxStructHash The EIP-712 struct hash of the Safe transaction data.
-     * @param signature        **Single** 65-byte ECDSA signature.
-     * @param encryptedSafeTx  The encrypted Safe transaction. This contract does not enforce any
-     *                         restrictions on the encryption scheme (in fact, this can technically
-     *                         be the Safe transaction in plain text!), but uses JWE with algorithm
-     *                         `ECDH-ES+XC20PKW`. There are no guarantees that the encrypted Safe
-     *                         transaction data actually matches the provided `safeTxStructHash`.
+     * @param safeTxStructHash The ERC-712 struct hash of the Safe transaction data.
+     * @param encryptionBlob   A blob containing encrypted transaction data. This can either be the
+     *                         encrypted transaction itself, or additional encrypted keys to new
+     *                         signer public keys. The exact format is not enforced and application
+     *                         dependent. There are no guarantees that the blob actually matches the
+     *                         provided `safeTxStructHash`. The reference implementation uses JWE to
+     *                         encrypt the RLP-encoded Safe transaction with key wrapping for the
+     *                         recipients' X25519 public keys. _Optional_: can be omitted to
+     *                         register a signature without any new encrypted transaction data.
+     * @param signature        A 65-byte ECDSA signature. _Optional_: can be omitted to register
+     *                         new encrypted transaction data without a signature.
      *
-     * @return uid             The unique signer-specific identifer of the registration.
+     * @return uid             The unique signer-specific identifer of the transaction registration.
+     *                         Zero if `encryptionBlob` is empty.
      *
-     * @custom:events Emits {SafeTransactionRegistered}.
+     * @custom:events Emits {SafeTransactionSigned} and {SafeTransactionRegistered}.
      */
     function registerTransaction(
         uint256 chainId,
@@ -115,24 +131,28 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         uint256 nonce,
         bytes32 safeTxStructHash,
         bytes calldata signature,
-        bytes calldata encryptedSafeTx
+        bytes calldata encryptionBlob
     ) external returns (bytes32 uid) {
         bytes32 safeTxHash = CoreLib.computePartialSafeTxHash(
             chainId,
             safe,
             safeTxStructHash
         );
-        (address signer, , ) = CoreLib.recoverSigner(safeTxHash, signature);
 
-        uid = _registerTransaction(
-            safeTxHash,
-            chainId,
-            safe,
-            nonce,
-            signer,
-            signature,
-            encryptedSafeTx
-        );
+        if (signature.length != 0) {
+            _registerSignature(safeTxHash, signature);
+        }
+
+        if (encryptionBlob.length != 0) {
+            uid = _registerTransaction(
+                chainId,
+                safe,
+                nonce,
+                msg.sender,
+                safeTxHash,
+                encryptionBlob
+            );
+        }
     }
 
     // ------------------------------------------------------------------
@@ -180,7 +200,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      * @param chainId     Target chain id.
      * @param safe        Safe Smart-Account.
      * @param nonce       Safe nonce.
-     * @param signer      Address that created the signatures.
+     * @param notary      Address that registered ecrypted transaction data.
      * @param start       Zero-based start index of the slice.
      * @param count       Maximum number of entries to return.
      *
@@ -192,7 +212,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         uint256 chainId,
         address safe,
         uint256 nonce,
-        address signer,
+        address notary,
         uint256 start,
         uint256 count
     )
@@ -203,10 +223,13 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
             uint256 totalCount
         )
     {
-        BlockNumbers.T storage blocks = _registrations[chainId][safe][nonce][
-            signer
-        ];
-        BlockNumbers.Iterator memory it = blocks.iter();
+        RegistrationKey.T registration = RegistrationKey.get(
+            chainId,
+            safe,
+            nonce,
+            notary
+        );
+        BlockNumbers.Iterator memory it = _registrations[registration].iter();
 
         totalCount = it.count();
         it.skip(start);
@@ -217,19 +240,19 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
             for (uint256 i = 0; it.next(); i++) {
                 SafeTransactionRegistrationHandle memory item = page[i];
                 item.blockNumber = it.value();
-                item.uid = _registrationUid(blocks, start + i);
+                item.uid = registration.uniqueIdentifier(start + i);
             }
         }
     }
 
     /**
      * @notice Convenience getter returning the **number** of registrations stored for a specific
-     *         `(chainId, safe, nonce, signer)` tuple.
+     *         `(chainId, safe, nonce, notary)` tuple.
      *
      * @param chainId Target chain id.
      * @param safe    Safe Smart-Account.
      * @param nonce   Safe nonce.
-     * @param signer  Signer address.
+     * @param notary  Notary address.
      *
      * @return count  Number of registrations.
      */
@@ -237,9 +260,39 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         uint256 chainId,
         address safe,
         uint256 nonce,
-        address signer
+        address notary
     ) external view returns (uint256 count) {
-        count = _registrations[chainId][safe][nonce][signer].len();
+        RegistrationKey.T registration = RegistrationKey.get(
+            chainId,
+            safe,
+            nonce,
+            notary
+        );
+        count = _registrations[registration].len();
+    }
+
+    /**
+     * @notice Retrieve Safe transaction signatures for the specified signers.
+     *
+     * @dev Note that this function does not return the signature directly, the block number that
+     *      can be used to query an log with the signature bytes.
+     *
+     * @param signers    The signer addresses.
+     * @param safeTxHash ERC-712 digest of the transaction
+     *
+     * @return blockNumbers The block numbers containing the Safe transaction signature events for
+     *                      the specified signers and Safe transaction hash.
+     */
+    function retrieveSignatures(
+        address[] calldata signers,
+        bytes32 safeTxHash
+    ) external view returns (uint256[] memory blockNumbers) {
+        blockNumbers = new uint256[](signers.length);
+        unchecked {
+            for (uint256 i = 0; i < signers.length; i++) {
+                blockNumbers[i] = _signatures[signers[i]][safeTxHash];
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -247,59 +300,55 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     // ------------------------------------------------------------------
 
     /**
-     * @dev Internal function to register a Safe transaction and signature after validation.
+     * @dev Internal function to register a Safe transaction.
      *
-     * @param safeTxHash EIP-712 digest of the transaction.
-     * @param chainId    Chain id the transaction is meant for.
-     * @param safe       Target Safe Smart-Account.
-     * @param nonce      Safe nonce.
-     * @param signer     Address that created the signatures.
-     * @param signature  The ECDSA signature bytes.
-     * @param signer     Address that created the signatures.
+     * @param chainId        Chain id the transaction is meant for.
+     * @param safe           Safe Smart-Account.
+     * @param nonce          Safe nonce.
+     * @param notary         The account that submitted the encrypted transaction data blob for
+     *                       registration.
+     * @param safeTxHash     ERC-712 digest of the transaction.
+     * @param encryptionBlob The Safe transaction encryption blob.
      *
      * @return uid       The unique signer-specific identifer of the registration.
      */
     function _registerTransaction(
-        bytes32 safeTxHash,
         uint256 chainId,
         address safe,
         uint256 nonce,
-        address signer,
-        bytes calldata signature,
-        bytes calldata encryptedSafeTx
+        address notary,
+        bytes32 safeTxHash,
+        bytes calldata encryptionBlob
     ) internal returns (bytes32 uid) {
-        BlockNumbers.T storage blocks = _registrations[chainId][safe][nonce][
-            signer
-        ];
-        uint256 index = blocks.append(block.number);
-
-        uid = _registrationUid(blocks, index);
-        emit SafeTransactionRegistered(
-            uid,
-            safeTxHash,
-            signature,
-            encryptedSafeTx
+        RegistrationKey.T registration = RegistrationKey.get(
+            chainId,
+            safe,
+            nonce,
+            notary
         );
+        uint256 index = _registrations[registration].append(block.number);
+
+        uid = registration.uniqueIdentifier(index);
+        emit SafeTransactionRegistered(uid, safeTxHash, encryptionBlob);
     }
 
     /**
-     * @dev Internal function to compute an opaque UID for a Safe transaction registration.
+     * @dev Internal function to register a Safe transaction signature after validation.
      *
-     * @param blocks `(chainId, safe, nonce, signer)` specific list of block indices of Safe
-     *               transaction registrations.
-     * @param index  The index of the registration in `blocks`.
-     *
-     * @return uid   A unique identifier for the registration.
+     * @param safeTxHash ERC-712 digest of the transaction.
+     * @param signature  The ECDSA signature bytes.
      */
-    function _registrationUid(
-        BlockNumbers.T storage blocks,
-        uint256 index
-    ) internal pure returns (bytes32 uid) {
-        // solhint-disable-next-line no-inline-assembly
-        assembly ("memory-safe") {
-            mstore(0, index)
-            mstore(32, blocks.slot)
-            uid := keccak256(0, 64)
-        }
+    function _registerSignature(
+        bytes32 safeTxHash,
+        bytes calldata signature
+    ) internal {
+        (address signer, , ) = CoreLib.recoverSigner(safeTxHash, signature);
+        require(
+            _signatures[signer][safeTxHash] == 0,
+            SignerAlreadySignedTransaction(signer, safeTxHash)
+        );
+
+        _signatures[signer][safeTxHash] = block.number;
+        emit SafeTransactionSigned(signer, safeTxHash, signature);
     }
 }
