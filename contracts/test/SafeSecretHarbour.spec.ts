@@ -1,7 +1,13 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
+import type { Signer } from "ethers";
 import { ethers } from "hardhat";
-import { decryptSafeTransaction, encryptSafeTransaction, randomX25519KeyPair } from "./utils/encryption";
+import {
+	decryptSafeTransaction,
+	deterministicX25519KeyPair,
+	encryptSafeTransaction,
+	randomX25519KeyPair,
+} from "./utils/encryption";
 import { computeInterfaceId } from "./utils/erc165";
 import {
 	getSafeTransactionHash,
@@ -24,6 +30,178 @@ describe("SafeInternationalHarbour", () => {
 
 		return { deployer, signer, notary, alice, harbour, chainId, safe, decryptionKey, encryptionKey };
 	}
+
+	it("should act as an encrypted transaction queue", async () => {
+		const { deployer, harbour, chainId, safe } = await loadFixture(deployFixture);
+
+		// ------------------------------------------------------------------
+
+		// Lets say we have a 3/5 Safe at some nonce and owners.
+		const nonce = 1337n;
+		const owners = [...Array(5)].map(() => ethers.Wallet.createRandom(ethers.provider));
+
+		// We have a list of notaries that we want to listen for transaction registrations from.
+		// They can either be the owners themselves, some shared proposal account, or the harbour
+		// validator set.
+		const notaries = [...Array(2)].map(() => ethers.Wallet.createRandom(ethers.provider));
+
+		// ------------------------------------------------------------------
+
+		// Lets give everyone some gas money...
+		for (const to of [...owners, ...notaries]) {
+			await deployer.sendTransaction({ to, value: ethers.parseEther("1.0") });
+		}
+
+		// Now lets imagine that some of the owners played around with Harbour, where they generated
+		// and registered some encryption keys.
+		for (const owner of owners.slice(0, 3)) {
+			const context = ethers.randomBytes(32);
+			const { encryptionKey } = await deterministicX25519KeyPair(owner, context);
+			await harbour.connect(owner).registerEncryptionKey(context, encryptionKey);
+		}
+
+		// ------------------------------------------------------------------
+
+		async function getPendingTransactionsGroupedByHash() {
+			const registrations = await Promise.all(
+				notaries.map((notary) => harbour.retrieveRegistrations(chainId, safe, nonce, notary, 0, 10)),
+			);
+			const details = await Promise.all(
+				registrations
+					.flatMap(([page, _]) => page)
+					.map(([blockNumber, uid]) =>
+						harbour.queryFilter(
+							harbour.filters.SafeTransactionRegistered(uid),
+							Number(blockNumber),
+							Number(blockNumber),
+						),
+					),
+			);
+			const groups = Object.groupBy(details.flat(), ({ args }) => args.safeTxHash);
+			return Object.entries(groups).map(([safeTxHash, events]) => ({
+				safeTxHash,
+				// Get the latest blob per transaction hash.
+				encryptionBlob: events?.pop()?.args?.encryptionBlob ?? "0x",
+			}));
+		}
+
+		async function decryptFirstPendingTransaction(signer: Signer) {
+			const [context] = await harbour.retrieveEncryptionKey(signer);
+			const { decryptionKey } = await deterministicX25519KeyPair(signer, context);
+			const [{ safeTxHash, encryptionBlob }] = await getPendingTransactionsGroupedByHash();
+			const safeTx = await decryptSafeTransaction(encryptionBlob, decryptionKey);
+			// Clients MUST verify Safe transaction integrity!
+			expect(getSafeTransactionHash(safe, chainId, safeTx)).to.equal(safeTxHash);
+			return safeTx;
+		}
+
+		async function enqueuePendingSafeTransactionSignature(signer: Signer) {
+			const safeTx = await decryptFirstPendingTransaction(signer);
+			const safeTxStructHash = getSafeTransactionStructHash(safeTx);
+			const signature = await signSafeTransaction(signer, safe, chainId, safeTx);
+			await harbour.enqueueTransaction(chainId, safe, nonce, safeTxStructHash, signature, "0x");
+		}
+
+		// ------------------------------------------------------------------
+
+		// An owner will create a new transaction and sign it. A notary will encrypt and enqueue
+		// it in harbour. In practice, the notary can either be an owner themselves, some shared
+		// proposer account, or the harbour validator set.
+		{
+			const signer = owners[0];
+
+			const safeTx = populateSafeTransaction({
+				to: ethers.Wallet.createRandom().address,
+				value: ethers.parseEther("1.0"),
+				nonce,
+			});
+			const safeTxStructHash = getSafeTransactionStructHash(safeTx);
+			const signature = await signSafeTransaction(signer, safe, chainId, safeTx);
+
+			const notary = notaries[0];
+
+			const publicKeys = await harbour
+				.retrieveEncryptionPublicKeys(owners)
+				.then((publicKeys) => publicKeys.filter((publicKey) => publicKey !== ethers.ZeroHash));
+			const encryptionBlob = await encryptSafeTransaction(safeTx, publicKeys);
+			await harbour
+				.connect(notary)
+				.enqueueTransaction(chainId, safe, nonce, safeTxStructHash, signature, encryptionBlob);
+		}
+
+		// ------------------------------------------------------------------
+
+		// Another owner, monitoring harbour for specific notaries, will see the transaction,
+		// decrypt it, and submit their signature onchain. Note that they do not re-broadcast the
+		// transaction ecryption blob - just their signature. Also, since no new trasaction data
+		// was included, it does not have to be notarized.
+		await enqueuePendingSafeTransactionSignature(owners[2]);
+
+		// ------------------------------------------------------------------
+
+		// Other owners registered their keys so a new encryption blob must be registered onchain
+		// so that owners can decrypt it with their new keys. Note that we need _someone_ to decrypt
+		// the original transaction JWE in order to be re-encrypt the Safe transaction. For testing
+		// puposes, we re-encrypt **everything**, however in the future we can be smarter about what
+		// we upload with new transaction registrations. In particular, the `jose` library that we
+		// use does not support adding new recipients to an already created JWE (although it is
+		// technically possible).
+		for (const owner of [owners[1], owners[3]]) {
+			const context = ethers.randomBytes(32);
+			const { encryptionKey } = await deterministicX25519KeyPair(owner, context);
+			await harbour.connect(owner).registerEncryptionKey(context, encryptionKey);
+		}
+		{
+			const signer = owners[0];
+			const notary = notaries[1];
+
+			const safeTx = await decryptFirstPendingTransaction(signer);
+			const publicKeys = await harbour
+				.retrieveEncryptionPublicKeys(owners)
+				.then((publicKeys) => publicKeys.filter((publicKey) => publicKey !== ethers.ZeroHash));
+			const newEncryptionBlob = await encryptSafeTransaction(safeTx, publicKeys);
+			const safeTxStructHash = getSafeTransactionStructHash(safeTx);
+			await harbour.connect(notary).enqueueTransaction(chainId, safe, nonce, safeTxStructHash, "0x", newEncryptionBlob);
+		}
+
+		// ------------------------------------------------------------------
+
+		// Now, we can sign the transaction for the owner that just registered a new encryption key,
+		// using the encrypted wrapped key that was just registered.
+		await enqueuePendingSafeTransactionSignature(owners[3]);
+
+		// ------------------------------------------------------------------
+
+		// Finally, we can collect all the signatures for the Safe transaction in preparation to
+		// execute it. Note that you don't need to actually decrypt the transaction to collect the
+		// signatures (but you do need to in order to execute the transaction - in order to build
+		// the `execTransaction` call).
+		{
+			const [{ safeTxHash }] = await getPendingTransactionsGroupedByHash();
+			const registrations = await harbour.retrieveSignatures(owners, safeTxHash);
+			const details = await Promise.all(
+				registrations
+					.map((blockNumber, i) => ({ blockNumber, signer: owners[i] }))
+					.filter(({ blockNumber }) => blockNumber !== 0n)
+					.map(({ blockNumber, signer }) =>
+						harbour.queryFilter(
+							harbour.filters.SafeTransactionSigned(signer),
+							Number(blockNumber),
+							Number(blockNumber),
+						),
+					),
+			);
+			const signatures = details.flat().map(({ args: { signer, signature } }) => ({ signer, signature }));
+
+			expect(signatures.length).to.equal(3);
+			expect(signatures.map(({ signer }) => signer)).to.deep.equal(
+				[owners[0], owners[2], owners[3]].map((owner) => owner.address),
+			);
+			for (const { signer, signature } of signatures) {
+				expect(ethers.recoverAddress(safeTxHash, signature)).to.equal(signer);
+			}
+		}
+	});
 
 	it("should report support for the secret harbour interface", async () => {
 		const { harbour } = await loadFixture(deployFixture);
@@ -79,7 +257,7 @@ describe("SafeInternationalHarbour", () => {
 				0, // nonce
 				ethers.ZeroHash, // safeTxStructHash
 				"0x1234", // invalid signature
-				"0x", // encryptionBlob
+				"0xffff", // encryptionBlob
 			),
 		).to.be.revertedWithCustomError(harbour, "InvalidECDSASignatureLength");
 	});
@@ -95,7 +273,7 @@ describe("SafeInternationalHarbour", () => {
 				0, // nonce
 				ethers.ZeroHash, // safeTxStructHash
 				invalidSignature, // invalid signature but correct length
-				"0x", // encryptionBlob
+				"0xffff", // encryptionBlob
 			),
 		).to.be.revertedWithCustomError(harbour, "InvalidSignature");
 	});
@@ -261,6 +439,26 @@ describe("SafeInternationalHarbour", () => {
 		).to.emit(harbour, "SafeTransactionRegistered");
 
 		expect(await harbour.retrieveRegistrationCount(chainId, safe, safeTx.nonce, notary)).to.equal(2);
+	});
+
+	it("should revert when repeating a signature for the same transaction", async () => {
+		const { signer, notary, alice, harbour, chainId, safe, encryptionKey } = await loadFixture(deployFixture);
+
+		const safeTx = populateSafeTransaction({});
+		const safeTxStructHash = getSafeTransactionStructHash(safeTx);
+		const safeTxHash = getSafeTransactionHash(safe, chainId, safeTx);
+		const signature = await signSafeTransaction(signer, safe, chainId, safeTx);
+		const encryptionBlob = await encryptSafeTransaction(safeTx, [encryptionKey]);
+
+		await harbour
+			.connect(notary)
+			.enqueueTransaction(chainId, safe, safeTx.nonce, safeTxStructHash, signature, encryptionBlob);
+
+		await expect(
+			harbour.connect(alice).enqueueTransaction(chainId, safe, safeTx.nonce, safeTxStructHash, signature, "0x"),
+		)
+			.to.be.revertedWithCustomError(harbour, "SignerAlreadySignedTransaction")
+			.withArgs(signer.address, safeTxHash);
 	});
 
 	it("should retrieve full E2EE transaction details via event", async () => {
