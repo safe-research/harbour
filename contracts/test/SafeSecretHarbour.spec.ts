@@ -25,7 +25,7 @@ describe("SafeInternationalHarbour", () => {
 		return { deployer, signer, alice, harbour, chainId, safe, decryptionKey, encryptionKey };
 	}
 
-	it("should report support the secret harbour interface", async () => {
+	it("should report support for the secret harbour interface", async () => {
 		const { harbour } = await loadFixture(deployFixture);
 
 		let secretHarbourId = "0x00000000";
