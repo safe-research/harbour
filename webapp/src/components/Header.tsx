@@ -36,6 +36,9 @@ export default function Header() {
 	};
 
 	return (
+		// Header is a flex-col with 2 elements.
+		// Element 1 is a flex-row with the Harbour name on the left and the wallet connection button / info on the right.
+		// Element 2 is the Safe Research banner.
 		<header className="sticky top-0 z-50 w-full flex flex-col items-center px-2 py-2 bg-white border-b border-gray-200">
 			<div className="flex flex-row w-full justify-between mb-2">
 				<Link
