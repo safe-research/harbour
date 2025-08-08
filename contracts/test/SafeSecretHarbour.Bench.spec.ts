@@ -5,7 +5,7 @@ import { getSafeTransactionStructHash, signSafeTransaction } from "./utils/safeT
 
 describeBench(
 	"SafeSecretHarbour",
-	async () => {
+	async ([notary]) => {
 		const Factory = await ethers.getContractFactory("SafeSecretHarbour");
 		const harbour = await Factory.deploy();
 
@@ -16,12 +16,14 @@ describeBench(
 			}),
 		);
 
-		return { harbour, recipients };
+		return { notary, harbour, recipients };
 	},
-	async ({ signer, harbour, chainId, safe, safeTx, existing, recipients }) => {
+	async ({ signer, notary, harbour, chainId, safe, safeTx, existing, recipients }) => {
 		const safeTxStructHash = getSafeTransactionStructHash(safeTx);
 		const signature = await signSafeTransaction(signer, safe, chainId, safeTx);
 		const encryptedSafeTx = existing ? "0x" : await encryptSafeTransaction(safeTx, recipients);
-		return await harbour.registerTransaction(chainId, safe, safeTx.nonce, safeTxStructHash, signature, encryptedSafeTx);
+		return await harbour
+			.connect(notary)
+			.enqueueTransaction(chainId, safe, safeTx.nonce, safeTxStructHash, signature, encryptedSafeTx);
 	},
 );

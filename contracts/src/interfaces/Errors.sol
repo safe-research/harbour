@@ -43,6 +43,12 @@ error UnexpectedSignatureR(bytes32 extractedR);
 error UnexpectedSignatureVS(bytes32 extractedVS);
 error UnexpectedNonce(address expectedKey);
 
+/**
+ * @notice Thrown when attempting to enqueue nothing. That is, when calling `enqueueTransaction` on
+ *         the {SafeSecretHarbour} with empty `signature` and `encryptionBlob`.
+ */
+error NothingToEnqueue();
+
 // ------------------------------------------------------------------
 // Quota Errors
 // ------------------------------------------------------------------
