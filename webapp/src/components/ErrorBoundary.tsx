@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<
 			}
 
 			return (
-				<div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+				<div className="bg-gray-50 flex items-center justify-center p-4">
 					<div className="bg-white rounded-lg shadow-md p-6 max-w-md w-full">
 						<h2 className="text-lg font-semibold text-red-600 mb-2">
 							Something went wrong

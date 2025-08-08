@@ -3,6 +3,7 @@ import { safeIdSchema } from "@/lib/validators";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
+import { SafeResearchBanner } from "./SafeResearch";
 
 export default function Header() {
 	const [{ wallet: primaryWallet }, connect, disconnect] = useConnectWallet();
@@ -35,58 +36,64 @@ export default function Header() {
 	};
 
 	return (
-		<header className="sticky top-0 z-50 w-full flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200">
-			<nav className="flex flex-row">
+		// Header is a flex-col with 2 elements.
+		// Element 1 is a flex-row with the Harbour name on the left and the wallet connection button / info on the right.
+		// Element 2 is the Safe Research banner.
+		<header className="sticky top-0 z-50 w-full flex flex-col items-center px-2 py-2 bg-white border-b border-gray-200">
+			<nav className="flex flex-row w-full justify-between mb-2">
 				<Link
 					to="/"
 					className="text-xl font-semibold text-black hover:opacity-75 transition"
 				>
 					Harbour
 				</Link>
-			</nav>
-			<div className="flex items-center gap-2">
-				{/* Batch cart button */}
-				{totalCount > 0 && safeAddressParam && chainIdParamNum && (
-					<Link
-						to="/enqueue"
-						search={{
-							safe: safeAddressParam,
-							chainId: chainIdParamNum,
-							flow: "batch",
-						}}
-						className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition"
-					>
-						Batch ({totalCount})
-					</Link>
-				)}
-				{primaryWallet ? (
-					<div className="flex items-center gap-2">
-						{chainId && (
-							<span className="font-mono text-sm text-gray-600">{chainId}</span>
-						)}
-						{address && (
-							<span className="font-mono text-sm text-gray-900">
-								{address.slice(0, 6)}...{address.slice(-4)}
-							</span>
-						)}
+				<div className="flex items-center gap-2">
+					{/* Batch cart button */}
+					{totalCount > 0 && safeAddressParam && chainIdParamNum && (
+						<Link
+							to="/enqueue"
+							search={{
+								safe: safeAddressParam,
+								chainId: chainIdParamNum,
+								flow: "batch",
+							}}
+							className="px-4 py-2 text-sm font-medium bg-gray-900 text-white rounded hover:bg-gray-800 transition"
+						>
+							Batch ({totalCount})
+						</Link>
+					)}
+					{primaryWallet ? (
+						<div className="flex items-center gap-2">
+							{chainId && (
+								<span className="font-mono text-sm text-gray-600">
+									{chainId}
+								</span>
+							)}
+							{address && (
+								<span className="font-mono text-sm text-gray-900">
+									{address.slice(0, 6)}...{address.slice(-4)}
+								</span>
+							)}
+							<button
+								type="button"
+								onClick={handleDisconnect}
+								className="px-4 py-2 text-sm font-medium bg-black text-white rounded hover:bg-gray-800 transition"
+							>
+								Disconnect
+							</button>
+						</div>
+					) : (
 						<button
 							type="button"
-							onClick={handleDisconnect}
+							onClick={handleConnect}
 							className="px-4 py-2 text-sm font-medium bg-black text-white rounded hover:bg-gray-800 transition"
 						>
-							Disconnect
+							Connect Wallet
 						</button>
-					</div>
-				) : (
-					<button
-						type="button"
-						onClick={handleConnect}
-						className="px-4 py-2 text-sm font-medium bg-black text-white rounded hover:bg-gray-800 transition"
-					>
-						Connect Wallet
-					</button>
-				)}
-			</div>
+					)}
+				</div>
+			</nav>
+			<SafeResearchBanner />
 		</header>
 	);
 }

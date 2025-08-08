@@ -7,6 +7,7 @@ import { BatchProvider } from "../contexts/BatchTransactionsContext";
 import ReactQueryDevtoolsSetup from "../integrations/tanstack-query/layout";
 
 import type { QueryClient } from "@tanstack/react-query";
+import { SafeResearchFooter } from "@/components/SafeResearch";
 
 /**
  * Defines the context available to all routes in the application.
@@ -26,6 +27,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		<BatchProvider>
 			<Header />
 			<Outlet />
+			<SafeResearchFooter repo="harbour" />
 			<TanStackRouterDevtools />
 			<ReactQueryDevtoolsSetup />
 		</BatchProvider>
