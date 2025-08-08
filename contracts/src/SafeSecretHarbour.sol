@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {SignerAlreadySignedTransaction} from "./interfaces/Errors.sol";
+import {
+    NothingToEnqueue,
+    SignerAlreadySignedTransaction
+} from "./interfaces/Errors.sol";
 import {
     EncryptionKeyRegistered,
     SafeTransactionRegistered,
@@ -125,7 +128,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      *
      * @custom:events Emits {SafeTransactionSigned} and {SafeTransactionRegistered}.
      */
-    function registerTransaction(
+    function enqueueTransaction(
         uint256 chainId,
         address safe,
         uint256 nonce,
@@ -133,6 +136,11 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         bytes calldata signature,
         bytes calldata encryptionBlob
     ) external returns (bytes32 uid) {
+        require(
+            signature.length | encryptionBlob.length != 0,
+            NothingToEnqueue()
+        );
+
         bytes32 safeTxHash = CoreLib.computePartialSafeTxHash(
             chainId,
             safe,
