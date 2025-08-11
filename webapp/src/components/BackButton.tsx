@@ -1,12 +1,12 @@
-import type { ChainId } from "@/lib/types";
-import { Link } from "@tanstack/react-router";
 import type { ToPathOption } from "@tanstack/react-router";
+import { Link, useCanGoBack, useRouter } from "@tanstack/react-router";
+import type { ChainId } from "@/lib/types";
 
 interface BackButtonProps {
 	/** The path to link to. Should be a registered route. */
 	to: ToPathOption;
 	/** Search parameters for the link. */
-	search?: Record<string, string | number>;
+	search?: Record<string, string | number | bigint>;
 	/** The content to display within the button. */
 	children: React.ReactNode;
 	/** Optional additional CSS classes. */
@@ -32,6 +32,26 @@ function BackButton({ to, search, children, className = "" }: BackButtonProps) {
 }
 
 /**
+ * A button component that pops to the previous page or if it cannot go back it will be hidden.
+ * Uses (← Back) as an action text.
+ * @param {BackButtonProps} props - The component props.
+ * @returns JSX element representing the back button.
+ */
+function ConditionalBackButton({ className = "" }: { className?: string }) {
+	const router = useRouter();
+	const canGoBack = useCanGoBack();
+	return canGoBack ? (
+		<button
+			type="button"
+			onClick={() => router.history.back()}
+			className={`inline-flex items-center text-black hover:underline ${className}`}
+		>
+			← Back
+		</button>
+	) : null;
+}
+
+/**
  * A specialized back button that links to the Safe dashboard.
  * @param {{ safeAddress: string; chainId: ChainId }} props - Props containing the Safe address and chain ID for the dashboard link.
  * @returns JSX element representing the back to dashboard button.
@@ -50,4 +70,4 @@ function BackToDashboardButton({
 	);
 }
 
-export { BackButton, BackToDashboardButton };
+export { BackButton, BackToDashboardButton, ConditionalBackButton };

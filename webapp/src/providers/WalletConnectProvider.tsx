@@ -1,15 +1,8 @@
-import type { SafeId } from "@/lib/validators";
-import {
-	type SessionTypes,
-	type WalletKitInstance,
-	getSdkError,
-	initOrGetWalletKit,
-} from "@/lib/walletconnect";
 import type { AnyRouter } from "@tanstack/react-router";
 import type React from "react";
 import {
-	type JSX,
 	createContext,
+	type JSX,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -17,6 +10,13 @@ import {
 	useState,
 } from "react";
 import { useWalletConnectSession } from "@/hooks/useWalletConnectSession";
+import type { SafeId } from "@/lib/validators";
+import {
+	getSdkError,
+	initOrGetWalletKit,
+	type SessionTypes,
+	type WalletKitInstance,
+} from "@/lib/walletconnect";
 
 type WalletConnectContextValue = {
 	walletkit: WalletKitInstance | null;

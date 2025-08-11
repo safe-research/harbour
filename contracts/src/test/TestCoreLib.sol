@@ -1,0 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0-only
+pragma solidity ^0.8.29;
+
+import {CoreLib} from "../libs/CoreLib.sol";
+
+contract TestCoreLib {
+    function testSplitSV(bytes32 vs) public pure returns (bytes32 s, uint8 v) {
+        return CoreLib.splitVS(vs);
+    }
+}

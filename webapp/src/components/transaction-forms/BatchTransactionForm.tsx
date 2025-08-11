@@ -1,11 +1,8 @@
-import { useBatch } from "@/contexts/BatchTransactionsContext";
-import type { BatchedTransaction } from "@/contexts/BatchTransactionsContext";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
-import { MULTISEND_CALL_ONLY_ADDRESS, encodeMultiSend } from "@/lib/multisend";
-import { getSafeTransaction } from "@/lib/safe";
-import { useNavigate } from "@tanstack/react-router";
 import { ethers } from "ethers";
-import { useState } from "react";
+import type { BatchedTransaction } from "@/contexts/BatchTransactionsContext";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
+import { useSignAndEnqueue } from "@/hooks/useSignAndEnqueue";
+import { encodeMultiSend, MULTISEND_CALL_ONLY_ADDRESS } from "@/lib/multisend";
 import type { CommonTransactionFormProps } from "./types";
 
 /**
@@ -18,53 +15,33 @@ export function BatchTransactionForm({
 	config,
 }: CommonTransactionFormProps) {
 	const { getBatch, removeTransaction, clearBatch } = useBatch();
-	const navigate = useNavigate();
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [txHash, setTxHash] = useState<string>();
-	const [error, setError] = useState<string>();
+
+	const parser = (_input: undefined) => {
+		const multiData = encodeMultiSend(transactions);
+
+		return {
+			to: MULTISEND_CALL_ONLY_ADDRESS,
+			value: "0",
+			data: multiData,
+			nonce: config.nonce.toString(),
+		};
+	};
+
+	const { isSubmitting, error, txHash, signAndEnqueue } = useSignAndEnqueue({
+		safeAddress,
+		chainId,
+		browserProvider,
+		config,
+		parser,
+		onEnqueued: () => {
+			clearBatch(safeAddress, chainId);
+		},
+	});
 
 	const transactions: BatchedTransaction[] = getBatch(safeAddress, chainId);
 
 	const handleRemove = (index: number) => {
 		removeTransaction(safeAddress, chainId, index);
-	};
-
-	const handleEnqueueBatch = async () => {
-		setError(undefined);
-		setTxHash(undefined);
-
-		if (transactions.length === 0) {
-			setError("No transactions in batch");
-			return;
-		}
-
-		try {
-			setIsSubmitting(true);
-			const multiData = encodeMultiSend(transactions);
-
-			const transaction = getSafeTransaction({
-				chainId,
-				safeAddress,
-				to: MULTISEND_CALL_ONLY_ADDRESS,
-				value: "0",
-				data: multiData,
-				nonce: config.nonce.toString(),
-			});
-
-			const receipt = await signAndEnqueueSafeTransaction(
-				browserProvider,
-				transaction,
-			);
-			setTxHash(receipt.transactionHash);
-			clearBatch(safeAddress, chainId);
-			navigate({ to: "/queue", search: { safe: safeAddress, chainId } });
-		} catch (err: unknown) {
-			const message =
-				err instanceof Error ? err.message : "Batch enqueue failed";
-			setError(message);
-		} finally {
-			setIsSubmitting(false);
-		}
 	};
 
 	return (
@@ -115,7 +92,7 @@ export function BatchTransactionForm({
 			<div className="flex space-x-4">
 				<button
 					type="button"
-					onClick={handleEnqueueBatch}
+					onClick={() => signAndEnqueue(undefined)}
 					disabled={isSubmitting || transactions.length === 0}
 					className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-md hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
 				>

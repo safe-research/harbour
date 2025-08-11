@@ -12,7 +12,7 @@ enum Operation {
  * Type alias for a blockchain chain ID.
  * Represents the numeric identifier of a specific blockchain.
  */
-type ChainId = number;
+type ChainId = bigint;
 
 /**
  * Interface representing a Harbour-specific signature.

@@ -1,12 +1,14 @@
-import { JsonRpcProvider } from "ethers";
 import type { JsonRpcApiProvider, JsonRpcApiProviderOptions } from "ethers";
-import { useEffect, useState } from "react";
+import { JsonRpcProvider } from "ethers";
+import { useCallback, useEffect, useState } from "react";
+import { loadCurrentSettings } from "@/components/settings/SettingsForm";
+import { HARBOUR_CHAIN_ID } from "@/lib/harbour";
 import { getRpcUrlByChainId } from "../lib/chains";
 
 /**
  * Represents the result of the useChainlistRpcProvider hook.
  */
-interface UseChainlistRpcProviderResult {
+export interface UseChainlistRpcProviderResult {
 	/** The Ethers JsonRpcApiProvider instance, or null if not yet initialized or an error occurred. */
 	provider: JsonRpcApiProvider | null;
 	/** An error object if fetching the RPC URL or initializing the provider failed, otherwise null. */
@@ -18,7 +20,7 @@ interface UseChainlistRpcProviderResult {
 // Define default provider options to keep a constant reference
 // So that the hook doesn't re-create the provider options object on every render
 // If the default is used
-const DEFAULT_PROVIDER_OPTIONS: JsonRpcApiProviderOptions = {
+export const DEFAULT_PROVIDER_OPTIONS: JsonRpcApiProviderOptions = {
 	batchMaxCount: 1,
 };
 
@@ -31,8 +33,27 @@ const DEFAULT_PROVIDER_OPTIONS: JsonRpcApiProviderOptions = {
  * @returns {UseChainlistRpcProviderResult} An object containing the provider, error state, and loading state.
  */
 export function useChainlistRpcProvider(
-	chainId: number,
+	chainId: bigint,
 	providerOptions: JsonRpcApiProviderOptions = DEFAULT_PROVIDER_OPTIONS,
+): UseChainlistRpcProviderResult {
+	return useRpcProvider(chainId, providerOptions, getRpcUrlByChainId);
+}
+
+export function useHarbourRpcProvider(
+	providerOptions: JsonRpcApiProviderOptions = DEFAULT_PROVIDER_OPTIONS,
+): UseChainlistRpcProviderResult {
+	const loadRpcUrl = useCallback(async (): Promise<string> => {
+		const currentSettings = await loadCurrentSettings();
+		if (currentSettings.rpcUrl) return currentSettings.rpcUrl;
+		return getRpcUrlByChainId(HARBOUR_CHAIN_ID);
+	}, []);
+	return useRpcProvider(HARBOUR_CHAIN_ID, providerOptions, loadRpcUrl);
+}
+
+function useRpcProvider(
+	chainId: bigint,
+	providerOptions: JsonRpcApiProviderOptions,
+	loadRpcUrl: (chainId: bigint) => Promise<string>,
 ): UseChainlistRpcProviderResult {
 	const [provider, setProvider] = useState<JsonRpcApiProvider | null>(null);
 	const [error, setError] = useState<Error | null>(null);
@@ -46,7 +67,7 @@ export function useChainlistRpcProvider(
 
 		(async () => {
 			try {
-				const url = await getRpcUrlByChainId(chainId);
+				const url = await loadRpcUrl(chainId);
 				if (!cancelled) {
 					setProvider(new JsonRpcProvider(url, undefined, providerOptions));
 				}
@@ -66,7 +87,7 @@ export function useChainlistRpcProvider(
 		return () => {
 			cancelled = true;
 		};
-	}, [chainId, providerOptions]);
+	}, [chainId, providerOptions, loadRpcUrl]);
 
 	return { provider, error, isLoading };
 }

@@ -10,7 +10,7 @@ const ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY = "erc20TokenAddressesByChain";
  *
  * @returns An array of token addresses for the specified chain.
  */
-function getERC20TokenAddresses(chainId: number): string[] {
+function getERC20TokenAddresses(chainId: bigint): string[] {
 	const storedData = localStorage.getItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY);
 	if (storedData) {
 		try {
@@ -44,7 +44,7 @@ function getERC20TokenAddresses(chainId: number): string[] {
  * @param address The ERC20 token address to add.
  * @param chainId The chain ID to add the token address for.
  */
-function addERC20TokenAddress(address: string, chainId: number): void {
+function addERC20TokenAddress(address: string, chainId: bigint): void {
 	const storedData = localStorage.getItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY);
 	let parsedData: Record<string, string[]> = {};
 
@@ -79,7 +79,7 @@ function addERC20TokenAddress(address: string, chainId: number): void {
  * @param address The ERC20 token address to remove.
  * @param chainId The chain ID to remove the token address from.
  */
-function removeERC20TokenAddress(address: string, chainId: number): void {
+function removeERC20TokenAddress(address: string, chainId: bigint): void {
 	const storedData = localStorage.getItem(ERC20_TOKEN_ADDRESSES_BY_CHAIN_KEY);
 	let parsedData: Record<string, string[]> = {};
 

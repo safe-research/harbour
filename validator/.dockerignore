@@ -1,0 +1,12 @@
+# Ignore node_modules, as they are installed inside the container.
+node_modules
+
+# Ignore build output, if any.
+dist
+
+# Ignore local environment files.
+.env*
+
+# Ignore Docker-related files.
+Dockerfile
+.dockerignore

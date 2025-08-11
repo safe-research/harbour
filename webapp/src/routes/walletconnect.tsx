@@ -1,8 +1,8 @@
-import { safeIdSchema } from "@/lib/validators";
-import { walletConnectUriSchema } from "@/lib/walletconnect";
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { safeIdSchema } from "@/lib/validators";
+import { walletConnectUriSchema } from "@/lib/walletconnect";
 import { BackToDashboardButton } from "../components/BackButton";
 import { RequireWallet } from "../components/RequireWallet";
 import { SessionsList } from "../components/walletconnect/SessionsList";

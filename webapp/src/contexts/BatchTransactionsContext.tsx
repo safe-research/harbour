@@ -1,7 +1,7 @@
-import type { MetaTransaction } from "@/lib/types";
-import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { z } from "zod";
+import type { MetaTransaction } from "@/lib/types";
 import {
 	chainIdSchema,
 	ethereumAddressSchema,
@@ -12,7 +12,7 @@ import {
 
 interface BatchedTransaction extends MetaTransaction {
 	safeAddress: string;
-	chainId: number;
+	chainId: bigint;
 }
 
 interface BatchContextValue {
@@ -20,11 +20,11 @@ interface BatchContextValue {
 	addTransaction: (tx: BatchedTransaction) => void;
 	removeTransaction: (
 		safeAddress: string,
-		chainId: number,
+		chainId: bigint,
 		index: number,
 	) => void;
-	clearBatch: (safeAddress: string, chainId: number) => void;
-	getBatch: (safeAddress: string, chainId: number) => BatchedTransaction[];
+	clearBatch: (safeAddress: string, chainId: bigint) => void;
+	getBatch: (safeAddress: string, chainId: bigint) => BatchedTransaction[];
 	totalCount: number;
 }
 
@@ -71,7 +71,7 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		}
 	}, [batches]);
 
-	const getKey = (safeAddress: string, chainId: number) =>
+	const getKey = (safeAddress: string, chainId: bigint) =>
 		`${safeAddress}-${chainId}`;
 
 	const addTransaction = (tx: BatchedTransaction) => {
@@ -84,7 +84,7 @@ function BatchProvider({ children }: { children: ReactNode }) {
 
 	const removeTransaction = (
 		safeAddress: string,
-		chainId: number,
+		chainId: bigint,
 		index: number,
 	) => {
 		const key = getKey(safeAddress, chainId);
@@ -99,7 +99,7 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		});
 	};
 
-	const clearBatch = (safeAddress: string, chainId: number) => {
+	const clearBatch = (safeAddress: string, chainId: bigint) => {
 		const key = getKey(safeAddress, chainId);
 		setBatches((prev) => {
 			const newBatches = { ...prev };
@@ -110,7 +110,7 @@ function BatchProvider({ children }: { children: ReactNode }) {
 
 	const getBatch = (
 		safeAddress: string,
-		chainId: number,
+		chainId: bigint,
 	): BatchedTransaction[] => {
 		const key = getKey(safeAddress, chainId);
 		return batches[key] ?? [];
