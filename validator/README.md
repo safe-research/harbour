@@ -1,10 +1,10 @@
+## Validator Worker
+
+### Development setup
+
+- Install dependencies
 ```sh
 npm install
-npm run dev
-```
-
-```sh
-npm run deploy
 ```
 
 ### Validator Worker

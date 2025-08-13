@@ -57,6 +57,13 @@ podman build -t validator-worker harbour-project_relaying/validator/
 ```
 
 3. Create `.dev.vars` file [see .dev.vars.sample in the validator folder]
+  - `VALIDATOR_PK_SEED` - Random string that is used as the seed for the private key
+  - `SUPPORTED_PAYMASTER` - Address of the paymaster that is used when generating UserOps
+  - `SUPPORTED_CHAIN_ID` - Chain ID of the Harbour instance that should be used
+  - `SUPPORTED_HARBOUR` - Address of the Harbour instance that should be used
+  - `SUPPORTED_ENTRYPOINT` - ERC-4337 Entrypoint contract that should be used
+  - `HARBOUR_RPC` - RPC used to fetch information from the Harbour instance
+  - `BUNDLER_RPC` - RPC used to handle UserOps
 
 4. Run validator
 ```sh
@@ -74,7 +81,7 @@ The instructions assume a machines that has local version of the Safe harbour re
 
 1. Setup the `contracts` package of the harbour project
 
-2. Create `.env` file [see .env.example in the contracts folder]. Most importantly this requires a private key of an account that owns the `FEE_TOKEN` used to get quota on the `SafeHarbourPaymaster`
+2. Create `.env` file [see .env.example in the contracts folder]. Most importantly this requires a private key (`PRIVATE_KEY`) of an account that owns the `FEE_TOKEN` used to get quota on the `SafeHarbourPaymaster`
 
 3. Execute the funding script
 ```sh
