@@ -41,6 +41,6 @@ This approach directly tackles the vulnerabilities of off-chain coordination:
 
 The `SafeInternationalHarbour` project includes a web application to interact with this on-chain system. This interface allows users to view pending transactions easily, append their signatures, and execute transactions once the requisite approvals are met, all while interacting directly with the on-chain registry.
 
-Play with the app here: https://aboriginal-sort.surge.sh
+Play with the app here: https://safe.dev/harbour
 
 Check the docs how to run it locally: [webapp](./webapp)
