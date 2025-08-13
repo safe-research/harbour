@@ -6,3 +6,5 @@ SUPPORTED_HARBOUR=
 SUPPORTED_ENTRYPOINT=
 HARBOUR_RPC=
 BUNDLER_RPC=
+# Validator debug setting
+# DEBUG=waku*,libp2p*
