@@ -6,7 +6,7 @@ The simplest way to interact with the harbour contracts is to directly call the 
 
 To make this more accessible harbour has build-in support for [ERC-4337](https://ercs.ethereum.org/ERCS/erc-4337). The harbour contract acts as the account and allows interaction by validating the signatures provided.
 
-It is important to note that there are some limitation this, namely that it is required to use a paymaster. The `SafeHarbourPaymaster` can be used for this. This paymaster will sponsor the interactions with harbour, as long as a "validator" with sufficient quota (similar to stake) authorizes the interaction. 
+It is important to note that there are some limitation this, namely that it is required to use a paymaster. The [`SafeHarbourPaymaster`](./validator_network.md#paymaster) can be used for this. This paymaster will sponsor the interactions with harbour, as long as a "validator" with sufficient quota (similar to stake) authorizes the interaction. 
 
 ## Mixins
 

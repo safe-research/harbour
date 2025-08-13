@@ -32,9 +32,23 @@ The validators will run a Waku light node in a worker to listen for incoming mes
 
 Before submitting the validator should run validations on the Safe transaction. While this is not required, this is a powerful tool to increase the functionality of the validator network.
 
-One condition that should be validated is that the Safe exists on the target chain and that the signer is part of the owners of that Safe. 
+The validations that should be run are called "conditions". These conditions should be proofable onchain and if a validator submits a UserOperation that does not follow these conditions to harbour, they should get slashed (more on this in the economics section).
 
-The conditions should be proofable onchain and if a validator submits a UserOperation that does not follow these conditions to harbour, they should get slashed (more on this in the economics section).
+Possbile conditions:
+- [Valid Harbour check](../contracts/src/conditions/SupportedHarbourCondition.sol) - Validate that only specific Harbour isntances are used.
+- Owner validity check - Validate that the Safe exists on the target chain and that the signer is part of the owners of that Safe.
+- Acitivity check - Validate that the target Safe has been used recently.
+- [Opt-in check](../contracts/src/conditions/RequiredSafeTxIndicator.sol) - Validate that the user explicitly opted into the usage of Harbour and the validator network.
+
+Not all of the conditions have been implemented yet.
+
+## Paymaster
+
+The [`SafeHarbourPaymaster`](../contracts/src/SafeHarbourPaymaster.sol) is the contract where validators stake their tokens, the active conditions are tracked and that interfaces with the ERC-4337 Entrypoint.
+
+For the purpose the paymaster utilizes the [`QuotaMixin`](../contracts/src/mixins/QuotaMixin.sol) and the [`SlashingMixin`](../contracts/src/mixins/SlashingMixin.sol).
+
+The authorization of a validator for a specific user operation is stored in the `signature` field of the specific user operation. This is a fundamental difference to other ERC-4337 account, as the account itself (the Harbour instance) does not verify the `signature` field of the user operation (see the [ERC4337Mixin](../contracts/src/mixins/ERC4337Mixin.sol)).
 
 ## Economics
 
