@@ -8,6 +8,15 @@ To make this more accessible harbour has build-in support for [ERC-4337](https:/
 
 It is important to note that there are some limitation this, namely that it is required to use a paymaster. The `SafeHarbourPaymaster` can be used for this. This paymaster will sponsor the interactions with harbour, as long as a "validator" with sufficient quota (similar to stake) authorizes the interaction. 
 
+## Mixins
+
+To separate the different logic parts mixins are utilized. Each Mixin requires different interfaces and implements the logic in a self contained way.
+
+Currently there are three different mixins:
+- ERC4337Mixin - Mixin that implement required account methods for ERC-4337
+- QuotaMixin - Mixin that implements quota management
+- SlashingMixin - Mixin that implements slashing logic
+
 ## Relaying with direct validator usage
 
 To submit a transaction using ERC-4337 and a validator it is necessary that the validator provides a signature for the storage.
