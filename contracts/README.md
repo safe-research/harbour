@@ -34,6 +34,7 @@ npm run test
 For detailed information on each module, see the documentation in the `docs/` folder:
 
 - [International Harbour Documentation](docs/international-harbour.md)
+- [Mixins Documentation](docs/mixins.md)
 
 ## Deployment
 
