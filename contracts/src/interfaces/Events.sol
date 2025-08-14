@@ -59,11 +59,15 @@ event NewTransaction(
 /**
  * @notice Emitted whenever an encryption key is registered for a signer.
  *
- * @param signer        The signer for which the key was registered.
- * @param encryptionKey A 32-byte encryption key. The exact format of the key is left up to the
- *                      application.
+ * @param signer    The signer for which the key was registered.
+ * @param context   A 32-byte contract associated with the encryption key.
+ * @param publicKey A 32-byte encryption public key.
  */
-event EncryptionKeyRegistered(address indexed signer, bytes32 encryptionKey);
+event EncryptionKeyRegistered(
+    address indexed signer,
+    bytes32 context,
+    bytes32 publicKey
+);
 
 /**
  * @notice Emitted whenever a signed encrypted Safe transaction is registered.

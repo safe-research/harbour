@@ -34,8 +34,8 @@ describe("SafeInternationalHarbour", () => {
 			secretHarbourId = `0x${(BigInt(secretHarbourId) ^ BigInt(func.selector)).toString(16)}`;
 		});
 
-		expect(secretHarbourId).to.equal("0x8a56c054");
-		for (const interfaceId of ["0x01ffc9a7", "0x8a56c054"]) {
+		expect(secretHarbourId).to.equal("0x108e796c");
+		for (const interfaceId of ["0x01ffc9a7", "0x108e796c"]) {
 			expect(await harbour.supportsInterface(interfaceId)).to.be.true;
 		}
 	});
@@ -43,17 +43,18 @@ describe("SafeInternationalHarbour", () => {
 	it("should register a public encryption key", async () => {
 		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
 
-		await harbour.connect(signer).registerEncryptionKey(encryptionKey);
-		const [storedEncryptionKey] = await harbour.retrieveEncryptionKeys([signer]);
+		await harbour.connect(signer).registerEncryptionKey(ethers.ZeroHash, encryptionKey);
+		const [storedEncryptionKey] = await harbour.retrieveEncryptionPublicKeys([signer]);
 		expect(storedEncryptionKey).to.equal(encryptionKey);
 	});
 
 	it("should emit a key registration event", async () => {
 		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
 
-		await expect(harbour.connect(signer).registerEncryptionKey(encryptionKey))
+		const context = ethers.id("context");
+		await expect(harbour.connect(signer).registerEncryptionKey(context, encryptionKey))
 			.to.emit(harbour, "EncryptionKeyRegistered")
-			.withArgs(signer.address, encryptionKey);
+			.withArgs(signer.address, context, encryptionKey);
 	});
 
 	it("should be able to retrieve a public encryption keys for multiple signers at a time", async () => {
@@ -65,13 +66,13 @@ describe("SafeInternationalHarbour", () => {
 			{ account: signer, key: encryptionKey },
 			{ account: alice, key: ethers.id("alice") },
 		]) {
-			await harbour.connect(account).registerEncryptionKey(key);
+			await harbour.connect(account).registerEncryptionKey(ethers.ZeroHash, key);
 
 			signers.push(account.address);
 			keys.push(key);
 		}
 
-		expect(await harbour.retrieveEncryptionKeys(signers)).to.deep.equal(keys);
+		expect(await harbour.retrieveEncryptionPublicKeys(signers)).to.deep.equal(keys);
 	});
 
 	it("should revert if signature length is not 65 bytes", async () => {
@@ -224,10 +225,10 @@ describe("SafeInternationalHarbour", () => {
 		const { signer, alice, harbour, chainId, safe, encryptionKey, decryptionKey } = await loadFixture(deployFixture);
 
 		// Alice, another signer, registers her public encryption key on harbour.
-		await harbour.connect(alice).registerEncryptionKey(encryptionKey);
+		await harbour.connect(alice).registerEncryptionKey(ethers.ZeroHash, encryptionKey);
 
 		// You query Alice's encryption key and use it for encrypting a transaction.
-		const [alicesEncryptionKey] = await harbour.retrieveEncryptionKeys([alice]);
+		const [alicesEncryptionKey] = await harbour.retrieveEncryptionPublicKeys([alice]);
 		const safeTx = populateSafeTransaction({
 			to: ethers.Wallet.createRandom().address,
 			value: 1n,
