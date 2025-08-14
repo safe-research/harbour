@@ -44,10 +44,6 @@ npm install
    - For webapp: See [webapp/README.md](webapp/README.md)
    - For validator: See [validator/README.md](validator/README.md)
 
-## Deployments
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## Development
 
 - `npm run format` - Format code using Biome
