@@ -1,5 +1,5 @@
-import { createLightNode, type LightNode } from "@waku/sdk";
 import type { IEncoder } from "@waku/interfaces";
+import { createLightNode, type LightNode } from "@waku/sdk";
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { FullSafeTransaction } from "@/lib/types";

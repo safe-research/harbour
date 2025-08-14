@@ -31,7 +31,7 @@ const getUserOpGasLimits = async (
 		method: "eth_estimateUserOperationGas",
 		params: [toRpcUserOp(userOp), entryPoint],
 	});
-	console.log({limits})
+	console.log({ limits });
 	if (!limits?.paymasterVerificationGasLimit)
 		console.warn("Could not estimate paymaster verification gas limit");
 	return {
@@ -109,7 +109,8 @@ export async function buildUserOp(
 	userOp.preVerificationGas = limits.preVerificationGas;
 	userOp.verificationGasLimit = limits.verificationGasLimit;
 	userOp.callGasLimit = limits.callGasLimit;
-	userOp.paymasterVerificationGasLimit = limits.paymasterVerificationGasLimit * 2n;
+	userOp.paymasterVerificationGasLimit =
+		limits.paymasterVerificationGasLimit * 2n;
 	userOp.paymasterPostOpGasLimit = limits.paymasterPostOpGasLimit;
 	// Reset signature, as this was only set for estimation
 	userOp.signature = "0x";

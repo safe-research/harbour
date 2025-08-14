@@ -10,9 +10,12 @@ export const getGasFee = async (
 		method: "eth_feeHistory",
 		params: ["0x1", "latest", [100]],
 	});
-	const maxPriorityFeePerGas = hexToBigInt(await harbourClient.request({
-		method: "eth_maxPriorityFeePerGas",
-	})) * (priorityFeeMultiplier ?? 2n);
+	const maxPriorityFeePerGas =
+		hexToBigInt(
+			await harbourClient.request({
+				method: "eth_maxPriorityFeePerGas",
+			}),
+		) * (priorityFeeMultiplier ?? 2n);
 	const baseFee =
 		BigInt(feeHistory.baseFeePerGas[0]) * (basePriceMultiplier ?? 2n);
 	return {

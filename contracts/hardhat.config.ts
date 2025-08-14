@@ -72,7 +72,7 @@ const config: HardhatUserConfig = {
 		enabled: true,
 	},
 	etherscan: {
-		apiKey: ETHERSCAN_API_KEY || ""
+		apiKey: ETHERSCAN_API_KEY || "",
 	},
 	deterministicDeployment: (chainId) => {
 		const info = getSingletonFactoryInfo(Number.parseInt(chainId));

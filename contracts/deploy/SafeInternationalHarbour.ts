@@ -18,7 +18,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 		args: [
 			build4337Config({
 				...harbourConfig.erc4337config,
-			})
+			}),
 		],
 		log: true,
 	});
@@ -29,9 +29,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 
 	const supportHarbourConditionDeployment = await deterministic("SupportedHarbourCondition", {
 		from: deployer,
-		args: [
-			harbourDeployment.address,
-		],
+		args: [harbourDeployment.address],
 		log: true,
 	});
 	await supportHarbourConditionDeployment.deploy();
@@ -46,9 +44,7 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 			buildQuotaConfig(paymasterConfig.quotaConfig),
 			buildSlashingConfig({
 				...paymasterConfig.slashingConfig,
-				initialConditions: [
-					supportHarbourConditionDeployment.address
-				]
+				initialConditions: [supportHarbourConditionDeployment.address],
 			}),
 		],
 		log: true,

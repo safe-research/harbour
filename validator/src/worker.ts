@@ -9,7 +9,7 @@ import {
 	SafeTransactionPacket,
 } from "./waku/safe.js";
 
-dotenv.config({ path: ".gnosis.vars" });
+dotenv.config({ path: ".dev.vars" });
 
 async function initializeWorker() {
 	const config = workerConfigSchema.parse(process.env);
