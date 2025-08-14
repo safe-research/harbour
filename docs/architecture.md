@@ -1,12 +1,12 @@
 # Architecture
 
-Harbour consists of a onchain contract that is responsible for the storage of signatues and transaction information. The contract is append only and information that has been submitted once cannot be updated or deleted.
+Harbour consists of an onchain contract that is responsible for the storage of signatues and transaction information. The contract is append only and information that has been submitted once cannot be updated or deleted.
 
-The simplest way to interact with the harbour contracts is to directly call the corresponding methods. Another alternative is to relay the interaction to harbour. This is possible as harbour does not depend on msg.sender or tx.origin for any validation.
+The simplest way to interact with the Harbour contracts is to directly call the corresponding methods. Another alternative is to relay the interactions to Harbour. This is possible as Harbour does not depend on `msg.sender` or `tx.origin` for any validation.
 
-To make this more accessible harbour has build-in support for [ERC-4337](https://ercs.ethereum.org/ERCS/erc-4337). The harbour contract acts as the account and allows interaction by validating the signatures provided.
+To make this more accessible Harbour has built-in support for [ERC-4337](https://ercs.ethereum.org/ERCS/erc-4337). The Harbour contract acts as the account and allows interaction by validating the signatures provided.
 
-It is important to note that there are some limitation this, namely that it is required to use a paymaster. The [`SafeHarbourPaymaster`](./validator_network.md#paymaster) can be used for this. This paymaster will sponsor the interactions with harbour, as long as a "validator" with sufficient quota (similar to stake) authorizes the interaction. 
+It is important to note that there are some limitation this, namely that it is required to use a paymaster. The [`SafeHarbourPaymaster`](./validator_network.md#paymaster) can be used for this. This paymaster will sponsor the interactions with Harbour, as long as a "validator" with sufficient quota (similar to stake) authorizes the interaction. 
 
 ## Relaying with direct validator usage
 
@@ -72,8 +72,8 @@ sequenceDiagram
 
 ## Relaying with validators via Waku
 
-Maintaining a direct connection to the validator is contradictionary as the purpose of harbour is to reduce single points of failure and thrive for decentralization. While it is possible to easily switch to another validator this still requires management of a direct interaction with a validator. Therefore an alternative communcation channel has been implemented using [Waku](https://github.com/waku-org/waku).
+Maintaining a direct connection to the validator is contradictory as the purpose of harbour is to reduce single points of failure and thrive for decentralization. While it is possible to easily switch to another validator this still requires management of a direct interaction with a validator. Therefore an alternative communication channel has been implemented using [Waku](https://github.com/waku-org/waku).
 
-In simplified terms the signer broadcast its signature to all validators via Waku. The validators then submit the information to harbour for storage.
+In simplified terms the signer broadcasts its signature to all validators via Waku. The validators then submit the information to harbour for storage.
 
 More information to this can be found in the [validator network](validator_network.md) documentation.

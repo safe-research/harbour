@@ -32,12 +32,12 @@ The validators will run a Waku light node in a worker to listen for incoming mes
 
 Before submitting the validator should run validations on the Safe transaction. While this is not required, this is a powerful tool to increase the functionality of the validator network.
 
-The validations that should be run are called "conditions". These conditions should be proofable onchain and if a validator submits a UserOperation that does not follow these conditions to harbour, they should get slashed (more on this in the economics section).
+The validations that should be run are called "conditions". These conditions should be provable onchain and if a validator submits a UserOperation that does not follow these conditions to Harbour, they should get slashed (more on this in the economics section).
 
 Possbile conditions:
-- [Valid Harbour check](../contracts/src/conditions/SupportedHarbourCondition.sol) - Validate that only specific Harbour isntances are used.
+- [Valid Harbour check](../contracts/src/conditions/SupportedHarbourCondition.sol) - Validate that only specific Harbour instances are used.
 - Owner validity check - Validate that the Safe exists on the target chain and that the signer is part of the owners of that Safe.
-- Acitivity check - Validate that the target Safe has been used recently.
+- Activity check - Validate that the target Safe has been used recently.
 - [Opt-in check](../contracts/src/conditions/RequiredSafeTxIndicator.sol) - Validate that the user explicitly opted into the usage of Harbour and the validator network.
 
 Not all of the conditions have been implemented yet.
@@ -58,7 +58,7 @@ TBD
 
 ### Running a validator worker
 
-The instructions assume a machines that has `tar`, `curl` and `podman` (or `docker`) installed.
+The instructions assume a machine that has `tar`, `curl` and `podman` (or `docker`) installed.
 
 1. Download the repository code 
 ```sh
@@ -91,9 +91,9 @@ podman logs -f harbour-validator
 
 ### Funding the validator
 
-The instructions assume a machines that has local version of the Safe harbour repository running.
+The instructions assume a machine that has local version of the [Safe Harbour repository](https://github.com/safe-research/harbour) running.
 
-1. Setup the `contracts` package of the harbour project
+1. Setup the [`contracts` package](https://github.com/safe-research/harbour/tree/main/contracts) of the Harbour project
 
 2. Create `.env` file [see .env.example in the contracts folder]. Most importantly this requires a private key (`PRIVATE_KEY`) of an account that owns the `FEE_TOKEN` used to get quota on the `SafeHarbourPaymaster`
 
