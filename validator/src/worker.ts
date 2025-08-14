@@ -1,8 +1,4 @@
-import {
-	createDecoder,
-	createLightNode,
-	type IDecodedMessage,
-} from "@waku/sdk";
+import { createLightNode, type IDecodedMessage } from "@waku/sdk";
 import dotenv from "dotenv";
 import { workerConfigSchema } from "./config/schemas.js";
 import { accountFromSeed } from "./utils/signer.js";
@@ -42,7 +38,9 @@ async function initializeWorker() {
 	console.log("Found Peer --- Configure decoder");
 	console.log(node.libp2p.getPeers());
 
-	const decoder = createDecoder(SafeHarbourTopicTransactionsV1);
+	const decoder = node.createDecoder({
+		contentTopic: SafeHarbourTopicTransactionsV1,
+	});
 	console.log("Configured decoder --- Setup Handler");
 	const handler = new SafeTransactionHandler(
 		validatorAccount,

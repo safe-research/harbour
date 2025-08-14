@@ -1,9 +1,5 @@
-import {
-	createEncoder,
-	createLightNode,
-	type Encoder,
-	type LightNode,
-} from "@waku/sdk";
+import { createLightNode, type LightNode } from "@waku/sdk";
+import type { IEncoder } from "@waku/interfaces";
 import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { FullSafeTransaction } from "@/lib/types";
@@ -26,16 +22,12 @@ export class WakuManager {
 	private watchers = new Set<(state: WakuState) => void>();
 
 	private enabled: boolean;
-	private encoder: Encoder;
+	private encoder?: IEncoder;
 	private node?: LightNode;
 
 	constructor() {
 		this.enabled =
 			localStorage.getItem(STORAGE_KEY_ENABLED) === STORAGE_VALUE_ENABLED;
-		this.encoder = createEncoder({
-			contentTopic: SafeHarbourTopicTransactionsV1,
-			ephemeral: true,
-		});
 	}
 
 	enable() {
@@ -64,6 +56,10 @@ export class WakuManager {
 		const node = await createLightNode({ defaultBootstrap: true });
 		this.node = node;
 		if (!node) return;
+		this.encoder = node.createEncoder({
+			contentTopic: SafeHarbourTopicTransactionsV1,
+			ephemeral: true,
+		});
 		await node.start();
 		console.log("Started --- Waiting for peers");
 		this.notifyWatchers();
@@ -110,8 +106,11 @@ export class WakuManager {
 		transaction: FullSafeTransaction,
 		signature: string,
 	): Promise<boolean> {
-		const node = this.node;
-		if (node === undefined || !this.isAvailable())
+		if (
+			this.node === undefined ||
+			this.encoder === undefined ||
+			!this.isAvailable()
+		)
 			throw Error("Waku is not available");
 		console.log({ transaction, signature });
 		// Create a new message object
@@ -129,7 +128,7 @@ export class WakuManager {
 
 		console.log("Send Message");
 		// Send the message using Light Push
-		const response = await node.lightPush.send(this.encoder, {
+		const response = await this.node.lightPush.send(this.encoder, {
 			payload: serialisedMessage,
 		});
 		console.log(
