@@ -11,6 +11,14 @@ import {
 
 dotenv.config({ path: ".dev.vars" });
 
+process.addListener("unhandledRejection", (reason, promise) => {
+	if (reason instanceof Error && reason.name.startsWith("Failed to create a new stream")) {
+		// Work around for https://github.com/waku-org/js-waku/issues/2535
+		return;
+	}
+	console.error("Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 async function initializeWorker() {
 	const config = workerConfigSchema.parse(process.env);
 	const validatorAccount = accountFromSeed(config.VALIDATOR_PK_SEED);
