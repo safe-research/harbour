@@ -25,7 +25,7 @@
 		"@tanstack/react-router-devtools": "^1.121.41",
 		"@tanstack/router-plugin": "^1.121.41",
 		"@tanstack/zod-adapter": "^1.121.41",
-		"@waku/sdk": "^0.0.34-252e379.0",
+		"@waku/sdk": "0.0.34-252e379.0",
 		"@walletconnect/core": "^2.21.4",
 		"@walletconnect/utils": "^2.21.4",
 		"@web3-onboard/core": "^2.24.1",
