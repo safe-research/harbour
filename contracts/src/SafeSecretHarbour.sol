@@ -6,7 +6,10 @@ import {
     SafeTransactionRegistered
 } from "./interfaces/Events.sol";
 import {ISafeSecretHarbour} from "./interfaces/Harbour.sol";
-import {SafeTransactionRegistrationHandle} from "./interfaces/Types.sol";
+import {
+    EncryptionKey,
+    SafeTransactionRegistrationHandle
+} from "./interfaces/Types.sol";
 import {IERC165} from "./interfaces/ERC165.sol";
 import {BlockNumbers} from "./libs/BlockNumbers.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
@@ -38,12 +41,9 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     // ------------------------------------------------------------------
 
     /**
-     * Mapping of signers to a public encryption key.
-     * @dev This contract does not enforce any key format, but uses Curve25519 public encryption
-     *      keys in the reference client implementation. The only restriction is that the key must
-     *      fit in 32 bytes.
+     * @dev Mapping of signers to their encryption keys.
      */
-    mapping(address signer => bytes32 publicKey) private _encryptionKeys;
+    mapping(address signer => EncryptionKey) private _encryptionKeys;
 
     /**
      * Mapping of `(chainId, safe, nonce, signer)` to an array of block numbers where a Safe
@@ -76,12 +76,15 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     /**
      * @notice Register a public encryption key for a signer.
      *
-     * @param encryptionKey The public encryption key to be registered for the
-     *                      `msg.sender` signer.
+     * @param context   A 32-byte context specific to the public encryption key.
+     * @param publicKey The public encryption key to be registered for the `msg.sender` signer.
      */
-    function registerEncryptionKey(bytes32 encryptionKey) external {
-        _encryptionKeys[msg.sender] = encryptionKey;
-        emit EncryptionKeyRegistered(msg.sender, encryptionKey);
+    function registerEncryptionKey(
+        bytes32 context,
+        bytes32 publicKey
+    ) external {
+        _encryptionKeys[msg.sender] = EncryptionKey(context, publicKey);
+        emit EncryptionKeyRegistered(msg.sender, context, publicKey);
     }
 
     /**
@@ -137,22 +140,34 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     // ------------------------------------------------------------------
 
     /**
-     * @notice Retrieves encryption keys for the specified signers.
+     * @notice Retrieves encryption public keys for the specified signers.
      *
-     * @param signers         The list of signers to fetch encryption keys for.
+     * @param signers     The list of signers to fetch encryption keys for.
      *
-     * @return encryptionKeys The encryption keys for each of the signers, or `0` if none was
-     *                        registered. The encryption keys are in the same order as the signers
-     *                        array (i.e. for all `i`, the encryption key for `signer[i]` is
-     *                        `encryptionKeys[i]`).
+     * @return publicKeys The encryption public keys for each of the signers, or `0` if none was
+     *                    registered. The keys are in the same order as the signers array (i.e. for
+     *                    all `i`, the key for `signer[i]` is `publicKey[i]`).
      */
-    function retrieveEncryptionKeys(
+    function retrieveEncryptionPublicKeys(
         address[] calldata signers
-    ) external view returns (bytes32[] memory encryptionKeys) {
-        encryptionKeys = new bytes32[](signers.length);
+    ) external view returns (bytes32[] memory publicKeys) {
+        publicKeys = new bytes32[](signers.length);
         for (uint256 i = 0; i < signers.length; i++) {
-            encryptionKeys[i] = _encryptionKeys[signers[i]];
+            publicKeys[i] = _encryptionKeys[signers[i]].publicKey;
         }
+    }
+
+    /**
+     * @notice Retrieves the encryption keys for a signer.
+     *
+     * @param signer         The signer to fetch encryption keys for.
+     *
+     * @return encryptionKey The registered encryption key.
+     */
+    function retrieveEncryptionKey(
+        address signer
+    ) external view returns (EncryptionKey memory encryptionKey) {
+        encryptionKey = _encryptionKeys[signer];
     }
 
     /**
