@@ -7,7 +7,7 @@ task("deploy-and-verify", "Deploys and verifies Harbour contracts")
 		const chainId = Number.parseInt(await hre.getChainId());
 		const etherscanCustomChainsEntry = hre.config.etherscan.customChains?.find((chain) => chain.chainId === chainId);
 		const needsCustomEtherscanUrl = !!etherscanCustomChainsEntry;
-
+		console.log({needsCustomEtherscanUrl, etherscanCustomChainsEntry})
 		await hre.run("deploy", { tags: taskArgs.tags });
 		await hre.run("etherscan-verify", {
 			forceLicense: true,

@@ -72,17 +72,7 @@ const config: HardhatUserConfig = {
 		enabled: true,
 	},
 	etherscan: {
-		apiKey: ETHERSCAN_API_KEY || "",
-		customChains: [
-			{
-				network: "gnosis",
-				chainId: 100,
-				urls: {
-					apiURL: "https://api.gnosisscan.io",
-					browserURL: "https://gnosisscan.io",
-				},
-			},
-		],
+		apiKey: ETHERSCAN_API_KEY || ""
 	},
 	deterministicDeployment: (chainId) => {
 		const info = getSingletonFactoryInfo(Number.parseInt(chainId));
