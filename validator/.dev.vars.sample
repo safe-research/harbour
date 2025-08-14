@@ -1,6 +1,10 @@
 VALIDATOR_PK_SEED=type some random stuff here as entropy ;D
-# Overwrite validator params
+# Set validator params
 SUPPORTED_PAYMASTER=
 SUPPORTED_CHAIN_ID=
-SUPPORTED_ENTRYPOINT=
 SUPPORTED_HARBOUR=
+SUPPORTED_ENTRYPOINT=
+HARBOUR_RPC=
+BUNDLER_RPC=
+# Validator debug setting
+# DEBUG=waku*,libp2p*

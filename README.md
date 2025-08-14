@@ -11,6 +11,12 @@ Harbour is a monorepo containing the following packages:
 
 - **contracts**: Smart contracts for the Harbour protocol
 - **webapp**: Web application
+- **validagtor**: Validator service
+- **docs**: Documentation
+
+## Architecture
+
+For documentation on the architecture see the [docs](./docs/architecture.md)
 
 ## Getting Started
 
@@ -35,6 +41,7 @@ npm install
 4. Follow the setup instructions in the documentation:
    - For contracts: See [contracts/README.md](contracts/README.md)
    - For webapp: See [webapp/README.md](webapp/README.md)
+   - For validator: See [validator/README.md](validator/README.md)
 
 ## Development
 

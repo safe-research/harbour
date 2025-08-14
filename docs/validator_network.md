@@ -1,0 +1,103 @@
+# Validator Network
+
+## Technical Setup
+
+The validator network is run using Waku as a communication channel. For this the topic `/safe/harbour/v1/txs` is used. 
+
+The signer interface runs a light node in the browser to submit signed Safe transactions to this topics. The protobuf specification of the messages is the following:
+
+```protobuf
+syntax = "proto3";
+
+message SafeTransaction {
+  string chainId = 1;
+  string safe = 2;
+  string to = 3;
+  string value = 4;
+  string data = 5;
+  uint32 operation = 6;
+  string safeTxGas = 7;
+  string baseGas = 8;
+  string gasPrice = 9;
+  string gasToken = 10;
+  string refundReceiver = 11;
+  string nonce = 12;
+  string signature = 13;
+}
+```
+
+The validators will run a Waku light node in a worker to listen for incoming messages, validating the signed Safe transaction and packing them into a UserOperation to submit the information for storage onchain.
+
+## Validating Safe transactions
+
+Before submitting the validator should run validations on the Safe transaction. While this is not required, this is a powerful tool to increase the functionality of the validator network.
+
+The validations that should be run are called "conditions". These conditions should be provable onchain and if a validator submits a UserOperation that does not follow these conditions to Harbour, they should get slashed (more on this in the economics section).
+
+Possbile conditions:
+- [Valid Harbour check](../contracts/src/conditions/SupportedHarbourCondition.sol) - Validate that only specific Harbour instances are used.
+- Owner validity check - Validate that the Safe exists on the target chain and that the signer is part of the owners of that Safe.
+- Activity check - Validate that the target Safe has been used recently.
+- [Opt-in check](../contracts/src/conditions/RequiredSafeTxIndicator.sol) - Validate that the user explicitly opted into the usage of Harbour and the validator network.
+
+Not all of the conditions have been implemented yet.
+
+## Paymaster
+
+The [`SafeHarbourPaymaster`](../contracts/src/SafeHarbourPaymaster.sol) is the contract where validators stake their tokens, the active conditions are tracked and that interfaces with the ERC-4337 Entrypoint.
+
+For the purpose the paymaster utilizes the [`QuotaMixin`](../contracts/src/mixins/QuotaMixin.sol) and the [`SlashingMixin`](../contracts/src/mixins/SlashingMixin.sol).
+
+The authorization of a validator for a specific user operation is stored in the `signature` field of the specific user operation. This is a fundamental difference to other ERC-4337 account, as the account itself (the Harbour instance) does not verify the `signature` field of the user operation (see the [ERC4337Mixin](../contracts/src/mixins/ERC4337Mixin.sol)).
+
+## Economics
+
+TBD
+
+## Setting up a validator
+
+### Running a validator worker
+
+The instructions assume a machine that has `tar`, `curl` and `podman` (or `docker`) installed.
+
+1. Download the repository code 
+```sh
+curl -sL https://github.com/safe-research/harbour/archive/main.tar.gz | tar xz
+```
+
+2. Build validator worker
+```sh
+podman build -t validator-worker harbour-main/validator/
+```
+
+3. Create `.dev.vars` file [see .dev.vars.sample in the validator folder]
+  - `VALIDATOR_PK_SEED` - Random string that is used as the seed for the private key
+  - `SUPPORTED_PAYMASTER` - Address of the paymaster that is used when generating UserOps
+  - `SUPPORTED_CHAIN_ID` - Chain ID of the Harbour instance that should be used
+  - `SUPPORTED_HARBOUR` - Address of the Harbour instance that should be used
+  - `SUPPORTED_ENTRYPOINT` - ERC-4337 Entrypoint contract that should be used
+  - `HARBOUR_RPC` - RPC used to fetch information from the Harbour instance
+  - `BUNDLER_RPC` - RPC used to handle UserOps
+
+4. Run validator
+```sh
+podman run -d --name harbour-validator --env-file .dev.vars validator-worker
+```
+
+5. Follow the logs
+```sh
+podman logs -f harbour-validator
+```
+
+### Funding the validator
+
+The instructions assume a machine that has local version of the [Safe Harbour repository](https://github.com/safe-research/harbour) running.
+
+1. Setup the [`contracts` package](https://github.com/safe-research/harbour/tree/main/contracts) of the Harbour project
+
+2. Create `.env` file [see .env.example in the contracts folder]. Most importantly this requires a private key (`PRIVATE_KEY`) of an account that owns the `FEE_TOKEN` used to get quota on the `SafeHarbourPaymaster`
+
+3. Execute the funding script
+```sh
+npm exec hardhat deposit-validator-tokens -- --network gnosis --amount 0.01 --validator 0x...
+```
