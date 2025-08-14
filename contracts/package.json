@@ -18,6 +18,7 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "@noble/curves": "^1.9.6",
     "@nomicfoundation/hardhat-toolbox": "^6.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.14",
     "@nomiclabs/hardhat-solhint": "^4.0.2",
