@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "format": "biome format",
+    "format:fix": "biome format --fix",
     "lint": "biome lint",
     "lint:fix": "biome lint --fix",
     "check": "biome check",
