@@ -62,12 +62,12 @@ The instructions assume a machine that has `tar`, `curl` and `podman` (or `docke
 
 1. Download the repository code 
 ```sh
-curl -sL https://github.com/safe-research/harbour/archive/project_relaying.tar.gz | tar xz
+curl -sL https://github.com/safe-research/harbour/archive/main.tar.gz | tar xz
 ```
 
 2. Build validator worker
 ```sh
-podman build -t validator-worker harbour-project_relaying/validator/
+podman build -t validator-worker harbour-main/validator/
 ```
 
 3. Create `.dev.vars` file [see .dev.vars.sample in the validator folder]

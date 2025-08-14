@@ -72,8 +72,8 @@ sequenceDiagram
 
 ## Relaying with validators via Waku
 
-Maintaining a direct connection to the validator is contradictory as the purpose of harbour is to reduce single points of failure and thrive for decentralization. While it is possible to easily switch to another validator this still requires management of a direct interaction with a validator. Therefore an alternative communication channel has been implemented using [Waku](https://github.com/waku-org/waku).
+Maintaining a direct connection to the validator is contradictory as the purpose of Harbour is to reduce single points of failure and thrive for decentralization. While it is possible to easily switch to another validator this still requires management of a direct interaction with a validator. Therefore an alternative communication channel has been implemented using [Waku](https://github.com/waku-org/waku).
 
-In simplified terms the signer broadcasts its signature to all validators via Waku. The validators then submit the information to harbour for storage.
+In simplified terms the signer broadcasts its signature to all validators via Waku. The validators then submit the information to Harbour for storage.
 
 More information to this can be found in the [validator network](validator_network.md) documentation.
