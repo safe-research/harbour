@@ -14,9 +14,10 @@ Harbour is a monorepo containing the following packages:
 - **validagtor**: Validator service
 - **docs**: Documentation
 
-## Architecture
+## Documentation
 
-For documentation on the architecture see the [docs](./docs/architecture.md)
+- [Architecture Documentation](./docs/architecture.md) - Overview of the project architecture
+- [Deployment Documentation](./docs/deployments.md) - Information on latest deployments
 
 ## Getting Started
 
@@ -42,6 +43,10 @@ npm install
    - For contracts: See [contracts/README.md](contracts/README.md)
    - For webapp: See [webapp/README.md](webapp/README.md)
    - For validator: See [validator/README.md](validator/README.md)
+
+## Deployments
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Development
 
