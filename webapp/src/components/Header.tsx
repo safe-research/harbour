@@ -2,10 +2,10 @@ import { Cog6ToothIcon } from "@heroicons/react/24/solid";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useConnectWallet } from "@web3-onboard/react";
 import { useMemo } from "react";
-import { SafeResearchBanner } from "./SafeResearch";
 import { useBatch } from "@/contexts/BatchTransactionsContext";
 import { getShortAddress } from "@/lib/encoding";
 import { safeIdSchema } from "@/lib/validators";
+import { SafeResearchBanner } from "./SafeResearch";
 
 // TODO: move to some util
 

@@ -57,9 +57,6 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
         uint256 maxCost
     ) internal override returns (bytes memory context, uint256 validationData) {
         (context);
-        // TODO: check if we should also check that the sender is a supported harbour address.
-        //       But this is a circular dependency, so they would have to be registered afterwards
-        //       For now we rely that validators only sign for valid harbour addresses (otherwise they get slashed)
 
         // Theoretically this check is also performed by the 4337 mixin and could be skipped here (especially if the sender is trusted)
         require(
@@ -86,8 +83,6 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
             validAfter
         );
     }
-
-    // TODO introduce maxCostsToQuota function, to scale the costs
 
     // Slashing amount is based on quota and is converted back to tokens.
     function _adjustSlashingAmount(

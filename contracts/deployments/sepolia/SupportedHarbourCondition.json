@@ -1,0 +1,138 @@
+{
+  "address": "0x682953FC8EE8D5feF838a680824163eE6561b7E7",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_supportedHarbour",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "SUPPORTED_HARBOUR",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        },
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "sender",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "nonce",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "initCode",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "callData",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "accountGasLimits",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "preVerificationGas",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "gasFees",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes",
+              "name": "paymasterAndData",
+              "type": "bytes"
+            },
+            {
+              "internalType": "bytes",
+              "name": "signature",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct PackedUserOperation",
+          "name": "userOp",
+          "type": "tuple"
+        }
+      ],
+      "name": "shouldBeSlashed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x15080c985baa882d510f000dfc86521a709a6526238589007b934160e514ab0c",
+  "receipt": {
+    "to": "0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7",
+    "from": "0xF4f42442E2AE1d7Ea87087aF73B2Abb5536290C2",
+    "contractAddress": null,
+    "transactionIndex": 87,
+    "gasUsed": "154354",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xb0304eddde5d4ddeee5f343bcc28d3d75079c190b4d87fb888e29e0abf1583a0",
+    "transactionHash": "0x15080c985baa882d510f000dfc86521a709a6526238589007b934160e514ab0c",
+    "logs": [],
+    "blockNumber": 8981484,
+    "cumulativeGasUsed": "18200220",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [
+    "0x7E299130D19bd0F3D86718d389a4DEF957034189"
+  ],
+  "numDeployments": 1,
+  "solcInputHash": "5fa2546a5c5fe4b297113b87c1216c73",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.29+commit.ab55807c\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_supportedHarbour\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"SUPPORTED_HARBOUR\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"nonce\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"initCode\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"callData\",\"type\":\"bytes\"},{\"internalType\":\"bytes32\",\"name\":\"accountGasLimits\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"preVerificationGas\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"gasFees\",\"type\":\"bytes32\"},{\"internalType\":\"bytes\",\"name\":\"paymasterAndData\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"signature\",\"type\":\"bytes\"}],\"internalType\":\"struct PackedUserOperation\",\"name\":\"userOp\",\"type\":\"tuple\"}],\"name\":\"shouldBeSlashed\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"src/conditions/SupportedHarbourCondition.sol\":\"SupportedHarbourCondition\"},\"evmVersion\":\"cancun\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":10000000},\"remappings\":[],\"viaIR\":true},\"sources\":{\"@account-abstraction/contracts/interfaces/PackedUserOperation.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.28;\\n\\n/**\\n * User Operation struct\\n * @param sender                - The sender account of this request.\\n * @param nonce                 - Unique value the sender uses to verify it is not a replay.\\n * @param initCode              - If set, the account contract will be created by this constructor\\n * @param callData              - The method call to execute on this account.\\n * @param accountGasLimits      - Packed gas limits for validateUserOp and gas limit passed to the callData method call.\\n * @param preVerificationGas    - Gas not calculated by the handleOps method, but added to the gas paid.\\n *                                Covers batch overhead.\\n * @param gasFees               - packed gas fields maxPriorityFeePerGas and maxFeePerGas - Same as EIP-1559 gas parameters.\\n * @param paymasterAndData      - If set, this field holds the paymaster address, verification gas limit, postOp gas limit and paymaster-specific extra data\\n *                                The paymaster will pay for the transaction instead of the sender.\\n * @param signature             - Sender-verified signature over the entire request, the EntryPoint address and the chain ID.\\n */\\nstruct PackedUserOperation {\\n    address sender;\\n    uint256 nonce;\\n    bytes initCode;\\n    bytes callData;\\n    bytes32 accountGasLimits;\\n    uint256 preVerificationGas;\\n    bytes32 gasFees;\\n    bytes paymasterAndData;\\n    bytes signature;\\n}\\n\",\"keccak256\":\"0xb15188e25e45fe73097e279675b6c0beccbd4133ead2260f8f0c4ba840046800\",\"license\":\"MIT\"},\"src/conditions/SupportedHarbourCondition.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\npragma solidity ^0.8.29;\\n\\nimport {\\n    PackedUserOperation\\n} from \\\"@account-abstraction/contracts/interfaces/PackedUserOperation.sol\\\";\\nimport {ISlashingCondition} from \\\"../interfaces/Conditions.sol\\\";\\n\\ncontract SupportedHarbourCondition is ISlashingCondition {\\n    address public immutable SUPPORTED_HARBOUR;\\n\\n    constructor(address _supportedHarbour) {\\n        SUPPORTED_HARBOUR = _supportedHarbour;\\n    }\\n\\n    function shouldBeSlashed(\\n        address,\\n        PackedUserOperation calldata userOp\\n    ) external view override returns (bool) {\\n        return userOp.sender != SUPPORTED_HARBOUR;\\n    }\\n}\\n\",\"keccak256\":\"0xf2a47432a879ad1641d93bfcd0235d539ce03463f860c0dae9b409526704831e\",\"license\":\"GPL-3.0-only\"},\"src/interfaces/Conditions.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0-only\\npragma solidity ^0.8.29;\\n\\nimport {\\n    PackedUserOperation\\n} from \\\"@account-abstraction/contracts/interfaces/PackedUserOperation.sol\\\";\\n\\ninterface ISlashingCondition {\\n    function shouldBeSlashed(\\n        address validator,\\n        PackedUserOperation calldata userOp\\n    ) external returns (bool);\\n}\\n\",\"keccak256\":\"0x5159605c8846d62eca9b94260587ae576a065a89cffb2eab8dea01548e1b417a\",\"license\":\"GPL-3.0-only\"}},\"version\":1}",
+  "bytecode": "0x60a034606c57601f61024f38819003918201601f19168301916001600160401b03831184841017607057808492602094604052833981010312606c57516001600160a01b0381168103606c576080526040516101ca90816100858239608051818181607c015261016e0152f35b5f80fd5b634e487b7160e01b5f52604160045260245ffdfe6080806040526004361015610012575f80fd5b5f3560e01c9081632e31f340146100a45750634f74152814610032575f80fd5b346100a0575f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100a057602060405173ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000168152f35b5f80fd5b346100a05760407ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100a05760043573ffffffffffffffffffffffffffffffffffffffff8116036100a05760243567ffffffffffffffff81116100a0576101207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc82360301126100a057600401359073ffffffffffffffffffffffffffffffffffffffff82168092036100a05760209173ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001614158152f3fea26469706673582212200bd64c3988f46f91aa85b981c032568b6e19ba014ee9d3cb35c4ad791b75a50f64736f6c634300081d0033",
+  "deployedBytecode": "0x6080806040526004361015610012575f80fd5b5f3560e01c9081632e31f340146100a45750634f74152814610032575f80fd5b346100a0575f7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100a057602060405173ffffffffffffffffffffffffffffffffffffffff7f0000000000000000000000000000000000000000000000000000000000000000168152f35b5f80fd5b346100a05760407ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc3601126100a05760043573ffffffffffffffffffffffffffffffffffffffff8116036100a05760243567ffffffffffffffff81116100a0576101207ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc82360301126100a057600401359073ffffffffffffffffffffffffffffffffffffffff82168092036100a05760209173ffffffffffffffffffffffffffffffffffffffff7f00000000000000000000000000000000000000000000000000000000000000001614158152f3fea26469706673582212200bd64c3988f46f91aa85b981c032568b6e19ba014ee9d3cb35c4ad791b75a50f64736f6c634300081d0033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

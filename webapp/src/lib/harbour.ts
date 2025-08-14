@@ -26,7 +26,7 @@ import type {
 /** The chain ID where the Harbour contract is deployed. */
 const HARBOUR_CHAIN_ID = 100n;
 /** The address of the Harbour contract. */
-const HARBOUR_ADDRESS = "0x5E669c1f2F9629B22dd05FBff63313a49f87D4e6";
+const HARBOUR_ADDRESS = "0x7E299130D19bd0F3D86718d389a4DEF957034189";
 
 /** ABI for the Harbour contract. */
 const HARBOUR_ABI = [

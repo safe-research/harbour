@@ -14,9 +14,10 @@ Harbour is a monorepo containing the following packages:
 - **validagtor**: Validator service
 - **docs**: Documentation
 
-## Architecture
+## Documentation
 
-For documentation on the architecture see the [docs](./docs/architecture.md)
+- [Architecture Documentation](./docs/architecture.md) - Overview of the project architecture
+- [Deployment Documentation](./docs/deployments.md) - Information on latest deployments
 
 ## Getting Started
 

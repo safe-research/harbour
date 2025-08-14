@@ -65,6 +65,7 @@ function QuotaTokenBalance({
 			quotaTokenStats.tokenInfo.decimals,
 		);
 		const quotaManager = quotaManagerAt(quotaManagerAddress);
+		// TODO: skip approval if already sufficient
 		const approveTx = {
 			to: quotaTokenStats.tokenInfo.address,
 			data: encodeERC20Approval(quotaManagerAddress, amountInAtoms),

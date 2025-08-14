@@ -1,10 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { SafeResearchFooter } from "@/components/SafeResearch";
 import Header from "../components/Header";
 import { BatchProvider } from "../contexts/BatchTransactionsContext";
 import ReactQueryDevtoolsSetup from "../integrations/tanstack-query/layout";
-import { SafeResearchFooter } from "@/components/SafeResearch";
+
 /**
  * Defines the context available to all routes in the application.
  * This includes the TanStack Query client instance.

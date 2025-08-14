@@ -13,27 +13,12 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 	const paymasterConfig = paymasterConfigs[chainId];
 	if (!harbourConfig || !paymasterConfig) throw Error("No configuration for this network");
 
-	const paymasterDeployment = await deterministic("SafeHarbourPaymaster", {
-		from: deployer,
-		args: [
-			deployer,
-			paymasterConfig.erc4337entryPoint,
-			buildQuotaConfig(paymasterConfig.quotaConfig),
-			buildSlashingConfig(paymasterConfig.slashingConfig),
-		],
-		log: true,
-	});
-	await paymasterDeployment.deploy();
-
-	log(`SafeHarbourPaymaster deployed at ${paymasterDeployment.address}`);
-
 	const harbourDeployment = await deterministic("SafeInternationalHarbour", {
 		from: deployer,
 		args: [
 			build4337Config({
 				...harbourConfig.erc4337config,
 			}),
-			buildQuotaConfig(harbourConfig.quotaConfig),
 		],
 		log: true,
 	});
@@ -41,6 +26,32 @@ const func: DeployFunction = async ({ getNamedAccounts, deployments, getChainId 
 	await harbourDeployment.deploy();
 
 	log(`SafeInternationalHarbour deployed at ${harbourDeployment.address}`);
+
+	const supportHarbourConditionDeployment = await deterministic("SupportedHarbourCondition", {
+		from: deployer,
+		args: [harbourDeployment.address],
+		log: true,
+	});
+	await supportHarbourConditionDeployment.deploy();
+
+	log(`SupportedHarbourCondition deployed at ${supportHarbourConditionDeployment.address}`);
+
+	const paymasterDeployment = await deterministic("SafeHarbourPaymaster", {
+		from: deployer,
+		args: [
+			deployer,
+			paymasterConfig.erc4337entryPoint,
+			buildQuotaConfig(paymasterConfig.quotaConfig),
+			buildSlashingConfig({
+				...paymasterConfig.slashingConfig,
+				initialConditions: [supportHarbourConditionDeployment.address],
+			}),
+		],
+		log: true,
+	});
+	await paymasterDeployment.deploy();
+
+	log(`SafeHarbourPaymaster deployed at ${paymasterDeployment.address}`);
 };
 
 export default func;

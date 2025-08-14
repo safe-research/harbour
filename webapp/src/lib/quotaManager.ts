@@ -3,9 +3,9 @@ import { Contract, type ContractRunner } from "ethers";
 /** ABI for the QuotaManager contract. */
 const QUOTA_MANAGER_ABI = [
 	"function FEE_TOKEN() view returns (address feeToken)",
-	"function depositTokensForSigner(address signer, uint128 amount)",
-	"function quotaStatsForSigner(address signer) view returns (uint128 tokenBalance, uint64 usedQuota, uint64 nextQuotaReset)",
-	"function availableFreeQuotaForSigner(address signer) view returns (uint64 availableFreeQuota, uint64 usedSignerQuota, uint64 nextSignerQuotaReset)",
+	"function depositTokensForSigner(address signer, uint96 amount)",
+	"function quotaStatsForSigner(address signer) view returns (uint96 tokenBalance, uint96 usedQuota, uint48 nextQuotaReset)",
+	"function availableFreeQuotaForSigner(address signer) view returns (uint96 availableFreeQuota, uint96 usedSignerQuota, uint48 nextSignerQuotaReset)",
 ];
 
 function quotaManagerAt(
