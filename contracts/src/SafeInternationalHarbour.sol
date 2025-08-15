@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {SignerAlreadySignedTransaction} from "./interfaces/Errors.sol";
+import {
+    SignerAlreadySignedTransaction,
+    UnexpectedSafeTxHash,
+    UnexpectedSigner
+} from "./interfaces/Errors.sol";
 import {
     SafeTransaction,
     SignatureDataWithTxHashIndex
 } from "./interfaces/Types.sol";
 import {SignatureStored, NewTransaction} from "./interfaces/Events.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
-import {ERC4337Mixin, ERC4337MixinConfig} from "./mixins/ERC4337Mixin.sol";
-// Imported for natspec inheritance
-// solhint-disable-next-line no-unused-import
-import {IHarbourStore} from "./interfaces/HarbourStore.sol";
+import {ERC4337Mixin} from "./mixins/ERC4337Mixin.sol";
 
 /**
  * @title SafeInternationalHarbour
@@ -57,8 +58,8 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     mapping(bytes32 signatureHash => bytes32 safeTxHash) private _signatureLink;
 
     constructor(
-        ERC4337MixinConfig memory _erc4337Mixinconfig
-    ) ERC4337Mixin(_erc4337Mixinconfig) {}
+        ERC4337Mixin.Config memory erc4337Mixinconfig
+    ) ERC4337Mixin(erc4337Mixinconfig) {}
 
     // ------------------------------------------------------------------
     // External & public write functions
@@ -126,7 +127,8 @@ contract SafeInternationalHarbour is ERC4337Mixin {
             signature
         );
 
-        _storeTransaction(
+        _requireSignatureNotStored(safeTxHash, signer, r, vs);
+        listIndex = _storeEnqueuedTransaction(
             safeTxHash,
             safeAddress,
             chainId,
@@ -139,25 +141,11 @@ contract SafeInternationalHarbour is ERC4337Mixin {
             baseGas,
             gasPrice,
             gasToken,
-            refundReceiver
+            refundReceiver,
+            signer,
+            r,
+            vs
         );
-
-        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
-        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        require(
-            !_signatureStored(keccak256(abi.encodePacked(r, vs))),
-            SignerAlreadySignedTransaction(signer, safeTxHash)
-        );
-        return
-            _storeSignature(
-                signer,
-                safeAddress,
-                chainId,
-                nonce,
-                safeTxHash,
-                r,
-                vs
-            );
     }
 
     // ------------------------------------------------------------------
@@ -249,32 +237,66 @@ contract SafeInternationalHarbour is ERC4337Mixin {
     // ------------------------------------------------------------------
 
     /**
-     * @inheritdoc IHarbourStore
+     * @dev Ensure a signature has not already been stored.
+     *
+     * @param safeTxHash EIP-712 digest of the transaction.
+     * @param signer     Address that signed the transaction.
+     * @param r          First 32 bytes of the signature.
+     * @param vs         Compact representation of s and v from EIP-2098.
      */
-    function _signatureStored(
-        bytes32 signatureHash
-    ) internal view override returns (bool signed) {
-        signed = _signatureLink[signatureHash] != 0;
+    function _requireSignatureNotStored(
+        bytes32 safeTxHash,
+        address signer,
+        bytes32 r,
+        bytes32 vs
+    ) private view {
+        bytes32 signatureHash = keccak256(abi.encodePacked(r, vs));
+        require(
+            _signatureLink[signatureHash] == 0,
+            SignerAlreadySignedTransaction(signer, safeTxHash)
+        );
     }
 
     /**
-     * @inheritdoc IHarbourStore
+     * @dev Internal function to store a validated enqueued transaction and signature.
+     *
+     * @param safeTxHash     EIP-712 digest of the transaction.
+     * @param safeAddress    Target Safe Smart-Account.
+     * @param chainId        Chain id the transaction is meant for.
+     * @param nonce          Safe nonce.
+     * @param to             Destination of the inner call/delegatecall.
+     * @param value          ETH value forwarded by the Safe.
+     * @param data           Calldata executed by the Safe.
+     * @param operation      0 = CALL, 1 = DELEGATECALL.
+     * @param safeTxGas      Gas forwarded to the inner call.
+     * @param baseGas        Fixed overhead reimbursed to the submitting signer.
+     * @param gasPrice       Gas price used for reimbursement.
+     * @param gasToken       ERC-20 token address for refunds (`address(0)` = ETH).
+     * @param refundReceiver Address receiving the gas refund.
+     * @param signer         Address that signed the transaction.
+     * @param r              First 32 bytes of the signature.
+     * @param vs             Compact representation of s and v from EIP-2098.
+     *
+     * @return listIndex     Index of the stored signature in the signer-specific list.
      */
-    function _storeTransaction(
+    function _storeEnqueuedTransaction(
         bytes32 safeTxHash,
         address safeAddress,
         uint256 chainId,
         uint256 nonce,
         address to,
         uint256 value,
-        bytes calldata data,
+        bytes memory data,
         uint8 operation,
         uint256 safeTxGas,
         uint256 baseGas,
         uint256 gasPrice,
         address gasToken,
-        address refundReceiver
-    ) internal override {
+        address refundReceiver,
+        address signer,
+        bytes32 r,
+        bytes32 vs
+    ) private returns (uint256 listIndex) {
         // Store parameters only once (idempotent write)
         SafeTransaction storage slot = _txDetails[safeTxHash];
         if (!slot.stored) {
@@ -322,20 +344,7 @@ contract SafeInternationalHarbour is ERC4337Mixin {
                 data
             );
         }
-    }
 
-    /**
-     * @inheritdoc IHarbourStore
-     */
-    function _storeSignature(
-        address signer,
-        address safeAddress,
-        uint256 chainId,
-        uint256 nonce,
-        bytes32 safeTxHash,
-        bytes32 r,
-        bytes32 vs
-    ) internal override returns (uint256 listIndex) {
         _signatureLink[keccak256(abi.encodePacked(r, vs))] = safeTxHash;
 
         SignatureData[] storage list = _sigData[signer][safeAddress][chainId][
@@ -352,6 +361,164 @@ contract SafeInternationalHarbour is ERC4337Mixin {
             chainId,
             nonce,
             listIndex
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // ERC-4337 relaying implementation
+    // ------------------------------------------------------------------
+
+    /**
+     * @inheritdoc ERC4337Mixin
+     */
+    function _validateRelayedData(
+        bytes calldata relayedData
+    ) internal view override returns (address signer) {
+        bytes32 safeTxHash;
+        address safeAddress;
+        uint256 chainId;
+        uint256 nonce;
+        address to;
+        uint256 value;
+        bytes memory data;
+        uint8 operation;
+        uint256 safeTxGas;
+        uint256 baseGas;
+        uint256 gasPrice;
+        address gasToken;
+        address refundReceiver;
+        bytes32 r;
+        bytes32 vs;
+        (
+            safeTxHash,
+            safeAddress,
+            chainId,
+            nonce,
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            signer,
+            r,
+            vs
+        ) = abi.decode(
+                relayedData,
+                (
+                    bytes32,
+                    address,
+                    uint256,
+                    uint256,
+                    address,
+                    uint256,
+                    bytes,
+                    uint8,
+                    uint256,
+                    uint256,
+                    uint256,
+                    address,
+                    address,
+                    address,
+                    bytes32,
+                    bytes32
+                )
+            );
+
+        {
+            bytes32 computedSafeTxHash = CoreLib.computeSafeTxHash(
+                safeAddress,
+                chainId,
+                nonce,
+                to,
+                value,
+                data,
+                operation,
+                safeTxGas,
+                baseGas,
+                gasPrice,
+                gasToken,
+                refundReceiver
+            );
+            require(
+                computedSafeTxHash == safeTxHash,
+                UnexpectedSafeTxHash(safeTxHash)
+            );
+        }
+
+        {
+            address recoveredSigner = CoreLib.recoverSigner(safeTxHash, r, vs);
+            require(recoveredSigner == signer, UnexpectedSigner(signer));
+        }
+
+        _requireSignatureNotStored(safeTxHash, signer, r, vs);
+    }
+
+    /**
+     * @inheritdoc ERC4337Mixin
+     */
+    function _storeRelayedData(
+        address,
+        bytes calldata relayedData
+    ) internal override {
+        (
+            bytes32 safeTxHash,
+            address safeAddress,
+            uint256 chainId,
+            uint256 nonce,
+            address to,
+            uint256 value,
+            bytes memory data,
+            uint8 operation,
+            uint256 safeTxGas,
+            uint256 baseGas,
+            uint256 gasPrice,
+            address gasToken,
+            address refundReceiver,
+            address signer,
+            bytes32 r,
+            bytes32 vs
+        ) = abi.decode(
+                relayedData,
+                (
+                    bytes32,
+                    address,
+                    uint256,
+                    uint256,
+                    address,
+                    uint256,
+                    bytes,
+                    uint8,
+                    uint256,
+                    uint256,
+                    uint256,
+                    address,
+                    address,
+                    address,
+                    bytes32,
+                    bytes32
+                )
+            );
+        _storeEnqueuedTransaction(
+            safeTxHash,
+            safeAddress,
+            chainId,
+            nonce,
+            to,
+            value,
+            data,
+            operation,
+            safeTxGas,
+            baseGas,
+            gasPrice,
+            gasToken,
+            refundReceiver,
+            signer,
+            r,
+            vs
         );
     }
 }

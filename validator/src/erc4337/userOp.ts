@@ -1,8 +1,11 @@
 import {
 	type Address,
 	type Client,
-	encodeFunctionData,
+	concat,
+	encodeAbiParameters,
 	encodePacked,
+	getAbiItem,
+	getFunctionSelector,
 	type Hex,
 	hashTypedData,
 	hexToBigInt,
@@ -12,7 +15,7 @@ import {
 	toHex,
 } from "viem";
 import type { GasFee } from "../ethereum/types.js";
-import { HARBOUR_ABI } from "../harbour/constants.js";
+import { ENQUEUE_SAFE_TX, HARBOUR_ABI } from "../harbour/constants.js";
 import { getHarbour } from "../harbour/contracts.js";
 import { getSafeTransactionHash } from "../safe/transactions.js";
 import type { SignedSafeTransaction } from "../safe/types.js";
@@ -65,10 +68,11 @@ export async function buildUserOp(
 	});
 	const userSignature = signatureToCompactSignature(transaction.signature);
 	const userOpNonce = await harbourContract.read.getNonce([signer]);
-	const callData = encodeFunctionData({
-		abi: HARBOUR_ABI,
-		functionName: "storeTransaction",
-		args: [
+	const callData = concat([
+		getFunctionSelector(
+			getAbiItem({ abi: HARBOUR_ABI, name: "executeUserOp" }),
+		),
+		encodeAbiParameters(ENQUEUE_SAFE_TX, [
 			safeTxHash,
 			transaction.safe,
 			transaction.chainId,
@@ -85,8 +89,8 @@ export async function buildUserOp(
 			signer,
 			userSignature.r,
 			userSignature.yParityAndS,
-		],
-	});
+		]),
+	]);
 	const userOp: UserOp = {
 		sender: harbourContract.address,
 		nonce: userOpNonce,

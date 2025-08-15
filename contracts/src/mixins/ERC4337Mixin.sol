@@ -1,51 +1,60 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.29;
 
-import {IAccount} from "@account-abstraction/contracts/interfaces/IAccount.sol";
+import {
+    IAccount,
+    PackedUserOperation
+} from "@account-abstraction/contracts/interfaces/IAccount.sol";
+import {
+    IAccountExecute
+} from "@account-abstraction/contracts/interfaces/IAccountExecute.sol";
 import {
     IEntryPoint
 } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {
-    PackedUserOperation
-} from "@account-abstraction/contracts/interfaces/PackedUserOperation.sol";
-import {
     _packValidationData
 } from "@account-abstraction/contracts/core/Helpers.sol";
 import {
-    UserOperationLib
-} from "@account-abstraction/contracts/core/UserOperationLib.sol";
-import {
     InvalidEntryPoint,
     InvalidTarget,
-    SignerAlreadySignedTransaction,
-    UnexpectedNonce,
     InvalidUserOpPaymaster,
-    UnexpectedSafeTxHash,
-    UnexpectedSigner
+    UnexpectedNonce
 } from "../interfaces/Errors.sol";
-import {IHarbourStore} from "../interfaces/HarbourStore.sol";
 import {PaymasterLib} from "../libs/PaymasterLib.sol";
-import {CoreLib} from "../libs/CoreLib.sol";
 
-struct ERC4337MixinConfig {
-    address entryPoint;
-}
-
-abstract contract ERC4337Mixin is IAccount, IHarbourStore {
-    using UserOperationLib for PackedUserOperation;
+abstract contract ERC4337Mixin is IAccount, IAccountExecute {
     using PaymasterLib for PackedUserOperation;
+
+    // ------------------------------------------------------------------
+    // Data structures
+    // ------------------------------------------------------------------
+
+    struct Config {
+        address entryPoint;
+    }
 
     // ------------------------------------------------------------------
     // 4337 functions
     // ------------------------------------------------------------------
 
     /**
-     * @notice The address of the EntryPoint contract supported by this module.
+     * @notice The address of the EntryPoint contract supported by this mixin.
      */
-    address public immutable SUPPORTED_ENTRYPOINT;
+    address public immutable SUPPORTED_ENTRY_POINT;
 
-    constructor(ERC4337MixinConfig memory _config) {
-        SUPPORTED_ENTRYPOINT = _config.entryPoint;
+    constructor(Config memory config) {
+        SUPPORTED_ENTRY_POINT = config.entryPoint;
+    }
+
+    /**
+     * @notice Modifier that checks that a function is only callable by the supported entry point.
+     */
+    modifier onlySupportedEntryPoint() {
+        require(
+            msg.sender == SUPPORTED_ENTRY_POINT,
+            InvalidEntryPoint(msg.sender)
+        );
+        _;
     }
 
     /**
@@ -55,175 +64,84 @@ abstract contract ERC4337Mixin is IAccount, IHarbourStore {
      */
     function getNonce(address signer) public view virtual returns (uint256) {
         return
-            IEntryPoint(SUPPORTED_ENTRYPOINT).getNonce(
+            IEntryPoint(SUPPORTED_ENTRY_POINT).getNonce(
                 address(this),
                 uint192(uint160(signer))
             );
     }
 
+    /**
+     * @inheritdoc IAccount
+     */
     function validateUserOp(
         PackedUserOperation calldata userOp,
         bytes32,
         uint256
-    ) external view override returns (uint256 validationData) {
+    )
+        external
+        view
+        override
+        onlySupportedEntryPoint
+        returns (uint256 validationData)
+    {
+        bytes4 selector = bytes4(userOp.callData);
         require(
-            msg.sender == SUPPORTED_ENTRYPOINT,
-            InvalidEntryPoint(msg.sender)
+            selector == this.executeUserOp.selector,
+            InvalidTarget(selector)
         );
-
-        require(
-            bytes4(userOp.callData) == this.storeTransaction.selector,
-            InvalidTarget(bytes4(userOp.callData))
-        );
-        (
-            bytes32 safeTxHash,
-            address signer,
-            bytes32 r,
-            bytes32 vs
-        ) = _verifySafeTxData(userOp.callData[4:]);
-
-        // --- DUPLICATE TRANSACTION SIGNATURE CHECK ---
-        // Revert if this signer has already submitted *any* signature for this *exact* safeTxHash
-        require(
-            !_signatureStored(keccak256(abi.encodePacked(r, vs))),
-            SignerAlreadySignedTransaction(signer, safeTxHash)
-        );
-
-        _verifySignature(safeTxHash, signer, r, vs);
-
-        require(
-            uint192(userOp.nonce >> 64) == uint192(uint160(signer)),
-            UnexpectedNonce(signer)
-        );
-
-        // We skip the check that missingAccountFunds should be == 0, as this is the job of the entry point
 
         // Harbour can only be used with a paymaster when using 4337
         require(userOp.paymasterAndData.length > 0, InvalidUserOpPaymaster());
+
+        address signer = _validateRelayedData(userOp.callData[4:]);
+        uint192 nonceKey = uint192(uint160(signer));
+        require(
+            uint192(userOp.nonce >> 64) == nonceKey,
+            UnexpectedNonce(nonceKey)
+        );
+
+        // We skip the check that `missingAccountFunds` should be == 0, as this is enforced by the
+        // entry point when a paymaster is used.
+
         return _packValidationData(false, 0, 0);
     }
 
-    function _verifySafeTxData(
-        bytes calldata callData
-    ) private pure returns (bytes32, address, bytes32, bytes32) {
-        (
-            bytes32 safeTxHash,
-            address safeAddress,
-            uint256 chainId,
-            uint256 nonce,
-            address to,
-            uint256 value,
-            bytes memory data,
-            uint8 operation,
-            uint256 safeTxGas,
-            uint256 baseGas,
-            uint256 gasPrice,
-            address gasToken,
-            address refundReceiver,
-            address signer,
-            bytes32 r,
-            bytes32 vs
-        ) = abi.decode(
-                callData,
-                (
-                    bytes32,
-                    address,
-                    uint256,
-                    uint256,
-                    address,
-                    uint256,
-                    bytes,
-                    uint8,
-                    uint256,
-                    uint256,
-                    uint256,
-                    address,
-                    address,
-                    address,
-                    bytes32,
-                    bytes32
-                )
-            );
-        bytes32 computedSafeTxHash = CoreLib.computeSafeTxHash(
-            safeAddress,
-            chainId,
-            nonce,
-            to,
-            value,
-            data,
-            operation,
-            safeTxGas,
-            baseGas,
-            gasPrice,
-            gasToken,
-            refundReceiver
-        );
-
-        require(
-            computedSafeTxHash == safeTxHash,
-            UnexpectedSafeTxHash(computedSafeTxHash)
-        );
-        // The computed length when properly encoded is based on the data length and the number of params
-        // 4 bytes selector + 15 params each 32 bytes + 32 bytes offset of data + 32 bytes length of data + data length + 32 bytes buffer for padding
-        return (safeTxHash, signer, r, vs);
+    /**
+     * @inheritdoc IAccountExecute
+     */
+    function executeUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32
+    ) external override onlySupportedEntryPoint {
+        address relayer = userOp.extractPaymaster();
+        _storeRelayedData(relayer, userOp.callData[4:]);
     }
 
-    function _verifySignature(
-        bytes32 safeTxHash,
-        address signer,
-        bytes32 r,
-        bytes32 vs
-    ) private pure {
-        (address recoveredSigner) = CoreLib.recoverSigner(safeTxHash, r, vs);
-        require(signer == recoveredSigner, UnexpectedSigner(signer));
-    }
+    // ------------------------------------------------------------------
+    // Internal relaying implementation functions
+    // ------------------------------------------------------------------
 
-    function storeTransaction(
-        bytes32 safeTxHash,
-        address safeAddress,
-        uint256 chainId,
-        uint256 nonce,
-        address to,
-        uint256 value,
-        bytes calldata data,
-        uint8 operation,
-        uint256 safeTxGas,
-        uint256 baseGas,
-        uint256 gasPrice,
-        address gasToken,
-        address refundReceiver,
-        address signer,
-        bytes32 r,
-        bytes32 vs
-    ) external returns (uint256 listIndex) {
-        require(
-            msg.sender == SUPPORTED_ENTRYPOINT,
-            InvalidEntryPoint(msg.sender)
-        );
-        _storeTransaction(
-            safeTxHash,
-            safeAddress,
-            chainId,
-            nonce,
-            to,
-            value,
-            data,
-            operation,
-            safeTxGas,
-            baseGas,
-            gasPrice,
-            gasToken,
-            refundReceiver
-        );
-        return
-            _storeSignature(
-                signer,
-                safeAddress,
-                chainId,
-                nonce,
-                safeTxHash,
-                r,
-                vs
-            );
-    }
+    /**
+     * @dev Internal function to check relayed data is valid. Contrary to standard ERC-4337 account
+     *      implementations, this function is expected to revert if the relayed data is invalid.
+     *
+     * @param data    The relayed data to validate.
+     *
+     * @return signer The signer for which the data was validated.
+     */
+    function _validateRelayedData(
+        bytes calldata data
+    ) internal view virtual returns (address signer);
+
+    /**
+     * @dev Internal function to store the relayed data. This will **only** be called for `data`
+     *      where `_validateData(data)` returned true in the same relayed transaction.
+     *
+     * @param relayer The relayer for the data.
+     * @param data    The relayed data to store.
+     */
+    function _storeRelayedData(
+        address relayer,
+        bytes calldata data
+    ) internal virtual;
 }

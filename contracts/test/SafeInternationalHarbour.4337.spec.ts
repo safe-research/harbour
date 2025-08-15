@@ -1,20 +1,16 @@
 import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
-import { AddressOne } from "@safe-global/safe-contracts";
 import { expect } from "chai";
 import { type Signer, Wallet, ZeroAddress, ZeroHash } from "ethers";
 import { ethers } from "hardhat";
-import {
-	EntryPoint__factory,
-	ERC4337Mixin__factory,
-	SafeInternationalHarbour__factory,
-	TestPaymaster__factory,
-} from "../typechain-types";
+import { EntryPoint__factory, SafeInternationalHarbour__factory, TestPaymaster__factory } from "../typechain-types";
 import { build4337Config, buildSafeTx, buildSignedUserOp, buildUserOp } from "./utils/erc4337";
 import { error } from "./utils/error";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./utils/safeTx";
 import { toCompactSignature } from "./utils/signatures";
 
 describe("SafeInternationalHarbour.4337", () => {
+	const BENEFICIARY = ethers.getAddress(`0x${"ee".repeat(20)}`);
+
 	async function deployFixture() {
 		const [deployer, alice] = await ethers.getSigners();
 		const chainId = BigInt((await ethers.provider.getNetwork()).chainId);
@@ -30,6 +26,10 @@ describe("SafeInternationalHarbour.4337", () => {
 		const paymasterAndData = ethers.solidityPacked(["address", "uint128", "uint128"], [paymasterAddress, 500_000, 0]);
 
 		const safeAddress = await alice.getAddress();
+
+		// Make sure account is non-empy for more accurate gas reporting.
+		await deployer.sendTransaction({ to: BENEFICIARY, value: 1 });
+
 		return { deployer, alice, harbour, chainId, safeAddress, entryPoint, paymasterAndData };
 	}
 
@@ -45,54 +45,24 @@ describe("SafeInternationalHarbour.4337", () => {
 		);
 	});
 
-	it("should revert if storeTransaction is not called from EntryPoint", async () => {
-		const { deployer, harbour, chainId, safeAddress } = await loadFixture(deployFixture);
-		await expect(
-			harbour.storeTransaction(
-				ZeroHash,
-				safeAddress,
-				chainId,
-				0, // nonce
-				deployer.address, // to
-				0, // value
-				"0x", // data
-				0, // operation
-				0, // safeTxGas
-				0, // baseGas
-				0, // gasPrice
-				ethers.ZeroAddress, // gasToken
-				ethers.ZeroAddress, // refundReceiver
-				ethers.ZeroAddress,
-				ZeroHash,
-				ZeroHash,
-			),
-		).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
+	it("should revert if executeUserOp is not called from EntryPoint", async () => {
+		const { harbour, chainId, safeAddress, paymasterAndData } = await loadFixture(deployFixture);
+		const safeTx = buildSafeTx();
+		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0, paymasterAndData);
+		await expect(harbour.executeUserOp(userOp, ZeroHash)).to.be.revertedWithCustomError(harbour, "InvalidEntryPoint");
 	});
 
 	it("should revert if provided signature is invalid (ecrecover yields zero address)", async () => {
 		const { entryPoint, harbour, chainId, safeAddress, paymasterAndData } = await loadFixture(deployFixture);
 		const safeTx = buildSafeTx();
 		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, INVALID_SIG, 0, paymasterAndData);
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		userOp.callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
-			safeTxHash,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			AddressOne,
-			`0x${"00".repeat(32)}`,
-			`0x${"00".repeat(32)}`,
+		const signatureOffset = 452;
+		userOp.callData = ethers.concat([
+			ethers.dataSlice(userOp.callData, 0, signatureOffset),
+			`0x${"00".repeat(64)}`,
+			ethers.dataSlice(userOp.callData, signatureOffset + 64),
 		]);
-		await expect(entryPoint.handleOps([userOp], AddressOne))
+		await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignature"));
 	});
@@ -122,7 +92,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const safeTx = buildSafeTx({ to: deployer.address });
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		await expect(entryPoint.handleOps([userOp], AddressOne))
+		await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 			.to.emit(harbour, "SignatureStored")
 			.withArgs(signerAddress, safeAddress, safeTxHash, chainId, safeTx.nonce, 0);
 	});
@@ -132,7 +102,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const signerWallet = Wallet.createRandom();
 		const safeTx = buildSafeTx();
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx);
-		await expect(entryPoint.handleOps([userOp], AddressOne))
+		await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "InvalidUserOpPaymaster"));
 	});
@@ -154,7 +124,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		};
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 
-		await entryPoint.handleOps([userOp], AddressOne);
+		await entryPoint.handleOps([userOp], BENEFICIARY);
 
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
@@ -174,39 +144,14 @@ describe("SafeInternationalHarbour.4337", () => {
 		const signerWallet = Wallet.createRandom();
 
 		const safeTx = buildSafeTx({ to: Wallet.createRandom().address });
-
-		const signature1 = await signerWallet.signTypedData(
-			{ chainId, verifyingContract: safeAddress },
-			EIP712_SAFE_TX_TYPE,
-			safeTx,
-		);
-
-		const sig1Bytes = ethers.getBytes(signature1);
-		const r1 = ethers.dataSlice(sig1Bytes, 0, 32);
-
-		const userOpNonce = await harbour.getNonce(signerWallet.address);
-		const userOp = buildUserOp(harbour, safeAddress, chainId, safeTx, signature1, userOpNonce, paymasterAndData);
-		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
-		userOp.callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
-			safeTxHash,
-			safeAddress,
-			chainId,
-			safeTx.nonce,
-			safeTx.to,
-			safeTx.value,
-			safeTx.data,
-			safeTx.operation,
-			safeTx.safeTxGas,
-			safeTx.baseGas,
-			safeTx.gasPrice,
-			safeTx.gasToken,
-			safeTx.refundReceiver,
-			AddressOne,
-			r1,
+		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
+		const signatureSOffset = 484;
+		userOp.callData = ethers.concat([
+			ethers.dataSlice(userOp.callData, 0, signatureSOffset),
 			"0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A1",
+			ethers.dataSlice(userOp.callData, signatureSOffset + 32),
 		]);
-
-		await expect(entryPoint.handleOps([userOp], AddressOne))
+		await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "InvalidSignatureSValue"));
 	});
@@ -236,7 +181,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOp1, userOp2], AddressOne);
+		await entryPoint.handleOps([userOp1, userOp2], BENEFICIARY);
 
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const count1 = await harbour.retrieveSignaturesCount(signer1Address, safeAddress, chainId, safeTx.nonce);
@@ -276,7 +221,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			paymasterAndData,
 		);
 		// First call stores signature
-		await entryPoint.handleOps([userOp1], AddressOne);
+		await entryPoint.handleOps([userOp1], BENEFICIARY);
 
 		// Second call should revert
 		const { userOp: userOp2 } = await buildSignedUserOp(
@@ -287,7 +232,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx,
 			paymasterAndData,
 		);
-		await expect(entryPoint.handleOps([userOp2], AddressOne))
+		await expect(entryPoint.handleOps([userOp2], BENEFICIARY))
 			.to.be.revertedWithCustomError(entryPoint, "FailedOpWithRevert")
 			.withArgs(0, "AA23 reverted", error(harbour, "SignerAlreadySignedTransaction", [signerAddress, safeTxHash]));
 	});
@@ -311,7 +256,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		// First call stores signature
-		await entryPoint.handleOps([userOp], AddressOne);
+		await entryPoint.handleOps([userOp], BENEFICIARY);
 
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const storedTx = await harbour.retrieveTransaction(safeTxHash);
@@ -351,7 +296,7 @@ describe("SafeInternationalHarbour.4337", () => {
 				paymasterAndData,
 			);
 			// First call stores signature
-			await entryPoint.handleOps([userOp], AddressOne);
+			await entryPoint.handleOps([userOp], BENEFICIARY);
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 			signatures.push(signature);
 			txHashes.push(safeTxHash);
@@ -407,7 +352,7 @@ describe("SafeInternationalHarbour.4337", () => {
 
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 		// First call stores signature
-		await entryPoint.handleOps([userOp], AddressOne);
+		await entryPoint.handleOps([userOp], BENEFICIARY);
 
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(1);
@@ -443,7 +388,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			});
 			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
 			// First call stores signature
-			await entryPoint.handleOps([userOp], AddressOne);
+			await entryPoint.handleOps([userOp], BENEFICIARY);
 		}
 
 		// Check count after adding
@@ -487,7 +432,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx1,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOpChainId1], AddressOne);
+		await entryPoint.handleOps([userOpChainId1], BENEFICIARY);
 
 		const { userOp: userOpChainId2 } = await buildSignedUserOp(
 			harbour,
@@ -497,7 +442,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx2,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOpChainId2], AddressOne);
+		await entryPoint.handleOps([userOpChainId2], BENEFICIARY);
 
 		// Retrieve and verify counts and data for chainId1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId1, nonce);
@@ -562,7 +507,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx1,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOp1], AddressOne);
+		await entryPoint.handleOps([userOp1], BENEFICIARY);
 
 		const { userOp: userOp2 } = await buildSignedUserOp(
 			harbour,
@@ -572,7 +517,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx2,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOp2], AddressOne);
+		await entryPoint.handleOps([userOp2], BENEFICIARY);
 
 		// Verify counts and signatures for nonce1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce1);
@@ -630,7 +575,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx1,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOp1], AddressOne);
+		await entryPoint.handleOps([userOp1], BENEFICIARY);
 
 		const { userOp: userOp2 } = await buildSignedUserOp(
 			harbour,
@@ -640,7 +585,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			safeTx2,
 			paymasterAndData,
 		);
-		await entryPoint.handleOps([userOp2], AddressOne);
+		await entryPoint.handleOps([userOp2], BENEFICIARY);
 
 		// Verify counts and signatures for safeAddress1
 		const count1 = await harbour.retrieveSignaturesCount(signerAddress, safeAddress1, chainId, nonce);
@@ -679,7 +624,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			});
 
 			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
-			await entryPoint.handleOps([userOp], AddressOne);
+			await entryPoint.handleOps([userOp], BENEFICIARY);
 		}
 		const totalCount = await harbour.retrieveSignaturesCount(signerAddress, safeAddress, chainId, nonce);
 		expect(totalCount).to.equal(2);
@@ -722,7 +667,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		});
 
 		const { userOp } = await buildSignedUserOp(harbour, knownSigner, chainId, safeAddress, safeTx, paymasterAndData);
-		await entryPoint.handleOps([userOp], AddressOne);
+		await entryPoint.handleOps([userOp], BENEFICIARY);
 
 		expect(await harbour.retrieveSignaturesCount(knownSignerAddr, safeAddress, chainId, knownNonce)).to.equal(1);
 
@@ -749,7 +694,7 @@ describe("SafeInternationalHarbour.4337", () => {
 			const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 
 			const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
-			await expect(entryPoint.handleOps([userOp], AddressOne))
+			await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 				.to.emit(harbour, "SignatureStored")
 				.withArgs(signerAddress, safeAddress, safeTxHash, chainId, nonce, BigInt(i));
 		}
@@ -764,7 +709,7 @@ describe("SafeInternationalHarbour.4337", () => {
 		const safeTx: SafeTransaction = buildSafeTx({ to: deployer.address });
 		const safeTxHash = getSafeTransactionHash(safeAddress, chainId, safeTx);
 		const { userOp } = await buildSignedUserOp(harbour, signerWallet, chainId, safeAddress, safeTx, paymasterAndData);
-		await expect(entryPoint.handleOps([userOp], AddressOne))
+		await expect(entryPoint.handleOps([userOp], BENEFICIARY))
 			.to.emit(harbour, "NewTransaction")
 			.withArgs(
 				safeTxHash,

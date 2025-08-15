@@ -60,7 +60,7 @@ contract SafeHarbourPaymaster is BasePaymaster, QuotaMixin, SlashingMixin {
 
         // Theoretically this check is also performed by the 4337 mixin and could be skipped here (especially if the sender is trusted)
         require(
-            bytes4(userOp.callData) == ERC4337Mixin.storeTransaction.selector,
+            bytes4(userOp.callData) == ERC4337Mixin.executeUserOp.selector,
             InvalidTarget(bytes4(userOp.callData))
         );
 
