@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ErrorItem, FormItem, SubmitItem } from "@/components/Forms";
-import { ethereumAddressSchema } from "@/lib/validators";
+import { ethereumAddressSchema, sessionSchema } from "@/lib/validators";
 
 const STORAGE_KEY_SETTINGS = "localStorage.settings.object.v1";
 
@@ -103,14 +103,14 @@ function SettingsForm({
 				register={register}
 				error={errors.harbourAddress}
 				label="Harbour Address"
-				placeholder="0x...."
+				placeholder="0x..."
 			/>
 			<FormItem
 				id="quotaManagerAddress"
 				register={register}
 				error={errors.quotaManagerAddress}
 				label="Quota Manager Address"
-				placeholder="0x...."
+				placeholder="0x..."
 			/>
 			<FormItem
 				id="bundlerUrl"
