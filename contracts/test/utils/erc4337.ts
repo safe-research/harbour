@@ -15,7 +15,7 @@ import {
 	ZeroAddress,
 	ZeroHash,
 } from "ethers";
-import { type EntryPoint, ERC4337Mixin__factory, type SafeInternationalHarbour } from "../../typechain-types";
+import { type EntryPoint, IAccountExecute__factory, type SafeInternationalHarbour } from "../../typechain-types";
 import type { PackedUserOperationStruct } from "../../typechain-types/@account-abstraction/contracts/interfaces/IAggregator";
 import type { ERC4337MixinConfigStruct } from "../../typechain-types/src/SafeInternationalHarbour";
 import { EIP712_SAFE_TX_TYPE, getSafeTransactionHash, type SafeTransaction } from "./safeTx";
@@ -40,6 +40,57 @@ export function build4337Config(params?: Partial<ERC4337MixinConfigStruct>): ERC
 	};
 }
 
+export function encodeCallData(
+	safe: string,
+	chainId: bigint,
+	tx: SafeTransaction,
+	signatureBytes: string,
+): PackedUserOperationStruct {
+	const safeTxHash = getSafeTransactionHash(safe, chainId, tx);
+	const signature = Signature.from(signatureBytes);
+	const signer = recoverAddress(safeTxHash, signature);
+	const encodedData = ethers.AbiCoder.defaultAbiCoder().encode(
+		[
+			"bytes32",
+			"address",
+			"uint256",
+			"uint256",
+			"address",
+			"uint256",
+			"bytes",
+			"uint8",
+			"uint256",
+			"uint256",
+			"uint256",
+			"address",
+			"address",
+			"address",
+			"bytes32",
+			"bytes32",
+		],
+		[
+			safeTxHash,
+			safe,
+			chainId,
+			tx.nonce,
+			tx.to,
+			tx.value,
+			tx.data,
+			tx.operation,
+			tx.safeTxGas,
+			tx.baseGas,
+			tx.gasPrice,
+			tx.gasToken,
+			tx.refundReceiver,
+			signer,
+			signature.r,
+			signature.yParityAndS,
+		],
+	);
+	const executeUserOpSelector = IAccountExecute__factory.createInterface().getFunction("executeUserOp").selector;
+	return ethers.concat([executeUserOpSelector, encodedData]);
+}
+
 export function buildUserOp(
 	harbour: AddressLike,
 	safe: string,
@@ -50,27 +101,7 @@ export function buildUserOp(
 	paymasterAndData?: BytesLike,
 	gasFees?: { maxFeePerGas: bigint; maxPriorityFeePerGas: bigint },
 ): PackedUserOperationStruct {
-	const safeTxHash = getSafeTransactionHash(safe, chainId, tx);
-	const signature = Signature.from(signatureBytes);
-	const signer = recoverAddress(safeTxHash, signature);
-	const callData = ERC4337Mixin__factory.createInterface().encodeFunctionData("storeTransaction", [
-		safeTxHash,
-		safe,
-		chainId,
-		tx.nonce,
-		tx.to,
-		tx.value,
-		tx.data,
-		tx.operation,
-		tx.safeTxGas,
-		tx.baseGas,
-		tx.gasPrice,
-		tx.gasToken,
-		tx.refundReceiver,
-		signer,
-		signature.r,
-		signature.yParityAndS,
-	]);
+	const callData = encodeCallData(safe, chainId, tx, signatureBytes);
 	return {
 		sender: harbour,
 		nonce: entryPointNonce,

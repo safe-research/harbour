@@ -1,5 +1,7 @@
 import {
+	AbiCoder,
 	type Contract,
+	concat,
 	type JsonRpcProvider,
 	type JsonRpcSigner,
 	Signature,
@@ -108,23 +110,49 @@ export async function buildUserOp(
 	const safeTxHash = getSafeTransactionHash(transaction);
 	const userSignature = Signature.from(signature);
 	const userOpNonce = await harbour.getNonce(signerAddress);
-	const callData = harbour.interface.encodeFunctionData("storeTransaction", [
-		safeTxHash,
-		transaction.safeAddress,
-		transaction.chainId,
-		transaction.nonce,
-		transaction.to,
-		transaction.value,
-		transaction.data,
-		transaction.operation,
-		transaction.safeTxGas,
-		transaction.baseGas,
-		transaction.gasPrice,
-		transaction.gasToken,
-		transaction.refundReceiver,
-		signerAddress,
-		userSignature.r,
-		userSignature.yParityAndS,
+	const selector = harbour.interface.getFunction("executeUserOp")?.selector;
+	if (!selector) {
+		throw new Error("Harbour interface is missing `executeUserOp` selector");
+	}
+	const callData = concat([
+		AbiCoder.defaultAbiCoder().encode(
+			[
+				"bytes32",
+				"address",
+				"uint256",
+				"uint256",
+				"address",
+				"uint256",
+				"bytes",
+				"uint8",
+				"uint256",
+				"uint256",
+				"uint256",
+				"address",
+				"address",
+				"address",
+				"bytes32",
+				"bytes32",
+			],
+			[
+				safeTxHash,
+				transaction.safeAddress,
+				transaction.chainId,
+				transaction.nonce,
+				transaction.to,
+				transaction.value,
+				transaction.data,
+				transaction.operation,
+				transaction.safeTxGas,
+				transaction.baseGas,
+				transaction.gasPrice,
+				transaction.gasToken,
+				transaction.refundReceiver,
+				signerAddress,
+				userSignature.r,
+				userSignature.yParityAndS,
+			],
+		),
 	]);
 	const userOp: UserOpRequest = {
 		sender: await harbour.getAddress(),
@@ -138,7 +166,8 @@ export async function buildUserOp(
 		signature: "0x",
 	};
 	if (usePaymaster) {
-		const paymaster = await harbour.TRUSTED_PAYMASTER();
+		// TODO: I'm not sure how to get the paymaster address here...
+		const paymaster = `0x${"4337".repeat(10)}`;
 		userOp.paymaster = paymaster;
 		// Set dummy values for estimation
 		const paymasterData = await encodePaymasterData();
