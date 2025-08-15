@@ -1,21 +1,21 @@
 {
-  "name": "safe-harbour",
-  "private": true,
-  "workspaces": [
-    "contracts",
-    "webapp",
-    "validator"
-  ],
-  "scripts": {
-    "format": "biome format",
-    "format:fix": "biome format --fix",
-    "lint": "biome lint",
-    "lint:fix": "biome lint --fix",
-    "check": "biome check",
-    "test": "npm run test --workspaces"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.0.6",
-    "typescript": "^5.8.3"
-  }
+	"name": "safe-harbour",
+	"private": true,
+	"workspaces": [
+		"contracts",
+		"webapp",
+		"validator"
+	],
+	"scripts": {
+		"format": "biome format",
+		"format:fix": "biome format --fix",
+		"lint": "biome lint",
+		"lint:fix": "biome lint --fix",
+		"check": "biome check",
+		"test": "npm run test --workspaces"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.0.6",
+		"typescript": "^5.8.3"
+	}
 }
