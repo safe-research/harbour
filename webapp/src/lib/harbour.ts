@@ -1,6 +1,7 @@
 import {
 	Contract,
 	type ContractRunner,
+	ethers,
 	Interface,
 	type JsonRpcApiProvider,
 	JsonRpcProvider,
@@ -10,12 +11,22 @@ import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
+import {
+	decodeContext,
+	decodeEncryptionPublicKey,
+	type SessionKeys,
+} from "@/contexts/SessionContext";
 import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
+import { decryptSafeTransaction, encryptSafeTransaction } from "./encryption";
 import { aggregateMulticall } from "./multicall";
-import type { SafeConfiguration } from "./safe";
-import { signSafeTransaction } from "./safe";
+import {
+	getSafeTransactionHash,
+	getSafeTransactionStructHash,
+	type SafeConfiguration,
+	signSafeTransaction,
+} from "./safe";
 import type {
 	ChainId,
 	FullSafeTransaction,
@@ -38,11 +49,86 @@ const HARBOUR_ABI = [
 	"function retrieveTransaction(bytes32 safeTxHash) view returns (tuple(bool stored,uint8 operation,address to,uint128 value,uint128 safeTxGas,uint128 baseGas,uint128 gasPrice,address gasToken,address refundReceiver,bytes data) txParams)",
 ];
 
+/** ABI for the Secret Harbour contract. */
+const SECRET_HARBOUR_ABI = [
+	"event SafeTransactionRegistered(bytes32 indexed uid, bytes32 indexed safeTxHash, bytes encryptionBlob)",
+	"event SafeTransactionSigned(address indexed signer, bytes32 indexed safeTxHash, bytes signature)",
+	"function supportsInterface(bytes4 interfaceId) view returns (bool supported)",
+	"function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
+	"function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, bytes calldata signature)",
+	"function enqueueTransaction(uint256 chainId, address safe, uint256 nonce, bytes32 safeTxStructHash, bytes calldata signature, bytes calldata encryptionBlob) returns (bytes32 uid)",
+	"function retrieveEncryptionPublicKeys(address[] calldata signers) view returns (bytes32[] publicKeys)",
+	"function retrieveEncryptionKey(address signers) view returns (tuple(bytes32 context, bytes32 publicKey) encryptionKey)",
+	"function retrieveRegistrations(uint256 chainId, address safe, uint256 nonce, address notary, uint256 start, uint256 count) view returns (tuple(uint256 blockNumber, bytes32 uid)[] page, uint256 totalCount)",
+	"function retrieveSignatures(address[] calldata signers, bytes32 safeTxHash) view returns (uint256[] blockNumbers)",
+];
+
+const SECRET_HARBOUR_INTERFACE_ID = "0xe18a4e58";
+
 function harbourAt(
 	harbourAddress: string | undefined,
 	runner?: ContractRunner,
 ): Contract {
 	return new Contract(harbourAddress || HARBOUR_ADDRESS, HARBOUR_ABI, runner);
+}
+
+function secretHarbourAt(
+	harbourAddress: string,
+	runner?: ContractRunner,
+): Contract {
+	return new Contract(harbourAddress, SECRET_HARBOUR_ABI, runner);
+}
+
+async function supportsSecretHarbourInterface(
+	harbourAddress: string,
+	runner: ContractRunner,
+): Promise<boolean> {
+	const harbour = secretHarbourAt(harbourAddress, runner);
+	try {
+		return await harbour.supportsInterface(SECRET_HARBOUR_INTERFACE_ID);
+	} catch {
+		return false;
+	}
+}
+
+/** Harbour contract specific settings. */
+type HarbourRpcSettings = Pick<Partial<SettingsFormData>, "rpcUrl">;
+
+async function getConfiguredHarbourRpc(settings?: HarbourRpcSettings) {
+	const rpcUrl =
+		settings?.rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+	return new JsonRpcProvider(rpcUrl);
+}
+
+/** Harbour contract specific settings. */
+type HarbourContractSettings = Pick<
+	Partial<SettingsFormData>,
+	"harbourAddress" | "rpcUrl"
+>;
+
+async function getConfiguredSecretHarbour(
+	settings?: HarbourContractSettings,
+	runner?: ContractRunner,
+) {
+	const harbourSettings = settings ?? (await loadCurrentSettings()) ?? {};
+	const harbourAddress = harbourSettings?.harbourAddress;
+	if (!harbourAddress) {
+		// The default harbour contract does not support the secret harbour
+		// interface, so its not even worth checking.
+		return null;
+	}
+
+	const harbourRunner =
+		runner ?? (await getConfiguredHarbourRpc(harbourSettings));
+	const supported = await supportsSecretHarbourInterface(
+		harbourAddress,
+		harbourRunner,
+	);
+	if (!supported) {
+		return null;
+	}
+
+	return secretHarbourAt(harbourAddress, harbourRunner);
 }
 
 /**
@@ -102,6 +188,13 @@ export interface NonceGroup {
 }
 
 /**
+ * Session keys used for decrypting transactions.
+ */
+interface SessionDecryptionKey {
+	encryption: Pick<SessionKeys["encryption"], "privateKey">;
+}
+
+/**
  * Parameters for the fetchSafeQueue function.
  */
 interface FetchSafeQueueParams {
@@ -113,8 +206,12 @@ interface FetchSafeQueueParams {
 	safeConfig: Pick<SafeConfiguration, "nonce" | "owners">;
 	/** The chain ID of the Safe contract (not Harbour's chain ID). */
 	safeChainId: ChainId;
+	/** The session keys for decrypting secret harbour transactions. */
+	sessionKeys: SessionDecryptionKey | null;
 	/** Optional maximum number of nonces to fetch ahead of the current Safe nonce (default: 5). */
 	maxNoncesToFetch?: number;
+	/** Optional maximum number of transactions to fetch per nonce (default: 100). */
+	maxTxsPerNonce?: number;
 }
 
 /**
@@ -125,15 +222,30 @@ interface FetchSafeQueueParams {
  * @param {FetchSafeQueueParams} params - Parameters for fetching the queue.
  * @returns {Promise<NonceGroup[]>} A promise that resolves to an array of nonce groups, each containing transactions and their signatures.
  */
-async function fetchSafeQueue({
-	provider,
-	safeAddress,
-	safeConfig,
-	safeChainId,
-	maxNoncesToFetch = 5,
-}: FetchSafeQueueParams): Promise<NonceGroup[]> {
+async function fetchSafeQueue(
+	params: FetchSafeQueueParams,
+): Promise<NonceGroup[]> {
 	const currentSettings = await loadCurrentSettings();
 	const harbourAddress = currentSettings?.harbourAddress || HARBOUR_ADDRESS;
+	const { provider } = params;
+
+	if (await supportsSecretHarbourInterface(harbourAddress, provider)) {
+		return fetchSecretHarbourSafeQueue(harbourAddress, params);
+	}
+	return fetchHarbourSafeQueue(harbourAddress, params);
+}
+
+async function fetchHarbourSafeQueue(
+	harbourAddress: string,
+	{
+		provider,
+		safeAddress,
+		safeConfig,
+		safeChainId,
+		maxNoncesToFetch = 5,
+		maxTxsPerNonce = 100,
+	}: FetchSafeQueueParams,
+): Promise<NonceGroup[]> {
 	const iface = new Interface(HARBOUR_ABI);
 	const startNonce = Number(safeConfig.nonce);
 	const owners = safeConfig.owners || [];
@@ -159,7 +271,7 @@ async function fetchSafeQueue({
 					safeChainId,
 					nonce,
 					0,
-					100,
+					maxTxsPerNonce,
 				]),
 			});
 			sigMeta.push({ owner, nonce: nonce.toString() });
@@ -260,6 +372,221 @@ async function fetchSafeQueue({
 	return result;
 }
 
+async function fetchSecretHarbourSafeQueue(
+	harbourAddress: string,
+	{
+		provider,
+		safeAddress,
+		safeConfig,
+		safeChainId,
+		sessionKeys,
+		maxNoncesToFetch = 5,
+		maxTxsPerNonce = 100,
+	}: FetchSafeQueueParams,
+): Promise<NonceGroup[]> {
+	if (!sessionKeys) {
+		// No decription keys, no transactions!
+		return [];
+	}
+
+	const secretHarbour = secretHarbourAt(harbourAddress, provider);
+	const startNonce = Number(safeConfig.nonce);
+	const owners = safeConfig.owners || [];
+
+	// Batch retrieve encryption key calls
+	const keyCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+	const keyMeta: Array<{ owner: string }> = [];
+
+	for (const owner of owners) {
+		keyCalls.push({
+			target: harbourAddress,
+			allowFailure: false,
+			callData: secretHarbour.interface.encodeFunctionData(
+				"retrieveEncryptionKey",
+				[owner],
+			),
+		});
+		keyMeta.push({ owner });
+	}
+
+	const keyResults = await aggregateMulticall(provider, keyCalls);
+	const notaries = keyResults
+		.map((res, i) => {
+			const { owner } = keyMeta[i];
+			const [[context]] = secretHarbour.interface.decodeFunctionResult(
+				"retrieveEncryptionKey",
+				res.returnData,
+			);
+			const { relayer } = decodeContext(ethers.getBytes(context));
+			return { owner, notary: relayer };
+		})
+		.filter(({ notary }) => notary !== ethers.ZeroAddress);
+
+	// Batch retrieve transaction registration calls
+	const txCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+	const txMeta: Array<{ nonce: number }> = [];
+
+	for (let i = 0; i < maxNoncesToFetch; i++) {
+		const nonce = startNonce + i;
+		for (const { notary } of notaries) {
+			txCalls.push({
+				target: harbourAddress,
+				allowFailure: false,
+				callData: secretHarbour.interface.encodeFunctionData(
+					"retrieveRegistrations",
+					[safeChainId, safeAddress, nonce, notary, 0, maxTxsPerNonce],
+				),
+			});
+			txMeta.push({ nonce });
+		}
+	}
+
+	const txResults = await aggregateMulticall(provider, txCalls);
+	const txRegistrations = [...txResults].flatMap((res, i) => {
+		const { nonce } = txMeta[i];
+		const [page] = secretHarbour.interface.decodeFunctionResult(
+			"retrieveRegistrations",
+			res.returnData,
+		);
+		return page.map(([blockNumber, uid]: [string, string]) => ({
+			nonce,
+			blockNumber,
+			uid,
+		}));
+	});
+
+	// Retrieve transaction data from events.
+	const details = (await Promise.all(
+		txRegistrations.map(({ blockNumber, uid }) =>
+			secretHarbour.queryFilter(
+				secretHarbour.filters.SafeTransactionRegistered(uid),
+				Number(blockNumber),
+				Number(blockNumber),
+			),
+		),
+	)) as ethers.EventLog[][];
+
+	const decryptedTransactions = await Promise.all(
+		details.map(async (logs, i) => {
+			try {
+				const [{ args }] = logs;
+				const { safeTxHash, encryptionBlob } = args;
+				const { nonce } = txRegistrations[i];
+				const transaction = await decryptSafeTransaction(
+					encryptionBlob,
+					sessionKeys.encryption.privateKey,
+				);
+				return [{ nonce, safeTxHash, transaction }];
+			} catch {
+				return [];
+			}
+		}),
+	);
+
+	// Clients MUST verify transaction hashes for decrypted Safe transactions.
+	const verifiedTransactions = decryptedTransactions.flat().filter(
+		({ nonce, safeTxHash, transaction }) =>
+			safeTxHash ===
+			getSafeTransactionHash({
+				...transaction,
+				chainId: safeChainId,
+				safeAddress,
+				nonce,
+			}),
+	);
+
+	// De-duplicate transactions, which may happen if a key was rotated and the
+	// same transaction was submitted more than once.
+	const uniqueTransactions = [
+		...new Map(
+			verifiedTransactions.map((tx) => [tx.safeTxHash, tx] as const),
+		).values(),
+	];
+
+	// Batch retrieve signature registration calls
+	const sigCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+
+	for (const { safeTxHash } of uniqueTransactions) {
+		sigCalls.push({
+			target: harbourAddress,
+			allowFailure: false,
+			callData: secretHarbour.interface.encodeFunctionData(
+				"retrieveSignatures",
+				[owners, safeTxHash],
+			),
+		});
+	}
+
+	const sigResults = await aggregateMulticall(provider, sigCalls);
+	const sigRegistrations = [...sigResults]
+		.flatMap((res, i) => {
+			const { safeTxHash } = uniqueTransactions[i];
+			const [blockNumbers] = secretHarbour.interface.decodeFunctionResult(
+				"retrieveSignatures",
+				res.returnData,
+			) as unknown as [bigint[]];
+			return blockNumbers.map((blockNumber, i) => ({
+				blockNumber,
+				signer: owners[i],
+				safeTxHash,
+			}));
+		})
+		.filter(({ blockNumber }) => blockNumber !== 0n);
+
+	// Retrieve signature data from events.
+	const signatureData = (await Promise.all(
+		sigRegistrations.map(({ blockNumber, signer, safeTxHash }) =>
+			secretHarbour.queryFilter(
+				secretHarbour.filters.SafeTransactionSigned(signer, safeTxHash),
+				Number(blockNumber),
+				Number(blockNumber),
+			),
+		),
+	)) as ethers.EventLog[][];
+
+	const signatures: Record<string, Array<HarbourSignature> | undefined> = {};
+	for (const logs of signatureData) {
+		const [{ args }] = logs;
+		const { signer, safeTxHash, signature } = args;
+		const { r, yParityAndS } = ethers.Signature.from(signature);
+		signatures[safeTxHash] = signatures[safeTxHash] ?? [];
+		signatures[safeTxHash].push({
+			r,
+			vs: yParityAndS,
+			txHash: safeTxHash,
+			signer,
+		});
+	}
+
+	// Compute the nonce groups for the retrieved transactions.
+	const groups: Record<string, NonceGroup> = {};
+	for (const { nonce, safeTxHash, transaction } of uniqueTransactions) {
+		groups[nonce] = groups[nonce] ?? { nonce, transactions: [] };
+		groups[nonce].transactions.push({
+			details: {
+				...transaction,
+				stored: true,
+			},
+			signatures: signatures[safeTxHash] ?? [],
+			safeTxHash,
+		});
+	}
+
+	return Object.values(groups);
+}
+
 async function getChainId(
 	currentSettings: Partial<SettingsFormData>,
 ): Promise<bigint> {
@@ -278,6 +605,20 @@ async function getHarbourChainId(): Promise<bigint> {
 }
 
 /**
+ * Secret Harbour encrypted queue parameters.
+ */
+type EncryptedQueueParams =
+	| {
+			operation: "encrypt-and-sign";
+			sessionKeys: SessionKeys;
+			recipientPublicKeys: CryptoKey[];
+	  }
+	| {
+			operation: "sign-only";
+			sessionKeys: Pick<SessionKeys, "relayer">;
+	  };
+
+/**
  * Signs a Safe transaction and enqueues it to the Harbour contract.
  * This function handles the complete flow:
  * 1. Switches to the Safe's chain for signing
@@ -287,12 +628,15 @@ async function getHarbourChainId(): Promise<bigint> {
  *
  * @param walletProvider - The wallet provider for chain switching and signing
  * @param transaction - The complete Safe transaction to sign and enqueue
+ * @param waku - The Waku manager
+ * @param encryption - The Secret Harbour encrypted queue paramters
  * @returns The transaction receipt from enqueuing
  */
 async function signAndEnqueueSafeTransaction(
 	walletProvider: JsonRpcApiProvider,
 	transaction: FullSafeTransaction,
 	waku: WakuManager,
+	encryptedQueue: EncryptedQueueParams | null,
 ) {
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
@@ -307,13 +651,15 @@ async function signAndEnqueueSafeTransaction(
 			return { hash: "", transactionHash: "" };
 		}
 	}
+
+	const rpcUrl =
+		currentSettings.rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+	const harbourProvider = new JsonRpcProvider(rpcUrl);
+
 	// TODO: deprecate this
 	if (currentSettings.bundlerUrl) {
 		console.log("Use Bundler");
 		const bundlerProvider = new JsonRpcProvider(currentSettings.bundlerUrl);
-		const rpcUrl =
-			currentSettings.rpcUrl || (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
-		const harbourProvider = new JsonRpcProvider(rpcUrl);
 		const harbour = harbourAt(currentSettings.harbourAddress, harbourProvider);
 		const gasFee = await getUserOpGasPrice(harbourProvider);
 		const useValidator = !!currentSettings.validatorUrl;
@@ -347,8 +693,35 @@ async function signAndEnqueueSafeTransaction(
 		]);
 		return { hash, transactionHash: hash };
 	}
+
+	// If we have encrypted queue configuration and harbour supports it,
+	// submit it with our session relayer EOA.
+	if (
+		encryptedQueue &&
+		currentSettings.harbourAddress &&
+		(await supportsSecretHarbourInterface(
+			currentSettings.harbourAddress,
+			harbourProvider,
+		))
+	) {
+		console.log("Use Encrypted Queue");
+		const relayer = encryptedQueue.sessionKeys.relayer.connect(harbourProvider);
+		const secretHarbour = secretHarbourAt(
+			currentSettings.harbourAddress,
+			relayer,
+		);
+		const receipt = await encryptAndEnqueueSafeTransaction(
+			secretHarbour,
+			transaction,
+			signature,
+			encryptedQueue,
+		);
+		return receipt;
+	}
+
 	// Transaction cannot be relayed. User has to submit the transaction
 	// Switch to Harbour chain for enqueuing
+	console.log("Use Manual Submission");
 	await switchToChain(walletProvider, await getChainId(currentSettings));
 	const receipt = await enqueueSafeTransaction(
 		signer,
@@ -359,11 +732,106 @@ async function signAndEnqueueSafeTransaction(
 	return receipt;
 }
 
+async function encryptAndEnqueueSafeTransaction(
+	secretHarbour: Contract,
+	transaction: FullSafeTransaction,
+	signature: string,
+	encryptedQueue: EncryptedQueueParams,
+) {
+	const transactionHash = getSafeTransactionStructHash(transaction);
+	// As a gas optimization, we do not re-publish the encryption blob in the
+	// case that an already registered transaction is being signed.
+	const encryptionBlob =
+		encryptedQueue.operation === "encrypt-and-sign"
+			? await encryptSafeTransaction(
+					transaction,
+					encryptedQueue.sessionKeys.encryption,
+					encryptedQueue.recipientPublicKeys,
+				)
+			: "0x";
+	const enqueue = await secretHarbour.enqueueTransaction(
+		transaction.chainId,
+		transaction.safeAddress,
+		transaction.nonce,
+		transactionHash,
+		signature,
+		encryptionBlob,
+	);
+	return await enqueue.wait();
+}
+
+/**
+ * Parameters for the fetchEncryptionPublicKeys function.
+ */
+interface FetchEncryptionPublicKeysParams {
+	/** Partial Safe configuration, specifically needing the owners. */
+	safeConfig: Pick<SafeConfiguration, "owners">;
+}
+
+/**
+ * Fetches encryption key and context for the specified account.
+ */
+async function fetchEncryptionKey(
+	address: string,
+	settings?: HarbourContractSettings,
+): Promise<{ context: string; publicKey: string } | null> {
+	const secretHarbour = await getConfiguredSecretHarbour(settings);
+	if (!secretHarbour) {
+		return null;
+	}
+	const [context, publicKey] =
+		await secretHarbour.retrieveEncryptionKey(address);
+	return { context, publicKey };
+}
+
+/**
+ * Fetches public encryption keys for a Safe owner. Returns `null` if the
+ * currently configured Harbour contract does not support encryption.
+ */
+async function fetchEncryptionPublicKeys({
+	safeConfig: { owners },
+}: FetchEncryptionPublicKeysParams): Promise<Record<
+	string,
+	CryptoKey | undefined
+> | null> {
+	const secretHarbour = await getConfiguredSecretHarbour();
+	if (!secretHarbour) {
+		return null;
+	}
+
+	const publicKeys = await secretHarbour.retrieveEncryptionPublicKeys([
+		...owners,
+	]);
+	const ownerPublicKeys = await Promise.all(
+		(publicKeys as string[]).map(
+			async (publicKey, i) =>
+				[owners[i], await decodeEncryptionPublicKey(publicKey)] as const,
+		),
+	);
+	return Object.fromEntries(
+		ownerPublicKeys.filter(([, publicKey]) => publicKey) as [
+			string,
+			CryptoKey,
+		][],
+	);
+}
+
+export type {
+	EncryptedQueueParams,
+	HarbourContractSettings,
+	SessionDecryptionKey,
+};
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
 	harbourAt,
+	secretHarbourAt,
+	supportsSecretHarbourInterface,
+	getConfiguredHarbourRpc,
+	getConfiguredSecretHarbour,
 	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
+	fetchEncryptionPublicKeys,
+	fetchEncryptionKey,
 };

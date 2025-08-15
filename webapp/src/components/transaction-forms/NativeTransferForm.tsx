@@ -34,12 +34,14 @@ export function NativeTransferForm({
 	browserProvider,
 	rpcProvider,
 	config,
+	encryptedQueue,
 }: CommonTransactionFormProps) {
 	const { isSubmitting, error, txHash, signAndEnqueue } = useSignAndEnqueue({
 		safeAddress,
 		chainId,
 		browserProvider,
 		config,
+		encryptedQueue,
 		parser: (i) => i,
 	});
 	const { addTransaction } = useBatch();
