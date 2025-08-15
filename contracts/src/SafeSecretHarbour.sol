@@ -3,7 +3,8 @@ pragma solidity ^0.8.29;
 
 import {
     NothingToEnqueue,
-    SignerAlreadySignedTransaction
+    SignerAlreadySignedTransaction,
+    UnexpectedSigner
 } from "./interfaces/Errors.sol";
 import {
     EncryptionKeyRegistered,
@@ -97,8 +98,33 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         bytes32 context,
         bytes32 publicKey
     ) external {
-        _encryptionKeys[msg.sender] = EncryptionKey(context, publicKey);
-        emit EncryptionKeyRegistered(msg.sender, context, publicKey);
+        _registerEncryptionKey(msg.sender, context, publicKey);
+    }
+
+    /**
+     * @notice Register a public encryption key on behalf of a signer.
+     *
+     * @param signer    The signer to register the encryption key for.
+     * @param context   A 32-byte context specific to the public encryption key.
+     * @param publicKey The public encryption key to be registered for the `signer`.
+     * @param signature The ECDSA signature of the `signer` over the encryption key registration.
+     */
+    function registerEncryptionKeyFor(
+        address signer,
+        bytes32 context,
+        bytes32 publicKey,
+        bytes calldata signature
+    ) external {
+        bytes32 encryptionKeyHash = CoreLib.computeEncryptionKeyHash(
+            context,
+            publicKey
+        );
+        (address recoveredSigner, , ) = CoreLib.recoverSigner(
+            encryptionKeyHash,
+            signature
+        );
+        require(recoveredSigner == signer, UnexpectedSigner(recoveredSigner));
+        _registerEncryptionKey(signer, context, publicKey);
     }
 
     /**
@@ -304,11 +330,27 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     }
 
     // ------------------------------------------------------------------
-    // Internal functions
+    // Private functions
     // ------------------------------------------------------------------
 
     /**
-     * @dev Internal function to register a Safe transaction.
+     * @notice Private function to register a public encryption key for a signer.
+     *
+     * @param signer    The signer to register the encryption key for.
+     * @param context   A 32-byte context specific to the public encryption key.
+     * @param publicKey The public encryption key to be registered for the `signer`.
+     */
+    function _registerEncryptionKey(
+        address signer,
+        bytes32 context,
+        bytes32 publicKey
+    ) private {
+        _encryptionKeys[signer] = EncryptionKey(context, publicKey);
+        emit EncryptionKeyRegistered(signer, context, publicKey);
+    }
+
+    /**
+     * @dev Private function to register a Safe transaction.
      *
      * @param chainId        Chain id the transaction is meant for.
      * @param safe           Safe Smart-Account.
@@ -327,7 +369,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         address notary,
         bytes32 safeTxHash,
         bytes calldata encryptionBlob
-    ) internal returns (bytes32 uid) {
+    ) private returns (bytes32 uid) {
         RegistrationKey.T registration = RegistrationKey.get(
             chainId,
             safe,
@@ -341,7 +383,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     }
 
     /**
-     * @dev Internal function to register a Safe transaction signature after validation.
+     * @dev Private function to register a Safe transaction signature after validation.
      *
      * @param safeTxHash ERC-712 digest of the transaction.
      * @param signature  The ECDSA signature bytes.
@@ -349,7 +391,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     function _registerSignature(
         bytes32 safeTxHash,
         bytes calldata signature
-    ) internal {
+    ) private {
         (address signer, , ) = CoreLib.recoverSigner(safeTxHash, signature);
         require(
             _signatures[signer][safeTxHash] == 0,

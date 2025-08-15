@@ -7,6 +7,13 @@ import {EncryptionKey, SafeTransactionRegistrationHandle} from "./Types.sol";
 interface ISafeSecretHarbour {
     function registerEncryptionKey(bytes32 context, bytes32 publicKey) external;
 
+    function registerEncryptionKeyFor(
+        address signer,
+        bytes32 context,
+        bytes32 publicKey,
+        bytes calldata signature
+    ) external;
+
     function enqueueTransaction(
         uint256 chainId,
         address safe,
