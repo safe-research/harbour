@@ -1,8 +1,13 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
 import type { JsonRpcApiProvider } from "ethers";
+import type { SessionKeys } from "@/contexts/SessionContext";
 import { fetchSafeQueue, type NonceGroup } from "@/lib/harbour";
 import type { SafeConfiguration } from "@/lib/safe";
 import type { ChainId } from "@/lib/types";
+
+interface SessionDecryptionKeyPair {
+	encryption: Pick<SessionKeys["encryption"], "privateKey" | "publicKeyHex">;
+}
 
 interface UseSafeQueueProps {
 	/** Ethers.js JSON RPC API provider for the Harbour chain. */
@@ -13,8 +18,12 @@ interface UseSafeQueueProps {
 	safeConfig: Pick<SafeConfiguration, "nonce" | "owners">;
 	/** The chain ID of the Safe contract (not Harbour's chain ID). */
 	safeChainId: ChainId;
+	/** The session keys for decrypting secret harbour transactions. */
+	sessionKeys: SessionDecryptionKeyPair | null;
 	/** Optional maximum number of nonces to fetch ahead of the current Safe nonce (default: 5). */
 	maxNoncesToFetch?: number;
+	/** Optional maximum number of transactions to fetch per nonce (default: 100). */
+	maxTxsPerNonce?: number;
 }
 
 /**
@@ -28,7 +37,9 @@ function useSafeQueue({
 	safeAddress,
 	safeConfig,
 	safeChainId,
+	sessionKeys,
 	maxNoncesToFetch = 5,
+	maxTxsPerNonce = 100,
 }: UseSafeQueueProps): UseQueryResult<NonceGroup[], Error> {
 	return useQuery<NonceGroup[], Error, NonceGroup[], readonly unknown[]>({
 		queryKey: [
@@ -36,6 +47,7 @@ function useSafeQueue({
 			safeAddress,
 			safeConfig.nonce,
 			safeConfig.owners,
+			sessionKeys?.encryption?.publicKeyHex,
 			maxNoncesToFetch,
 		],
 		queryFn: async () => {
@@ -43,7 +55,9 @@ function useSafeQueue({
 				provider,
 				safeAddress,
 				safeConfig,
+				sessionKeys,
 				maxNoncesToFetch,
+				maxTxsPerNonce,
 				safeChainId,
 			});
 		},

@@ -1,4 +1,4 @@
-node_modules
+node_modules/
 cache/
 artifacts/
 typechain-types/
@@ -16,8 +16,8 @@ typechain-types/
 /coverage
 /coverage.json
 
-# Hardhat Ignition default folder for deployments against a local node
-ignition/deployments/chain-31337
+# Hardhat local node deployments
+contracts/deployments/localhost/
 
 .DS_Store
 dist
