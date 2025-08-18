@@ -4,6 +4,7 @@ pragma solidity ^0.8.29;
 import {
     DOMAIN_TYPEHASH,
     SAFE_TX_TYPEHASH,
+    ENCRYPTION_KEY_TYPEHASH,
     SECP256K1_LOW_S_BOUND
 } from "../interfaces/Constants.sol";
 import {
@@ -19,20 +20,44 @@ library CoreLib {
     // ------------------------------------------------------------------
 
     /**
+     * @notice Computes the EIP-712 hash for a given chain, verifying contract and message.
+     *
+     * @param chainId           Chain ID included in the domain separator.
+     * @param verifyingContract Address of the verifying contract.
+     * @param messageStructHash The EIP-712 struct hash of the message.
+     *
+     * @return digest           The EIP-712 digest.
+     */
+    function computeErc712Hash(
+        uint256 chainId,
+        address verifyingContract,
+        bytes32 messageStructHash
+    ) internal pure returns (bytes32 digest) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(DOMAIN_TYPEHASH, chainId, verifyingContract)
+        );
+        digest = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, messageStructHash)
+        );
+    }
+
+    /**
      * @notice Computes the unique EIP-712 digest for a SafeTx using the provided parameters and domain.
-     * @param safeAddress Address of the target Safe Smart Account.
-     * @param chainId Chain ID included in the domain separator.
-     * @param nonce Safe transaction nonce.
-     * @param to Target address the Safe will call.
-     * @param value ETH value to be sent with the call.
-     * @param data Call data executed by the Safe.
-     * @param operation Operation type: 0 = CALL, 1 = DELEGATECALL.
-     * @param safeTxGas Gas limit for the Safe's internal execution.
-     * @param baseGas Base gas overhead for reimbursement.
-     * @param gasPrice Gas price used for reimbursement calculation.
-     * @param gasToken Token address for refunds (0x0 for ETH).
+     *
+     * @param safeAddress    Address of the target Safe Smart Account.
+     * @param chainId        Chain ID included in the domain separator.
+     * @param nonce          Safe transaction nonce.
+     * @param to             Target address the Safe will call.
+     * @param value          ETH value to be sent with the call.
+     * @param data           Call data executed by the Safe.
+     * @param operation      Operation type: 0 = CALL, 1 = DELEGATECALL.
+     * @param safeTxGas      Gas limit for the Safe's internal execution.
+     * @param baseGas        Base gas overhead for reimbursement.
+     * @param gasPrice       Gas price used for reimbursement calculation.
+     * @param gasToken       Token address for refunds (0x0 for ETH).
      * @param refundReceiver Address to receive gas refunds.
-     * @return safeTxHash Keccak256 digest of the EIP-712 encoded SafeTx.
+     *
+     * @return safeTxHash    Keccak256 digest of the EIP-712 encoded SafeTx.
      */
     function computeSafeTxHash(
         address safeAddress,
@@ -72,32 +97,54 @@ library CoreLib {
 
     /**
      * @notice Computes a Safe transaction hash from partial data.
-     * @param chainId Chain ID included in the domain separator.
-     * @param safeAddress Address of the target Safe Smart Account.
+     *
+     * @param chainId          Chain ID included in the domain separator.
+     * @param safeAddress      Address of the target Safe Smart Account.
      * @param safeTxStructHash The EIP-712 struct hash of the Safe transaction data.
-     * @return safeTxHash Keccak256 digest of the EIP-712 encoded SafeTx.
+     *
+     * @return safeTxHash      Keccak256 digest of the EIP-712 encoded SafeTx.
      */
     function computePartialSafeTxHash(
         uint256 chainId,
         address safeAddress,
         bytes32 safeTxStructHash
     ) internal pure returns (bytes32 safeTxHash) {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, chainId, safeAddress)
+        safeTxHash = computeErc712Hash(chainId, safeAddress, safeTxStructHash);
+    }
+
+    /**
+     * @notice Computes the encryption key hash for authentication.
+     *
+     * @param context            A 32-byte context specific to the public encryption key.
+     * @param publicKey          The public encryption key.
+     *
+     * @return encryptionKeyHash The EIP-712 encoded encryption key hash.
+     */
+    function computeEncryptionKeyHash(
+        bytes32 context,
+        bytes32 publicKey
+    ) internal view returns (bytes32 encryptionKeyHash) {
+        bytes32 encryptionKeyStructHash = keccak256(
+            abi.encode(ENCRYPTION_KEY_TYPEHASH, context, publicKey)
         );
-        safeTxHash = keccak256(
-            abi.encodePacked("\x19\x01", domainSeparator, safeTxStructHash)
+        encryptionKeyHash = computeErc712Hash(
+            block.chainid,
+            address(this),
+            encryptionKeyStructHash
         );
     }
 
     /**
      * @notice Splits a 65-byte ECDSA signature into its components and recovers the signer address.
-     * @param digest The message or data hash to verify (EIP-712 digest or eth_sign prefixed).
-     * @param sig Concatenated 65-byte ECDSA signature (r || s || v).
-     * @return signer The address that produced the signature (EOA).
-     * @return r First 32 bytes of the ECDSA signature.
-     * @return vs Compact representation of s and v coming from EIP-2098.
+     *
      * @dev Supports both EIP-712 and eth_sign flows by detecting v > 30 and applying the Ethereum Signed Message prefix.
+     *
+     * @param digest  The message or data hash to verify (ERC-712 digest or eth_sign prefixed).
+     * @param sig     Concatenated 65-byte ECDSA signature (r || s || v).
+     *
+     * @return signer The address that produced the signature (EOA).
+     * @return r      First 32 bytes of the ECDSA signature.
+     * @return vs     Compact representation of s and v coming from EIP-2098.
      */
     function recoverSigner(
         bytes32 digest,
@@ -121,6 +168,15 @@ library CoreLib {
         }
     }
 
+    /**
+     * @notice Recovers the signer address from an EIP-2098 compact signature.
+     *
+     * @param digest  The message or data hash to verify (ERC-712 digest or eth_sign prefixed).
+     * @param r       First 32 bytes of the ECDSA signature.
+     * @param vs      Compact representation of s and v coming from EIP-2098.
+     *
+     * @return signer The address that produced the signature (EOA).
+     */
     function recoverSigner(
         bytes32 digest,
         bytes32 r,
