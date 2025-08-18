@@ -12,7 +12,8 @@
 		"format": "biome format",
 		"format:fix": "biome format --write",
 		"check": "biome check",
-		"test": "vitest run"
+		"test": "vitest run",
+		"coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@heroicons/react": "^2.2.0",
