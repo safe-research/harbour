@@ -206,8 +206,8 @@ describe("SafeInternationalHarbour", () => {
 	it("should report support for the secret harbour interface", async () => {
 		const { harbour } = await loadFixture(deployFixture);
 
-		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0x99cc1206");
-		for (const interfaceId of ["0x01ffc9a7", "0x99cc1206"]) {
+		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0xe18a4e58");
+		for (const interfaceId of ["0x01ffc9a7", "0xe18a4e58"]) {
 			expect(await harbour.supportsInterface(interfaceId)).to.be.true;
 		}
 	});
@@ -215,9 +215,10 @@ describe("SafeInternationalHarbour", () => {
 	it("should register a public encryption key", async () => {
 		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
 
-		await harbour.connect(signer).registerEncryptionKey(ethers.ZeroHash, encryptionKey);
-		const [storedEncryptionKey] = await harbour.retrieveEncryptionPublicKeys([signer]);
-		expect(storedEncryptionKey).to.equal(encryptionKey);
+		const context = ethers.id("context");
+		await harbour.connect(signer).registerEncryptionKey(context, encryptionKey);
+		const storedEncryptionKey = await harbour.retrieveEncryptionKey(signer);
+		expect(storedEncryptionKey).to.deep.equal([context, encryptionKey]);
 	});
 
 	it("should emit a key registration event", async () => {
@@ -245,6 +246,82 @@ describe("SafeInternationalHarbour", () => {
 		}
 
 		expect(await harbour.retrieveEncryptionPublicKeys(signers)).to.deep.equal(keys);
+	});
+
+	it("should register a public encryption key on behalf of a signer", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const signature = await signer.signTypedData(
+			{
+				chainId,
+				verifyingContract: await harbour.getAddress(),
+			},
+			{
+				EncryptionKey: [
+					{ name: "context", type: "bytes32" },
+					{ name: "publicKey", type: "bytes32" },
+				],
+			},
+			{ context, publicKey: encryptionKey },
+		);
+		await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature);
+		const storedEncryptionKey = await harbour.retrieveEncryptionKey(signer);
+		expect(storedEncryptionKey).to.deep.equal([context, encryptionKey]);
+	});
+
+	it("should emit a key registration event when registering on behalf of a signer", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const signature = await signer.signTypedData(
+			{
+				chainId,
+				verifyingContract: await harbour.getAddress(),
+			},
+			{
+				EncryptionKey: [
+					{ name: "context", type: "bytes32" },
+					{ name: "publicKey", type: "bytes32" },
+				],
+			},
+			{ context, publicKey: encryptionKey },
+		);
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature))
+			.to.emit(harbour, "EncryptionKeyRegistered")
+			.withArgs(signer.address, context, encryptionKey);
+	});
+
+	it("should revert when encryption key authentication is invalid", async () => {
+		const { signer, alice, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const aliceSignature = await alice.signTypedData(
+			{
+				chainId,
+				verifyingContract: await harbour.getAddress(),
+			},
+			{
+				EncryptionKey: [
+					{ name: "context", type: "bytes32" },
+					{ name: "publicKey", type: "bytes32" },
+				],
+			},
+			{ context, publicKey: encryptionKey },
+		);
+
+		for (const [signature, error] of [
+			["0x1234", "InvalidECDSASignatureLength"],
+			[`0x${"00".repeat(65)}`, "InvalidSignature"],
+			[aliceSignature, "UnexpectedSigner"],
+		]) {
+			await expect(
+				harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature),
+			).to.be.revertedWithCustomError(harbour, error);
+		}
 	});
 
 	it("should revert if signature length is not 65 bytes", async () => {
