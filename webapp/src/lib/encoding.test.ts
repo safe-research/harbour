@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	bytes32ToAddress,
 	getChecksummedAddress,
@@ -62,7 +62,7 @@ describe("encoding", () => {
 				r: sig.r,
 				vs: sig.yParityAndS, // EIP-2098 compact representation
 				txHash: "0x",
-				signer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+				signer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 			};
 
 			const full = compactSignatureToFullSignature(compact);
