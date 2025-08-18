@@ -40,13 +40,13 @@ const HARBOUR_ABI = [
 
 /** ABI for the Secret Harbour contract. */
 const SECRET_HARBOUR_ABI = [
-    "function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
-    "function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, bytes calldata signature)",
-    "function enqueueTransaction(uint256 chainId, address safe, uint256 nonce, bytes32 safeTxStructHash, bytes calldata signature, bytes calldata encryptionBlob) returns (bytes32 uid)",
-    "function retrieveEncryptionPublicKeys(address[] calldata signers) view returns (bytes32[] publicKeys)",
-    "function retrieveEncryptionKey(address signers) view returns (tuplw(bytes32 context, bytes32 publicKey) encryptionKey)",
-    "function retrieveRegistrations(uint256 chainId, address safe, uint256 nonce, address notary, uint256 start, uint256 count) view returns (tuple(uint256 blockNumber, bytes32 uid)[] page, uint256 totalCount)",
-    "function retrieveSignatures(address[] calldata signers, bytes32 safeTxHash) view returns (uint256[] blockNumbers)",
+	"function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
+	"function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, bytes calldata signature)",
+	"function enqueueTransaction(uint256 chainId, address safe, uint256 nonce, bytes32 safeTxStructHash, bytes calldata signature, bytes calldata encryptionBlob) returns (bytes32 uid)",
+	"function retrieveEncryptionPublicKeys(address[] calldata signers) view returns (bytes32[] publicKeys)",
+	"function retrieveEncryptionKey(address signers) view returns (tuplw(bytes32 context, bytes32 publicKey) encryptionKey)",
+	"function retrieveRegistrations(uint256 chainId, address safe, uint256 nonce, address notary, uint256 start, uint256 count) view returns (tuple(uint256 blockNumber, bytes32 uid)[] page, uint256 totalCount)",
+	"function retrieveSignatures(address[] calldata signers, bytes32 safeTxHash) view returns (uint256[] blockNumbers)",
 ];
 
 function harbourAt(
@@ -57,11 +57,11 @@ function harbourAt(
 }
 
 function secretHarbourAt(
-    harbourAddress: string,
+	harbourAddress: string,
 	runner?: ContractRunner,
 ): Contract {
 	return new Contract(harbourAddress, SECRET_HARBOUR_ABI, runner);
-)
+}
 
 /**
  * Enqueues a transaction to the Harbour contract
@@ -381,6 +381,7 @@ export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
 	harbourAt,
+	secretHarbourAt,
 	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,

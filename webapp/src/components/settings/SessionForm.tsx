@@ -1,33 +1,24 @@
+import { ethers, type Wallet } from "ethers";
 import { useEffect, useState } from "react";
-import { useWaku, WakuState } from "@/contexts/SessionContext";
-
-const mapWakuState = (status: WakuState | undefined): string => {
-	switch (status) {
-		case WakuState.DISABLED:
-			return "Disabled";
-		case WakuState.STARTING:
-			return "Starting";
-		case WakuState.CONNECTING:
-			return "Connecting";
-		case WakuState.CONNECTED:
-			return "Connected";
-		default:
-			return "Unknown";
-	}
-};
+import { useSession } from "@/contexts/SessionContext";
+import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
 
 function EncryptionForm() {
-	const [status, setStatus] = useState<WakuState>();
-	const waku = useWaku();
+	const session = useSession();
+	const { provider } = useHarbourRpcProvider();
+
+	const [relayer, setRelayer] = useState<Wallet | null>(null);
+	const [relayerBalance, setRelayerBalance] = useState<bigint | null>(null);
 
 	useEffect(() => {
+		const h
 		waku.watchStatus(setStatus);
 		return () => {
 			waku.unwatchStatus(setStatus);
 		};
-	}, [waku]);
+	}, [session, provider, setRelayerBalance]);
 
-	const toggleWaku = () => {
+	const toggleEncryption = () => {
 		if (status === WakuState.DISABLED) {
 			waku.enable();
 			waku.setup();
