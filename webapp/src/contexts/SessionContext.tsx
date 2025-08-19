@@ -1,12 +1,21 @@
+import { x25519 } from "@noble/curves/ed25519";
 import {
 	type BigNumberish,
+	type BrowserProvider,
 	type BytesLike,
 	ethers,
 	type SignatureLike,
-	type Signer,
 	type Wallet,
 } from "ethers";
-import { createContext, useContext, type ReactNode } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useCallback,
+	useContext,
+	useMemo,
+	useState,
+	useTransition,
+} from "react";
 import { SiweMessage } from "siwe";
 
 const STORAGE_KEY_PREFIX = "session";
@@ -23,12 +32,12 @@ interface Context {
 
 type ContextSalt = Pick<Context, "nonce" | "issuedAt">;
 
-interface Session {
+interface Entropy {
 	seed: Uint8Array;
 	salt: ContextSalt;
 }
 
-type SessionSeed = Pick<Session, "seed">;
+type EntropySeed = Pick<Entropy, "seed">;
 
 interface SessionKeys {
 	encryption: CryptoKeyPair;
@@ -40,16 +49,33 @@ interface EncryptionKeyRegistration {
 	publicKey: BytesLike;
 }
 
-interface PendingSession {
-	registration: EncryptionKeyRegistration;
-	relayer: Wallet;
+interface Session {
+	entropy: Entropy;
+	keys: SessionKeys;
+	pendingRegistration: EncryptionKeyRegistration | null;
+}
+
+type RetrieveFunction = (
+	address: Address,
+) => Promise<EncryptionKeyRegistration>;
+type ChainIdFunction = () => Promise<BigNumberish>;
+
+interface SessionValue {
+	keys: SessionKeys | null;
+	pendingRegistration: EncryptionKeyRegistration | null;
+	connect: (signer: BrowserProvider, retrieve: RetrieveFunction) => void;
+	create: (signer: BrowserProvider, chainId: ChainIdFunction) => void;
+	disconnect: () => void;
+	connected: boolean;
+	isUpdating: boolean;
+	error: Error | null;
 }
 
 function storageKeyFor(address: Address): string {
-	return `${STORAGE_KEY_PREFIX}.${ethers. getAddress(address)}`;
+	return `${STORAGE_KEY_PREFIX}.${ethers.getAddress(address)}`;
 }
 
-function loadSession(address: Address): Session | null {
+function loadSessionEntropy(address: Address): Entropy | null {
 	try {
 		const storageKey = storageKeyFor(address);
 		const encoded = localStorage.getItem(storageKey) ?? "";
@@ -70,7 +96,7 @@ function loadSession(address: Address): Session | null {
 	}
 }
 
-function storeSession(address: Address, { seed, salt }: Session) {
+function storeSessionEntropy(address: Address, { seed, salt }: Entropy) {
 	const data = ethers.encodeBase64(
 		ethers.concat([seed, encodeContextSalt(salt)]),
 	);
@@ -79,14 +105,14 @@ function storeSession(address: Address, { seed, salt }: Session) {
 	localStorage.setItem(storageKey, encoded);
 }
 
-function deriveSecret(domain: number, { seed }: SessionSeed): Hex {
+function deriveSecret(domain: number, { seed }: EntropySeed): Hex {
 	return ethers.solidityPackedKeccak256(["uint8", "bytes32"], [domain, seed]);
 }
 
 async function deriveEncryptionKeyPair(
-	session: SessionSeed,
+	entropy: EntropySeed,
 ): Promise<CryptoKeyPair> {
-	const secret = deriveSecret(0, session);
+	const secret = deriveSecret(0, entropy);
 
 	// TODO: we should actually compute the PKCS#8 format, for now just guess based on computed
 	// `crypto.subtle.exportKey("pkcs8", privateKey)` for randomly generated `privateKey`s.
@@ -103,16 +129,9 @@ async function deriveEncryptionKeyPair(
 		true,
 		["deriveBits"],
 	);
-
-	// SubtleCrypto API doesn't have a way to derive a public key from a private key, but the JWK
-	// exported private key includes the public key, so make use of it!
-	const jwk = await crypto.subtle.exportKey("jwk", privateKey);
-	if (!jwk.x) {
-		throw new Error("exported key missing public x-coordinate");
-	}
 	const publicKey = await crypto.subtle.importKey(
 		"raw",
-		ethers.decodeBase64(jwk.x ?? ""),
+		x25519.getPublicKey(secret.substr(2)),
 		{ name: "X25519" },
 		true,
 		[],
@@ -121,19 +140,15 @@ async function deriveEncryptionKeyPair(
 	return { publicKey, privateKey };
 }
 
-function deriveRelayerWallet(session: SessionSeed): Wallet {
-	const privateKey = deriveSecret(1, session);
+function deriveRelayerWallet(entropy: EntropySeed): Wallet {
+	const privateKey = deriveSecret(1, entropy);
 	return new ethers.Wallet(privateKey);
 }
 
-async function deriveSessionKeys(session: SessionSeed): Promise<SessionKeys> {
-	const encryption = await deriveEncryptionKeyPair(session);
-	const relayer = deriveRelayerWallet(session);
+async function deriveSessionKeys(entropy: EntropySeed): Promise<SessionKeys> {
+	const encryption = await deriveEncryptionKeyPair(entropy);
+	const relayer = deriveRelayerWallet(entropy);
 	return { encryption, relayer };
-}
-
-function bytesEqual(a: BytesLike, b: BytesLike): boolean {
-	return ethers.hexlify(a) === ethers.hexlify(b);
 }
 
 function generateContextSalt(): ContextSalt {
@@ -181,7 +196,7 @@ function decodeContextSalt(salt: Uint8Array): ContextSalt {
 
 	return {
 		nonce: salt.slice(0, 6),
-		issuedAt: new Date(ethers.toNumber(salt.subarray(6))),
+		issuedAt: new Date(ethers.toNumber(salt.subarray(6)) * 1000),
 	};
 }
 
@@ -192,180 +207,163 @@ async function encodePublicEncryptionKey(
 	return new Uint8Array(raw);
 }
 
-class SessionManager {
-	#session: Session | null = null;
-
-	public get connected(): boolean {
-		return this.#session !== null;
-	}
-
-	public async getKeys(): Promise<SessionKeys | null> {
-		const keys =
-			this.#session !== null ? await deriveSessionKeys(this.#session) : null;
-		return keys;
-	}
-
-	public async connect(
-		signer: Signer,
-		onchain: EncryptionKeyRegistration,
-	): Promise<boolean> {
-		const address = await signer.getAddress();
-		this.#session = loadSession(address);
-		if (this.#session === null) {
-			return false;
-		}
-
-		// We need to make sure that the onchain registration matches what we have in local storage,
-		// otherwise this means either our local storage copy is outdated and needs to be rotated.
-		const keys = await deriveSessionKeys(this.#session);
-		const context = encodeContext({
-			...this.#session.salt,
-			relayer: keys.relayer.address,
-		});
-		const publicKey = await encodePublicEncryptionKey(
-			keys.encryption.publicKey,
-		);
-		if (
-			!bytesEqual(context, onchain.context) ||
-			!bytesEqual(publicKey, onchain.publicKey)
-		) {
-			this.#session = null;
-		}
-
-		return this.#session !== null;
-	}
-
-	public disconnect(): void {
-		this.#session = null;
-	}
-
-	public async create(
-		signer: Signer,
-		chainId: BigNumberish,
-		register: (pending: PendingSession) => Promise<void>,
-	): Promise<void> {
-		const address = await signer.getAddress();
-		const salt = generateContextSalt();
-		const signin = new SiweMessage({
-			scheme: window.location.protocol.replace(/:$/, ""),
-			domain: window.location.host,
-			address,
-			statement: "Log into Harbour to access encrypted transaction data",
-			uri: window.location.origin,
-			version: "1",
-			chainId: ethers.toNumber(chainId),
-			nonce: ethers.encodeBase58(salt.nonce),
-			issuedAt: salt.issuedAt.toISOString(),
-		});
-		const message = signin.toMessage();
-		const signature = await signer.signMessage(message);
-		const seed = deriveSeed(signature);
-		const session = { seed, salt };
-		const { encryption, relayer } = await deriveSessionKeys(session);
-		const registration = {
-			context: encodeContext({ ...salt, relayer: relayer.address }),
-			publicKey: await encodePublicEncryptionKey(encryption.publicKey),
-		};
-		await register({ registration, relayer });
-		storeSession(address, session);
-		this.#session = session;
-	}
+function bytesEqual(a: BytesLike, b: BytesLike): boolean {
+	return ethers.hexlify(a) === ethers.hexlify(b);
 }
 
-const SessionContext = createContext<SessionManager>(new SessionManager());
+function registrationEquals(
+	a: EncryptionKeyRegistration,
+	b: EncryptionKeyRegistration,
+): boolean {
+	return (
+		bytesEqual(a.context, b.context) && bytesEqual(a.publicKey, b.publicKey)
+	);
+}
+
+function isRegistered(registration: EncryptionKeyRegistration): boolean {
+	return !registrationEquals(registration, {
+		context: ethers.ZeroHash,
+		publicKey: ethers.ZeroHash,
+	});
+}
+
+function isError(o: unknown): o is Error {
+	return Object.prototype.toString.call(o) === "[object Error]";
+}
+
+const SessionContext = createContext<SessionValue | null>(null);
 
 function SessionProvider({ children }: { children: ReactNode }) {
-	const [connection, setConnection] = useState<{ session: Session, keys: SessionKeys } | null>(null);
-	const [isPending, startUpdate] = useTransition();
+	const [session, setSession] = useState<Session | null>(null);
+	const [error, setError] = useState<Error | null>(null);
+	const [isUpdating, startUpdate] = useTransition();
 
-
-	async function connect(
-		signer: Signer,
-		onchain: EncryptionKeyRegistration,
-	): Promise<boolean> {
-		const address = await signer.getAddress();
-		const session = loadSession(address);
-		if (this.#session === null) {
-			return false;
-		}
-
-		// We need to make sure that the onchain registration matches what we have in local storage,
-		// otherwise this means either our local storage copy is outdated and needs to be rotated.
-		const keys = await deriveSessionKeys(this.#session);
-		const context = encodeContext({
-			...this.#session.salt,
-			relayer: keys.relayer.address,
+	const update = useCallback((handler: () => Promise<Session | null>) => {
+		setError(null);
+		startUpdate(async () => {
+			try {
+				const session = await handler();
+				setSession(session);
+			} catch (err) {
+				console.error(err);
+				setSession(null);
+				setError(isError(err) ? err : new Error(`${err}`));
+			}
 		});
-		const publicKey = await encodePublicEncryptionKey(
-			keys.encryption.publicKey,
-		);
-		if (
-			!bytesEqual(context, onchain.context) ||
-			!bytesEqual(publicKey, onchain.publicKey)
-		) {
-			this.#session = null;
-		}
+	}, []);
 
-		return this.#session !== null;
-	}
+	const connect = useCallback(
+		(wallet: BrowserProvider, retrieve: RetrieveFunction) =>
+			update(async () => {
+				const signer = await wallet.getSigner();
+				const address = await signer.getAddress();
+				const onchain = await retrieve(address);
+				const entropy = loadSessionEntropy(address);
+				if (entropy === null) {
+					return null;
+				}
 
-	public disconnect(): void {
-		this.#session = null;
-	}
+				const keys = await deriveSessionKeys(entropy);
+				const registration = {
+					context: encodeContext({
+						...entropy.salt,
+						relayer: keys.relayer.address,
+					}),
+					publicKey: await encodePublicEncryptionKey(keys.encryption.publicKey),
+				};
 
-	public async create(
-		signer: Signer,
-		chainId: BigNumberish,
-		register: (pending: PendingSession) => Promise<void>,
-	): Promise<void> {
-		const address = await signer.getAddress();
-		const salt = generateContextSalt();
-		const signin = new SiweMessage({
-			scheme: window.location.protocol.replace(/:$/, ""),
-			domain: window.location.host,
-			address,
-			statement: "Log into Harbour to access encrypted transaction data",
-			uri: window.location.origin,
-			version: "1",
-			chainId: ethers.toNumber(chainId),
-			nonce: ethers.encodeBase58(salt.nonce),
-			issuedAt: salt.issuedAt.toISOString(),
-		});
-		const message = signin.toMessage();
-		const signature = await signer.signMessage(message);
-		const seed = deriveSeed(signature);
-		const session = { seed, salt };
-		const { encryption, relayer } = await deriveSessionKeys(session);
-		const registration = {
-			context: encodeContext({ ...salt, relayer: relayer.address }),
-			publicKey: await encodePublicEncryptionKey(encryption.publicKey),
-		};
-		await register({ registration, relayer });
-		storeSession(address, session);
-		this.#session = session;
+				// We need to make sure that the onchain registration (if there
+				// is one), matches what we have in local storage, otherwise
+				// this means either our local storage copy is outdated and
+				// needs to be rotated.
+				if (
+					isRegistered(onchain) &&
+					!registrationEquals(onchain, registration)
+				) {
+					return null;
+				}
+
+				return {
+					entropy,
+					keys,
+					pendingRegistration: isRegistered(onchain) ? null : registration,
+				};
+			}),
+		[update],
+	);
+
+	const create = useCallback(
+		(wallet: BrowserProvider, chainId: ChainIdFunction) =>
+			update(async () => {
+				const signer = await wallet.getSigner();
+				const address = await signer.getAddress();
+				const salt = generateContextSalt();
+				const signin = new SiweMessage({
+					scheme: window.location.protocol.replace(/:$/, ""),
+					domain: window.location.host,
+					address,
+					statement: "Log into Harbour to access encrypted transaction data",
+					uri: window.location.origin,
+					version: "1",
+					chainId: ethers.toNumber(await chainId()),
+					nonce: ethers.encodeBase58(salt.nonce),
+					issuedAt: salt.issuedAt.toISOString(),
+				});
+				const message = signin.toMessage();
+				const signature = await signer.signMessage(message);
+				const seed = deriveSeed(signature);
+				const entropy = { seed, salt };
+				const keys = await deriveSessionKeys(entropy);
+				const pendingRegistration = {
+					context: encodeContext({
+						...entropy.salt,
+						relayer: keys.relayer.address,
+					}),
+					publicKey: await encodePublicEncryptionKey(keys.encryption.publicKey),
+				};
+				storeSessionEntropy(address, entropy);
+				return { entropy, keys, pendingRegistration };
+			}),
+		[update],
+	);
+
+	const disconnect = useCallback(() => {
+		setSession(null);
+		setError(null);
+	}, []);
+
+	const value = useMemo(
+		() => ({
+			connected: session !== null,
+			keys: session?.keys ?? null,
+			pendingRegistration: session?.pendingRegistration ?? null,
+			connect,
+			create,
+			disconnect,
+			isUpdating,
+			error,
+		}),
+		[session, connect, create, disconnect, isUpdating, error],
+	);
+
+	return (
+		<SessionContext.Provider value={value}>{children}</SessionContext.Provider>
+	);
 }
 
-
-const value = useMemo(() => ({
-
-}), [session]);
-	}
-}
-
-function useSession(): SessionManager {
-	const context = useContext(SessionContext);
-	if (!context) {
+function useSession(): SessionValue {
+	const value = useContext(SessionContext);
+	if (value === null) {
 		throw new Error("useSession must be used within a SessionContext provider");
 	}
-	return context;
+	return value;
 }
 
-
-
 export type {
+	ChainIdFunction,
 	EncryptionKeyRegistration,
-	PendingSession,
+	RetrieveFunction,
 	SessionKeys,
-	SessionManager,
+	SessionValue,
 };
-export { useSession };
+export { SessionProvider, useSession };

@@ -11,6 +11,7 @@ import { routeTree } from "./routeTree.gen";
 import "./lib/onboard";
 
 import "./styles.css";
+import { SessionProvider } from "./contexts/SessionContext.tsx";
 import { WakuProvider } from "./contexts/WakuContext.tsx";
 import reportWebVitals from "./reportWebVitals.ts";
 
@@ -44,11 +45,13 @@ if (rootElement && !rootElement.innerHTML) {
 		<StrictMode>
 			<TanstackQuery.Provider>
 				<ErrorBoundary>
-					<WakuProvider>
-						<WalletConnectProvider router={router}>
-							<RouterProvider router={router} />
-						</WalletConnectProvider>
-					</WakuProvider>
+					<SessionProvider>
+						<WakuProvider>
+							<WalletConnectProvider router={router}>
+								<RouterProvider router={router} />
+							</WalletConnectProvider>
+						</WakuProvider>
+					</SessionProvider>
 				</ErrorBoundary>
 			</TanstackQuery.Provider>
 		</StrictMode>,

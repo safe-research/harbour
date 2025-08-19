@@ -136,21 +136,6 @@ const ethTransactionParamsSchema = z.object({
 	gas: z.string().optional(),
 });
 
-/**
- * Zod schema for validating a secret harbour session.
- */
-const sessionSchema = z.string().refine((arg) => {
-	const prefix = "harbour:session:";
-	try {
-		return (
-			arg.startsWith(prefix) &&
-			ethers.decodeBase64(arg.substr(prefix.length)).length === 32
-		);
-	} catch {
-		return false;
-	}
-});
-
 export type { SafeId };
 export {
 	ethereumAddressSchema,
@@ -164,6 +149,5 @@ export {
 	ethValueSchema,
 	hexDataSchema,
 	ethTransactionParamsSchema,
-	sessionSchema,
 	ETHEREUM_ADDRESS_REGEX,
 };

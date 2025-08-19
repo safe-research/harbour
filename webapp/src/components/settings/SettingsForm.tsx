@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ErrorItem, FormItem, SubmitItem } from "@/components/Forms";
-import { ethereumAddressSchema, sessionSchema } from "@/lib/validators";
+import { EncryptionForm } from "@/components/settings/EncryptionForm";
+import { ethereumAddressSchema } from "@/lib/validators";
 
 const STORAGE_KEY_SETTINGS = "localStorage.settings.object.v1";
 
@@ -105,6 +106,7 @@ function SettingsForm({
 				label="Harbour Address"
 				placeholder="0x..."
 			/>
+			<EncryptionForm currentSettings={currentSettings} />
 			<FormItem
 				id="quotaManagerAddress"
 				register={register}

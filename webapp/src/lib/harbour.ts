@@ -40,14 +40,17 @@ const HARBOUR_ABI = [
 
 /** ABI for the Secret Harbour contract. */
 const SECRET_HARBOUR_ABI = [
+	"function supportsInterface(bytes4 interfaceId) view returns (bool supported)",
 	"function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
 	"function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, bytes calldata signature)",
 	"function enqueueTransaction(uint256 chainId, address safe, uint256 nonce, bytes32 safeTxStructHash, bytes calldata signature, bytes calldata encryptionBlob) returns (bytes32 uid)",
 	"function retrieveEncryptionPublicKeys(address[] calldata signers) view returns (bytes32[] publicKeys)",
-	"function retrieveEncryptionKey(address signers) view returns (tuplw(bytes32 context, bytes32 publicKey) encryptionKey)",
+	"function retrieveEncryptionKey(address signers) view returns (tuple(bytes32 context, bytes32 publicKey) encryptionKey)",
 	"function retrieveRegistrations(uint256 chainId, address safe, uint256 nonce, address notary, uint256 start, uint256 count) view returns (tuple(uint256 blockNumber, bytes32 uid)[] page, uint256 totalCount)",
 	"function retrieveSignatures(address[] calldata signers, bytes32 safeTxHash) view returns (uint256[] blockNumbers)",
 ];
+
+const SECRET_HARBOUR_INTERFACE_ID = "0xe18a4e58";
 
 function harbourAt(
 	harbourAddress: string | undefined,
@@ -61,6 +64,19 @@ function secretHarbourAt(
 	runner?: ContractRunner,
 ): Contract {
 	return new Contract(harbourAddress, SECRET_HARBOUR_ABI, runner);
+}
+
+async function supportsSecretHarbourInterface(
+	harbourAddress: string,
+	runner: ContractRunner,
+): Promise<boolean> {
+	const harbour = secretHarbourAt(harbourAddress, runner);
+	try {
+		return await harbour.supportsInterface(SECRET_HARBOUR_INTERFACE_ID);
+	} catch (err) {
+		console.error(err);
+		return false;
+	}
 }
 
 /**
@@ -382,6 +398,7 @@ export {
 	enqueueSafeTransaction,
 	harbourAt,
 	secretHarbourAt,
+	supportsSecretHarbourInterface,
 	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
