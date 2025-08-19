@@ -39,8 +39,12 @@ interface Entropy {
 
 type EntropySeed = Pick<Entropy, "seed">;
 
+interface CryptoKeyPairWithHex extends CryptoKeyPair {
+	publicKeyHex: Hex;
+}
+
 interface SessionKeys {
-	encryption: CryptoKeyPair;
+	encryption: CryptoKeyPairWithHex;
 	relayer: Wallet;
 }
 
@@ -111,7 +115,7 @@ function deriveSecret(domain: number, { seed }: EntropySeed): Hex {
 
 async function deriveEncryptionKeyPair(
 	entropy: EntropySeed,
-): Promise<CryptoKeyPair> {
+): Promise<CryptoKeyPairWithHex> {
 	const secret = deriveSecret(0, entropy);
 
 	// TODO: we should actually compute the PKCS#8 format, for now just guess based on computed
@@ -129,15 +133,16 @@ async function deriveEncryptionKeyPair(
 		true,
 		["deriveBits"],
 	);
+	const publicKeyRaw = x25519.getPublicKey(secret.substr(2));
 	const publicKey = await crypto.subtle.importKey(
 		"raw",
-		x25519.getPublicKey(secret.substr(2)),
+		publicKeyRaw,
 		{ name: "X25519" },
 		true,
 		[],
 	);
 
-	return { publicKey, privateKey };
+	return { publicKey, privateKey, publicKeyHex: ethers.hexlify(publicKeyRaw) };
 }
 
 function deriveRelayerWallet(entropy: EntropySeed): Wallet {

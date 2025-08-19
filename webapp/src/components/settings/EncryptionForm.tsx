@@ -1,4 +1,5 @@
 import { type BrowserProvider, ethers, type JsonRpcApiProvider } from "ethers";
+import { ExternalLink } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -102,7 +103,7 @@ function EncryptionFormInner({
 			return () => {};
 		}
 
-		const interval = setInterval(async () => {
+		const updateBalance = async () => {
 			try {
 				console.log("querying...");
 				const balance = await provider.getBalance(relayer);
@@ -112,7 +113,10 @@ function EncryptionFormInner({
 			} catch (err) {
 				console.error(err);
 			}
-		}, 2500);
+		};
+
+		updateBalance();
+		const interval = setInterval(updateBalance, 5000);
 		return () => clearInterval(interval);
 	}, [provider, keys]);
 
@@ -131,22 +135,27 @@ function EncryptionFormInner({
 				</button>
 			)}
 			{keys && (
-				<div className="flex space-x-2">
-					<span>
-						Notary: <code className="text-sm">{keys.relayer.address}</code>{" "}
+				<div className="flex space-x-2 pl-4">
+					<span className="text-sm">
+						Public Key: <code>{keys.encryption.publicKeyHex}</code>
+					</span>
+				</div>
+			)}
+			{keys && (
+				<div className="flex space-x-2 pl-4">
+					<span className="text-sm">
+						Notary: <code>{keys.relayer.address}</code>
 						{needsFunding ? (
 							<a
-								className="text-sm"
+								className="ml-3 underline"
 								target="_blank"
 								rel="noopener noreferrer"
 								href={`https://faucet.gnosischain.com/?address=${keys.relayer.address}`}
 							>
-								fund
+								<ExternalLink className="inline" size={16} /> fund
 							</a>
 						) : (
-							<span className="text-sm text-gray-700">
-								{` ${relayerBalance}`}
-							</span>
+							<span className="ml-3 text-gray-700">{relayerBalance}</span>
 						)}
 					</span>
 					{pendingRegistration && (
