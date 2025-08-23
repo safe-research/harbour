@@ -102,6 +102,7 @@ vi.mock("ethers", async () => {
 
 import { Interface, JsonRpcProvider } from "ethers";
 import { loadCurrentSettings } from "@/components/settings/SettingsForm";
+import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { switchToChain } from "./chains";
 import {
@@ -112,7 +113,7 @@ import {
 } from "./harbour";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
-import type { ChainId } from "./types";
+import type { ChainId, FullSafeTransaction } from "./types";
 
 // Small helper addresses
 const OWNER_A = "0x0000000000000000000000000000000000000aaa";
@@ -241,14 +242,14 @@ describe("harbour", () => {
 			gasPrice: 0n,
 			gasToken: "0x0000000000000000000000000000000000000000",
 			refundReceiver: "0x0000000000000000000000000000000000000000",
-		};
+		} as unknown as FullSafeTransaction;
 
 		it("short-circuits via Waku when available & send succeeds", async () => {
 			vi.mocked(loadCurrentSettings).mockResolvedValue({}); // no bundler
 			const waku = {
 				isAvailable: () => true,
 				send: vi.fn().mockResolvedValue(true),
-			};
+			} as unknown as WakuManager;
 
 			const walletProvider = {
 				getSigner: vi.fn().mockResolvedValue({}),
