@@ -10,7 +10,7 @@ describe("multisend encoding", () => {
 	it("encodes a single meta transaction correctly", () => {
 		const tx: MetaTransaction = {
 			to: "0x000000000000000000000000000000000000dEaD",
-			value: 0n,
+			value: "0",
 			data: "0x", // no calldata
 		};
 
@@ -24,12 +24,12 @@ describe("multisend encoding", () => {
 	it("concatenates multiple meta transactions", () => {
 		const tx1: MetaTransaction = {
 			to: "0x000000000000000000000000000000000000dEaD",
-			value: 0n,
+			value: "0",
 			data: "0x",
 		};
 		const tx2: MetaTransaction = {
 			to: "0x000000000000000000000000000000000000bEEF",
-			value: 123n,
+			value: "123",
 			data: "0xabcdef", // 3 bytes
 		};
 
@@ -46,8 +46,8 @@ describe("multisend encoding", () => {
 			data: "0x1234", // 2 bytes
 		};
 
-		const encA = encodeMultiSend([{ ...base, value: 0n }]);
-		const encB = encodeMultiSend([{ ...base, value: 1n }]);
+		const encA = encodeMultiSend([{ ...base, value: "0" }]);
+		const encB = encodeMultiSend([{ ...base, value: "1" }]);
 
 		expect(encA).not.toBe(encB); // value field affects encoding
 	});
