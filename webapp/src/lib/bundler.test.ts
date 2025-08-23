@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Contract, JsonRpcProvider, JsonRpcSigner } from "ethers";
-import { Wallet, solidityPacked, toBeHex } from "ethers";
-import { getUserOpGasPrice, buildUserOp, type UserOpRequest } from "./bundler";
+import { solidityPacked, Wallet } from "ethers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buildUserOp, getUserOpGasPrice, type UserOpRequest } from "./bundler";
 import type { FullSafeTransaction } from "./types";
 
 // Stub getSafeTransactionHash so buildUserOp doesn't depend on its internals.
@@ -159,7 +159,7 @@ describe("bundler", () => {
 		expect(userOp.signature).toBe("0x");
 
 		// Ensure estimate was called exactly once
-		const sendMock = (bundler as any).send as ReturnType<typeof vi.fn>;
+		const sendMock = bundler.send as ReturnType<typeof vi.fn>;
 		expect(sendMock).toHaveBeenCalledTimes(1);
 		const [method, [payloadUserOp, calledEntryPoint]] = sendMock.mock.calls[0];
 		expect(method).toBe("eth_estimateUserOperationGas");
@@ -186,7 +186,7 @@ describe("bundler", () => {
 		);
 
 		// Verify the estimation payload had paymaster fields + non-empty signature
-		const sendMock = (bundler as any).send as ReturnType<typeof vi.fn>;
+		const sendMock = bundler.send as ReturnType<typeof vi.fn>;
 		expect(sendMock).toHaveBeenCalledTimes(1);
 		const [method, [payloadUserOp, calledEntryPoint]] = sendMock.mock.calls[0];
 		expect(method).toBe("eth_estimateUserOperationGas");
@@ -245,7 +245,7 @@ describe("bundler", () => {
 		);
 
 		// bundlerProvider.send should not be called at all
-		const sendMock = (bundler as any).send as ReturnType<typeof vi.fn>;
+		const sendMock = bundler.send as ReturnType<typeof vi.fn>;
 		expect(sendMock).not.toHaveBeenCalled();
 
 		// Returned limits come from limitsOverwrite

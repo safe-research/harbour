@@ -53,7 +53,8 @@ This project uses [Biome](https://biomejs.dev/) for linting and formatting:
 ```bash
 npm run lint      # Lint the code
 npm run format    # Format the code
-npm run check     # Type and lint check
+npm run check     # Format and lint check
+npm run check:fix # Also apply the check result if possible.
 ```
 
 ## Dependencies

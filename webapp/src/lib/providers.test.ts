@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
 import type { JsonRpcApiProvider } from "ethers";
+import { describe, expect, it, vi } from "vitest";
 import { getEIP1193ProviderFromRPCProvider } from "./providers";
 
 describe("providers", () => {
@@ -21,7 +21,7 @@ describe("providers", () => {
 		const rpc = { send } as unknown as JsonRpcApiProvider;
 
 		const eip1193 = getEIP1193ProviderFromRPCProvider(rpc);
-		await eip1193.request({ method: "eth_call", params } as any);
+		await eip1193.request({ method: "eth_call", params });
 
 		// Grab the params passed to send and ensure it's the same array instance
 		const [, passedParams] = send.mock.calls[0];
@@ -34,8 +34,8 @@ describe("providers", () => {
 		const rpc = { send } as unknown as JsonRpcApiProvider;
 
 		const eip1193 = getEIP1193ProviderFromRPCProvider(rpc);
-		await expect(
-			eip1193.request({ method: "eth_chainId" } as any),
-		).rejects.toThrow("error");
+		await expect(eip1193.request({ method: "eth_chainId" })).rejects.toThrow(
+			"error",
+		);
 	});
 });
