@@ -273,7 +273,7 @@ describe("harbour", () => {
 			const waku = {
 				isAvailable: () => false,
 				send: vi.fn(),
-			};
+			} as unknown;
 
 			// Spy on provider.send to capture the UserOperation submit
 			const sendSpy = vi
@@ -287,7 +287,11 @@ describe("harbour", () => {
 				getSigner: vi.fn().mockResolvedValue({}),
 			} as unknown as JsonRpcApiProvider;
 
-			const res = await signAndEnqueueSafeTransaction(walletProvider, tx, waku);
+			const res = await signAndEnqueueSafeTransaction(
+				walletProvider,
+				tx,
+				waku as WakuManager,
+			);
 
 			// Switch to chain of Safe to sign
 			expect(switchToChain).toHaveBeenCalledWith(walletProvider, tx.chainId);
