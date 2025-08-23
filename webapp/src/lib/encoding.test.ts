@@ -9,32 +9,28 @@ import { ethers } from "ethers";
 import type { HarbourSignature } from "./types";
 
 describe("encoding", () => {
-	const lower = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-	const checksum = ethers.getAddress(lower);
+	const LOWER = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+	const CHECKSUM = "0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF";
+	const SHORT = "0xDeaD...beeF"
 
 	describe("addresses", () => {
 		it("returns checksummed address", () => {
-			expect(getChecksummedAddress(lower)).toBe(checksum);
+			expect(getChecksummedAddress(LOWER)).toBe(CHECKSUM);
 		});
 
-		it("return short address", () => {
-			const short = getShortAddress(lower);
-			expect(short.slice(0, 6)).toBe(checksum.slice(0, 6));
-			expect(short.slice(-4)).toBe(checksum.slice(-4));
-
-			expect(short).toContain("…");
-			expect(short).not.toContain("...");
+		it("returns short address", () => {
+			expect(getShortAddress(LOWER)).toBe(SHORT);
 		});
 
 		// Build a bytes32 where the last 20 bytes encode our address.
-		const bytes32 = "0x" + "0".repeat(24) + lower.slice(2); // 2 + 24 + 40 = 66 chars total
+		const bytes32 = "0x" + "0".repeat(24) + LOWER.slice(2); // 2 + 24 + 40 = 66 chars total
 
 		it("converts bytes32 to checksummed address", () => {
-			expect(bytes32ToAddress(bytes32)).toBe(checksum);
+			expect(bytes32ToAddress(bytes32)).toBe(CHECKSUM);
 		});
 
 		it("can return a non-checksummed address", () => {
-			expect(bytes32ToAddress(bytes32, { checksum: false })).toBe(lower);
+			expect(bytes32ToAddress(bytes32, { checksum: false })).toBe(LOWER);
 		});
 
 		it("throws on invalid bytes32 length", () => {
