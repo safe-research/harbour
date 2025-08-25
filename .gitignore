@@ -16,6 +16,10 @@ typechain-types/
 /coverage
 /coverage.json
 
+# vitest coverage files
+/webapp/coverage/
+/webapp/coverage-*/
+
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
 
