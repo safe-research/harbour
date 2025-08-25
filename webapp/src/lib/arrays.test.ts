@@ -1,4 +1,3 @@
-// shuffle.unit.test.ts
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shuffle } from "./arrays";
 

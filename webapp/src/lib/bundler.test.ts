@@ -128,7 +128,7 @@ describe("bundler", () => {
 
 	it("buildUserOp (no paymaster): estimates gas and fills fields; signature stays '0x'", async () => {
 		const bundler = mkBundlerProvider();
-		const harbour = mkHarbour({ callData: "0x1234" }); // 4 hex nibbles → 2 bytes; but '0x1234' length=6 → 3 bytes
+		const harbour = mkHarbour({ callData: "0x1234" });
 		const signer = mkSigner();
 		const gasFee = { maxFeePerGas: "0xaa", maxPriorityFeePerGas: "0xbb" };
 
