@@ -1,11 +1,20 @@
 import { renderHook } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { WalletKitInstance } from "@/lib/walletconnect";
 import { WalletConnectContext } from "../providers/WalletConnectProvider";
 import { useRegisterSafeContext, useWalletConnect } from "./walletConnect";
 
 const mockSetSafeContext = vi.fn();
+
+const mockWalletKit = {} as WalletKitInstance;
+
 const mockContextValue = {
+	walletkit: mockWalletKit,
+	sessions: {},
+	error: null,
+	pair: vi.fn(),
+	disconnectSession: vi.fn(),
 	setSafeContext: mockSetSafeContext,
 };
 
