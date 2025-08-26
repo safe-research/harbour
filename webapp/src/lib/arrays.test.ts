@@ -1,5 +1,4 @@
-// shuffle.unit.test.ts
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { shuffle } from "./arrays";
 
 afterEach(() => {
@@ -38,7 +37,7 @@ describe("shuffle (Fisher–Yates)", () => {
 
 		const out = shuffle(arr);
 
-		expect(out).toBe(arr);
+		expect(out).toBe(arr); 
 		expect(out).toEqual([1, 2, 3, 4, 5]);
 	});
 
@@ -51,9 +50,9 @@ describe("shuffle (Fisher–Yates)", () => {
 			expect(out).toEqual([]);
 			expect(rng).not.toHaveBeenCalled();
 		}
-	});
+    });
 
-	it("handles single element arrays", () => {
+    it("handles single element arrays", () => {
 		{
 			const single = [42];
 			const rng = vi.spyOn(Math, "random").mockReturnValue(0.5);
