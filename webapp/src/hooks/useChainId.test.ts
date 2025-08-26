@@ -3,6 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { JsonRpcApiProvider } from "ethers";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import { createQueryClientWrapper } from "./test-utils";
 import { useChainId } from "./useChainId";
 
 describe("useChainId", () => {
@@ -12,13 +13,7 @@ describe("useChainId", () => {
 			getNetwork: vi.fn().mockResolvedValue(network),
 		} as unknown as JsonRpcApiProvider;
 
-		const queryClient = new QueryClient();
-		const wrapper = ({ children }: { children: React.ReactNode }) =>
-			React.createElement(
-				QueryClientProvider,
-				{ client: queryClient },
-				children,
-			);
+		const wrapper = createQueryClientWrapper();
 
 		const { result } = renderHook(() => useChainId(mockProvider), { wrapper });
 

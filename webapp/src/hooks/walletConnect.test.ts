@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import React, { useEffect } from "react";
+import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { WalletConnectContext } from "../providers/WalletConnectProvider";
 import { useRegisterSafeContext, useWalletConnect } from "./walletConnect";
