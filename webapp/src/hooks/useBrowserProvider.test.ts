@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { BrowserProvider } from "ethers";
+import { describe, expect, it, vi } from "vitest";
 import { useBrowserProvider } from "./useBrowserProvider";
 
 vi.mock("@web3-onboard/react", () => ({
