@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { addERC20TokenAddress } from "@/lib/localStorage";
-import localStorageMock from "@/lib/test-utils";
+import { localStorageMock } from "@/lib/test-utils";
 
 Object.defineProperty(window, "localStorage", {
 	value: localStorageMock,
