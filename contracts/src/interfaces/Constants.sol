@@ -9,10 +9,13 @@ pragma solidity ^0.8.29;
 // https://github.com/safe-global/safe-smart-account/blob/b115c4c5fe23dca6aefeeccc73d312ddd23322c2/contracts/Safe.sol#L54-L63
 // These should cover Safe versions 1.3.0 and 1.4.1
 // keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
-bytes32 constant DOMAIN_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
+bytes32 constant SAFE_DOMAIN_TYPEHASH = 0x47e79534a245952e8b16893a336b85a3d9ea9fa8c573f3d803afb92a79469218;
 
 // keccak256("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)")
 bytes32 constant SAFE_TX_TYPEHASH = 0xbb8310d486368db6bd6f849402fdd73ad53d316b5a4b2644ad6efe0f941286d8;
+
+// keccak256("EIP712Domain(address verifyingContract,bytes32 salt)")
+bytes32 constant HARBOUR_DOMAIN_TYPEHASH = 0x6268546d6d3d3a16ed8cfd22f4fe09a1d17f9af43838183ba533d41e284cf326;
 
 // keccak256("EncryptionKey(bytes32 context,bytes32 publicKey)")
 bytes32 constant ENCRYPTION_KEY_TYPEHASH = 0xc61c2d0b1f1942c20e1ecd68ca0337b62afaa25024fc73f2aad19b5696efb313;

@@ -2,9 +2,10 @@
 pragma solidity ^0.8.29;
 
 import {
-    DOMAIN_TYPEHASH,
-    SAFE_TX_TYPEHASH,
     ENCRYPTION_KEY_TYPEHASH,
+    HARBOUR_DOMAIN_TYPEHASH,
+    SAFE_DOMAIN_TYPEHASH,
+    SAFE_TX_TYPEHASH,
     SECP256K1_LOW_S_BOUND
 } from "../interfaces/Constants.sol";
 import {
@@ -20,24 +21,36 @@ library CoreLib {
     // ------------------------------------------------------------------
 
     /**
-     * @notice Computes the EIP-712 hash for a given chain, verifying contract and message.
+     * @notice Computes the EIP-712 hash for a given domain and message.
      *
-     * @param chainId           Chain ID included in the domain separator.
-     * @param verifyingContract Address of the verifying contract.
+     * @param domainSeparator   The EIP-712 domain separator hash.
      * @param messageStructHash The EIP-712 struct hash of the message.
      *
      * @return digest           The EIP-712 digest.
      */
     function computeErc712Hash(
-        uint256 chainId,
-        address verifyingContract,
+        bytes32 domainSeparator,
         bytes32 messageStructHash
     ) internal pure returns (bytes32 digest) {
-        bytes32 domainSeparator = keccak256(
-            abi.encode(DOMAIN_TYPEHASH, chainId, verifyingContract)
-        );
         digest = keccak256(
             abi.encodePacked("\x19\x01", domainSeparator, messageStructHash)
+        );
+    }
+
+    /**
+     * @notice Computes the EIP-712 domain separator for a Safe.
+     *
+     * @param chainId          The chain ID of the Safe Smart Account.
+     * @param safe             The address of the Safe Smart Account.
+     *
+     * @return domainSeparator The EIP-712 domain separator hash.
+     */
+    function safeDomainSeparator(
+        uint256 chainId,
+        address safe
+    ) internal pure returns (bytes32 domainSeparator) {
+        domainSeparator = keccak256(
+            abi.encode(SAFE_DOMAIN_TYPEHASH, chainId, safe)
         );
     }
 
@@ -73,6 +86,7 @@ library CoreLib {
         address gasToken,
         address refundReceiver
     ) internal pure returns (bytes32 safeTxHash) {
+        bytes32 domainSeparator = safeDomainSeparator(chainId, safeAddress);
         bytes32 safeTxStructHash = keccak256(
             abi.encode(
                 SAFE_TX_TYPEHASH,
@@ -88,11 +102,7 @@ library CoreLib {
                 nonce
             )
         );
-        safeTxHash = computePartialSafeTxHash(
-            chainId,
-            safeAddress,
-            safeTxStructHash
-        );
+        safeTxHash = computeErc712Hash(domainSeparator, safeTxStructHash);
     }
 
     /**
@@ -109,7 +119,31 @@ library CoreLib {
         address safeAddress,
         bytes32 safeTxStructHash
     ) internal pure returns (bytes32 safeTxHash) {
-        safeTxHash = computeErc712Hash(chainId, safeAddress, safeTxStructHash);
+        bytes32 domainSeparator = safeDomainSeparator(chainId, safeAddress);
+        safeTxHash = computeErc712Hash(domainSeparator, safeTxStructHash);
+    }
+
+    /**
+     * @notice Computes the EIP-712 domain separator for Harbour.
+     *
+     * @param chainId          The chain ID of the Harbour.
+     * @param harbour          The address of the Harbour.
+     *
+     * @return domainSeparator The EIP-712 domain separator hash.
+     */
+    function harbourDomainSeparator(
+        uint256 chainId,
+        address harbour
+    ) internal pure returns (bytes32 domainSeparator) {
+        // NOTE: The Harbour domain separator does _NOT_ use the chain ID as
+        // part of the domain, but instead as part of the salt. Why? Harbour
+        // contains cross-chain data, so approvals for harbour actions (like
+        // registering an encryption key) aren't tied to a specific chain but
+        // rather a Harbour deployment. Furthermore, this allows wallets to sign
+        // for Harbour actions to be relayed without changing networks.
+        domainSeparator = keccak256(
+            abi.encode(HARBOUR_DOMAIN_TYPEHASH, harbour, chainId)
+        );
     }
 
     /**
@@ -121,15 +155,17 @@ library CoreLib {
      * @return encryptionKeyHash The EIP-712 encoded encryption key hash.
      */
     function computeEncryptionKeyHash(
+        uint256 chainId,
+        address harbour,
         bytes32 context,
         bytes32 publicKey
-    ) internal view returns (bytes32 encryptionKeyHash) {
+    ) internal pure returns (bytes32 encryptionKeyHash) {
+        bytes32 domainSeparator = harbourDomainSeparator(chainId, harbour);
         bytes32 encryptionKeyStructHash = keccak256(
             abi.encode(ENCRYPTION_KEY_TYPEHASH, context, publicKey)
         );
         encryptionKeyHash = computeErc712Hash(
-            block.chainid,
-            address(this),
+            domainSeparator,
             encryptionKeyStructHash
         );
     }

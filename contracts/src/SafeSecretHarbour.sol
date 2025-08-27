@@ -116,6 +116,8 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         bytes calldata signature
     ) external {
         bytes32 encryptionKeyHash = CoreLib.computeEncryptionKeyHash(
+            block.chainid,
+            address(this),
             context,
             publicKey
         );
