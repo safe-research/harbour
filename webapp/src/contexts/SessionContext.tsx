@@ -134,13 +134,7 @@ async function deriveEncryptionKeyPair(
 		["deriveBits"],
 	);
 	const publicKeyRaw = x25519.getPublicKey(secret.substr(2));
-	const publicKey = await crypto.subtle.importKey(
-		"raw",
-		publicKeyRaw,
-		{ name: "X25519" },
-		true,
-		[],
-	);
+	const publicKey = await decodePublicEncryptionKey(publicKeyRaw);
 
 	return { publicKey, privateKey, publicKeyHex: ethers.hexlify(publicKeyRaw) };
 }
@@ -194,9 +188,16 @@ function encodeContext({ issuedAt, nonce, relayer }: Context): Hex {
 	);
 }
 
+async function encodePublicEncryptionKey(
+	publicKey: CryptoKey,
+): Promise<Uint8Array> {
+	const raw = await crypto.subtle.exportKey("raw", publicKey);
+	return new Uint8Array(raw);
+}
+
 function decodeContextSalt(salt: Uint8Array): ContextSalt {
 	if (salt.length !== 12) {
-		throw new Error(`invalid encoded context ${ethers.hexlify(salt)}`);
+		throw new Error(`invalid encoded context salt ${ethers.hexlify(salt)}`);
 	}
 
 	return {
@@ -205,11 +206,26 @@ function decodeContextSalt(salt: Uint8Array): ContextSalt {
 	};
 }
 
-async function encodePublicEncryptionKey(
-	publicKey: CryptoKey,
-): Promise<Uint8Array> {
-	const raw = await crypto.subtle.exportKey("raw", publicKey);
-	return new Uint8Array(raw);
+function decodeContext(context: Uint8Array): Context {
+	if (context.length !== 32) {
+		throw new Error(`invalid encoded context ${ethers.hexlify(context)}`);
+	}
+
+	const salt = decodeContextSalt(context.subarray(0, 12));
+	const notary = ethers.getAddress(ethers.hexlify(context.subarray(12)));
+	return { ...salt, notary };
+}
+
+async function decodePublicEncryptionKey(
+	raw: Uint8Array,
+): Promise<CryptoKey> {
+	return await crypto.subtle.importKey(
+		"raw",
+		raw,
+		{ name: "X25519" },
+		true,
+		[],
+	);
 }
 
 function bytesEqual(a: BytesLike, b: BytesLike): boolean {
@@ -371,4 +387,4 @@ export type {
 	SessionKeys,
 	SessionValue,
 };
-export { SessionProvider, useSession };
+export { SessionProvider, useSession, decodePublicEncryptionKey, decodeContext };

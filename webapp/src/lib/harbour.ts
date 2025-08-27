@@ -5,12 +5,14 @@ import {
 	type JsonRpcApiProvider,
 	JsonRpcProvider,
 	type JsonRpcSigner,
+	ethers,
 } from "ethers";
 import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
 import type { WakuManager } from "@/contexts/WakuContext";
+import { decodeContext, decodePublicEncryptionKey } from "@/contexts/SessionContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
 import { aggregateMulticall } from "./multicall";
@@ -159,15 +161,28 @@ interface FetchSafeQueueParams {
  * @param {FetchSafeQueueParams} params - Parameters for fetching the queue.
  * @returns {Promise<NonceGroup[]>} A promise that resolves to an array of nonce groups, each containing transactions and their signatures.
  */
-async function fetchSafeQueue({
-	provider,
-	safeAddress,
-	safeConfig,
-	safeChainId,
-	maxNoncesToFetch = 5,
-}: FetchSafeQueueParams): Promise<NonceGroup[]> {
+async function fetchSafeQueue(params: FetchSafeQueueParams): Promise<NonceGroup[]> {
 	const currentSettings = await loadCurrentSettings();
 	const harbourAddress = currentSettings?.harbourAddress || HARBOUR_ADDRESS;
+	const { provider } = params;
+
+	if (await supportsSecretHarbourInterface(harbourAddress, provider)) {
+		return fetchSecretHarbourSafeQueue(harbourAddress, params);
+	} else {
+		return fetchHarbourSafeQueue(harbourAddress, params);
+	}
+}
+
+async function fetchHarbourSafeQueue(
+	harbourAddress: string,
+	{
+		provider,
+		safeAddress,
+		safeConfig,
+		safeChainId,
+		maxNoncesToFetch = 5,
+	}: FetchSafeQueueParams,
+): Promise<NonceGroup[]> {
 	const iface = new Interface(HARBOUR_ABI);
 	const startNonce = Number(safeConfig.nonce);
 	const owners = safeConfig.owners || [];
@@ -292,6 +307,146 @@ async function fetchSafeQueue({
 	});
 
 	return result;
+}
+
+async function fetchSecretHarbourSafeQueue(
+	harbourAddress: string,
+	{
+		provider,
+		safeAddress,
+		safeConfig,
+		safeChainId,
+		maxNoncesToFetch = 5,
+	}: FetchSafeQueueParams,
+): Promise<NonceGroup[]> {
+	const iface = new Interface(SECRET_HARBOUR_ABI);
+	const startNonce = Number(safeConfig.nonce);
+	const owners = safeConfig.owners || [];
+
+	// Batch retrieven encryption key calls
+	type KeyMeta = { owner: string };
+	const keyCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+	const keyMeta: KeyMeta[] = [];
+
+	for (const owner of owners) {
+		keyCalls.push({
+			target: harbourAddress,
+			allowFailure: false,
+			callData: iface.encodeFunctionData("retrieveEncryptionKey", [
+				owner,
+			]),
+		});
+		keyMeta.push({ owner });
+	}
+
+	const keyResults = await aggregateMulticall(provider, keyCalls);
+	const encryptionKeys = Object.fromEntries(await Promise.all(
+		keyResults.map(async (res, i) => {
+			const { owner } = keyMeta[i];
+			const [[context, publicKeyRaw]] = iface.decodeFunctionResult("retrieveEncryptionKey", res.returnData);
+			if (context === ethers.ZeroHash && publicKeyRaw === ethers.ZeroHash) {
+				return [owner, null];
+			}
+			const { notary } = decodeContext(ethers.getBytes(context));
+			const publicKey = await decodePublicEncryptionKey(ethers.getBytes(publicKeyRaw));
+			return [owner, { notary, publicKey }];
+		}),
+	));
+	console.log(encryptionKeys);
+	/*
+	sigResults.forEach((res, idx) => {
+		const { owner, nonce } = sigMeta[idx];
+		if (res.returnData === "0x") return;
+		const decodedSignatures = iface.decodeFunctionResult(
+			"retrieveSignatures",
+			res.returnData,
+		)[0];
+
+		for (const sig of decodedSignatures) {
+			const signature = {
+				r: sig[0],
+				vs: sig[1],
+				txHash: sig[2],
+				signer: owner,
+			};
+			uniqueTxHashes.add(sig.txHash);
+			let txMap = nonceMap.get(nonce);
+			if (!txMap) {
+				txMap = new Map();
+				nonceMap.set(nonce, txMap);
+			}
+			const list = txMap.get(signature.txHash) ?? [];
+			list.push(signature);
+			txMap.set(signature.txHash, list);
+		}
+	});
+
+	const txHashes = Array.from(uniqueTxHashes);
+	const txCalls = txHashes.map((txHash) => ({
+		target: harbourAddress,
+		allowFailure: false,
+		callData: iface.encodeFunctionData("retrieveTransaction", [txHash]),
+	}));
+	const txResults = await aggregateMulticall(provider, txCalls);
+
+	const txDetailsMap = new Map<string, HarbourTransactionDetails>();
+
+	txResults.forEach((res, idx) => {
+		const txHash = txHashes[idx];
+		const decodedTx = iface.decodeFunctionResult(
+			"retrieveTransaction",
+			res.returnData,
+		);
+		const [
+			stored,
+			operation,
+			to,
+			value,
+			safeTxGas,
+			baseGas,
+			gasPrice,
+			gasToken,
+			refundReceiver,
+			data,
+		] = decodedTx[0];
+
+		txDetailsMap.set(txHash, {
+			to,
+			value: value.toString(),
+			data,
+			operation: Number(operation),
+			stored,
+			safeTxGas: safeTxGas.toString(),
+			baseGas: baseGas.toString(),
+			gasPrice: gasPrice.toString(),
+			gasToken,
+			refundReceiver,
+		});
+	});
+
+	const result: NonceGroup[] = [];
+	nonceMap.forEach((txMap, nonce) => {
+		const group: NonceGroup = { nonce, transactions: [] };
+		txMap.forEach((sigs, txHash) => {
+			const details = txDetailsMap.get(txHash);
+			if (details?.stored) {
+				group.transactions.push({
+					details,
+					signatures: sigs,
+					safeTxHash: txHash,
+				});
+			}
+		});
+		if (group.transactions.length) result.push(group);
+	});
+
+	return result;
+	 */
+	return [];
 }
 
 async function getChainId(
