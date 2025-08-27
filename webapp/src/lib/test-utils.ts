@@ -13,4 +13,3 @@ export const localStorageMock = (() => {
 		},
 	};
 })();
-export default localStorageMock;
