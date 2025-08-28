@@ -11,7 +11,6 @@ import type { SettingsFormData } from "@/components/settings/SettingsForm";
 import { useSession } from "@/contexts/SessionContext";
 import { useBrowserProvider } from "@/hooks/useBrowserProvider";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
-import { switchToChain } from "@/lib/chains";
 import { secretHarbourAt, supportsSecretHarbourInterface } from "@/lib/harbour";
 
 interface EncryptionFormParameters {
@@ -31,6 +30,7 @@ function EncryptionFormInner({
 		useSession();
 	const [relayerBalance, setRelayerBalance] = useState("");
 	const [needsFunding, setNeedsFunding] = useState<boolean | null>(null);
+	const [isGnosisChain, setIsGnosisChain] = useState<boolean>(false);
 	const [isRegistereing, startRegistration] = useTransition();
 
 	const connectWallet = useCallback(() => {
@@ -59,10 +59,12 @@ function EncryptionFormInner({
 				}
 
 				const { chainId } = await provider.getNetwork();
-				await switchToChain(wallet, chainId);
 				const signer = await wallet.getSigner();
 				const signature = await signer.signTypedData(
-					{ chainId, verifyingContract: harbourAddress },
+					{
+						verifyingContract: harbourAddress,
+						salt: ethers.toBeHex(chainId, 32),
+					},
 					{
 						EncryptionKey: [
 							{ name: "context", type: "bytes32" },
@@ -105,11 +107,12 @@ function EncryptionFormInner({
 
 		const updateBalance = async () => {
 			try {
-				console.log("querying...");
+				const { chainId } = await provider.getNetwork();
 				const balance = await provider.getBalance(relayer);
 				const amount = ethers.formatEther(balance);
 				setRelayerBalance(`Ξ${amount}`);
 				setNeedsFunding(balance === 0n);
+				setIsGnosisChain(chainId === 100n);
 			} catch (err) {
 				console.error(err);
 			}
@@ -145,7 +148,7 @@ function EncryptionFormInner({
 				<div className="flex space-x-2 pl-4">
 					<span className="text-sm">
 						Notary: <code>{keys.relayer.address}</code>
-						{needsFunding ? (
+						{needsFunding && isGnosisChain ? (
 							<a
 								className="ml-3 underline"
 								target="_blank"

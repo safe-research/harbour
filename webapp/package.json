@@ -5,7 +5,8 @@
 	"scripts": {
 		"dev": "vite --port 3000",
 		"start": "vite --port 3000",
-		"build": "vite build && tsc",
+		"build": "tsc && vite build",
+		"build:ts": "tsc",
 		"serve": "vite preview",
 		"lint": "biome lint",
 		"lint:fix": "biome lint --write",
@@ -36,6 +37,7 @@
 		"clsx": "^2.1.1",
 		"ethers": "^6.14.4",
 		"fuse.js": "^7.1.0",
+		"jose": "^6.1.0",
 		"lucide-react": "^0.524.0",
 		"protobufjs": "^7.5.3",
 		"react": "^19.1.0",

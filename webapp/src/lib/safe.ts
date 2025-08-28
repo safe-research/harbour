@@ -6,6 +6,7 @@ import type {
 	FullSafeTransaction,
 	HarbourSignature,
 	HarbourTransactionDetails,
+	SafeTransactionWithNonce,
 } from "./types";
 
 /**
@@ -229,11 +230,9 @@ async function signSafeTransaction(
 
 	return signer.signTypedData(domain, SAFE_TX_TYPE, message);
 }
+
 /**
- * Signs a Safe transaction using EIP-712 typed data
- * @param signer - The ethers.js signer
- * @param transaction - The transaction request parameters
- * @returns The signature string
+ * Computes an EIP-712 Safe transaction hash
  */
 function getSafeTransactionHash(transaction: FullSafeTransaction): string {
 	const domain = {
@@ -255,6 +254,19 @@ function getSafeTransactionHash(transaction: FullSafeTransaction): string {
 	};
 
 	return ethers.TypedDataEncoder.hash(domain, SAFE_TX_TYPE, message);
+}
+
+/**
+ * Computes an EIP-712 struct hash of the Safe transaction data.
+ */
+function getSafeTransactionStructHash(
+	transaction: SafeTransactionWithNonce,
+): string {
+	return ethers.TypedDataEncoder.hashStruct(
+		"SafeTx",
+		SAFE_TX_TYPE,
+		transaction,
+	);
 }
 
 /**
@@ -298,6 +310,7 @@ export {
 	signSafeTransaction,
 	getSafeTransaction,
 	getSafeTransactionHash,
+	getSafeTransactionStructHash,
 };
 
 export type { SafeConfiguration };

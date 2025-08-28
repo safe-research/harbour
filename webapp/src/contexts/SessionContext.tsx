@@ -212,13 +212,11 @@ function decodeContext(context: Uint8Array): Context {
 	}
 
 	const salt = decodeContextSalt(context.subarray(0, 12));
-	const notary = ethers.getAddress(ethers.hexlify(context.subarray(12)));
-	return { ...salt, notary };
+	const relayer = ethers.getAddress(ethers.hexlify(context.subarray(12)));
+	return { ...salt, relayer };
 }
 
-async function decodePublicEncryptionKey(
-	raw: Uint8Array,
-): Promise<CryptoKey> {
+async function decodePublicEncryptionKey(raw: Uint8Array): Promise<CryptoKey> {
 	return await crypto.subtle.importKey(
 		"raw",
 		raw,
@@ -387,4 +385,9 @@ export type {
 	SessionKeys,
 	SessionValue,
 };
-export { SessionProvider, useSession, decodePublicEncryptionKey, decodeContext };
+export {
+	SessionProvider,
+	useSession,
+	decodePublicEncryptionKey,
+	decodeContext,
+};
