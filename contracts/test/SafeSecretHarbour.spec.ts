@@ -255,8 +255,8 @@ describe("SafeInternationalHarbour", () => {
 		const { chainId } = await ethers.provider.getNetwork();
 		const signature = await signer.signTypedData(
 			{
-				chainId,
 				verifyingContract: await harbour.getAddress(),
+				salt: ethers.toBeHex(chainId, 32),
 			},
 			{
 				EncryptionKey: [
@@ -278,8 +278,8 @@ describe("SafeInternationalHarbour", () => {
 		const { chainId } = await ethers.provider.getNetwork();
 		const signature = await signer.signTypedData(
 			{
-				chainId,
 				verifyingContract: await harbour.getAddress(),
+				salt: ethers.toBeHex(chainId, 32),
 			},
 			{
 				EncryptionKey: [
