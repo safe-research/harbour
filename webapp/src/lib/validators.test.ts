@@ -34,6 +34,12 @@ describe("validators", () => {
 		expect(() =>
 			checkedAddressSchema.parse("0x000000000000000000000000000000000000000g"),
 		).toThrow();
+		expect(() =>
+			checkedAddressSchema.parse("0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"),
+		).toThrow();
+		expect(() =>
+			checkedAddressSchema.parse("0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"),
+		).not.toThrow();
 	});
 
 	it("validates chainId", () => {
@@ -113,15 +119,5 @@ describe("validators", () => {
 				value: "1",
 			}),
 		).toThrow();
-	});
-
-	it("ETHEREUM_ADDRESS_REGEX matches valid addresses", () => {
-		expect("0x0000000000000000000000000000000000000000").toMatch(
-			ETHEREUM_ADDRESS_REGEX,
-		);
-		expect("0xabcdefABCDEFabcdefABCDEFabcdefABCDEFabcd").toMatch(
-			ETHEREUM_ADDRESS_REGEX,
-		);
-		expect("0x123").not.toMatch(ETHEREUM_ADDRESS_REGEX);
 	});
 });
