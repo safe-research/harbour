@@ -40,7 +40,7 @@ describe("ERC20TransferForm", () => {
 				useForm: () => ({
 					register: vi.fn(),
 					handleSubmit: (fn: any) => fn,
-					watch: (field: string) => "", // always return empty string for recipient/amount
+					watch: (_field: string) => "", // always return empty string for recipient/amount
 					formState: { errors: {} },
 				}),
 			};
@@ -86,7 +86,7 @@ describe("ERC20TransferForm", () => {
 				useForm: () => ({
 					register: vi.fn(),
 					handleSubmit: (fn: any) => fn,
-					watch: (field: string) => "", // always return empty string for recipient/amount
+					watch: (_field: string) => "", // always return empty string for recipient/amount
 					formState: { errors: {} },
 				}),
 			};
