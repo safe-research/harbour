@@ -13,8 +13,12 @@ describe("useOutsideClick", () => {
 		const ref2 = {
 			current: document.createElement("div"),
 		} as React.RefObject<HTMLElement>;
-		document.body.appendChild(ref1.current!);
-		document.body.appendChild(ref2.current!);
+		if (ref1.current) {
+			document.body.appendChild(ref1.current);
+		}
+		if (ref2.current) {
+			document.body.appendChild(ref2.current);
+		}
 		renderHook(() => useOutsideClick([ref1, ref2], handler));
 
 		// Simulate click outside
@@ -29,7 +33,9 @@ describe("useOutsideClick", () => {
 		const ref1 = {
 			current: document.createElement("div"),
 		} as React.RefObject<HTMLElement>;
-		document.body.appendChild(ref1.current!);
+		if (ref1.current) {
+			document.body.appendChild(ref1.current);
+		}
 		renderHook(() => useOutsideClick([ref1], handler));
 
 		// Simulate click inside
