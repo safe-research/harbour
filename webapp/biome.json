@@ -2,7 +2,12 @@
 	"root": false,
 	"extends": ["../biome.json"],
 	"files": {
-		"includes": ["**", "!**/src/routeTree.gen.ts", "!**/dist/**"],
+		"includes": [
+			"**",
+			"!**/src/routeTree.gen.ts",
+			"!**/dist/**",
+			"!**/coverage/**"
+		],
 		"maxSize": 2000000
 	},
 	"linter": {
