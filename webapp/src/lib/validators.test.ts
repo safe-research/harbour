@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	chainIdSchema,
 	checkedAddressSchema,
-	ETHEREUM_ADDRESS_REGEX,
 	ethereumAddressSchema,
 	ethTransactionParamsSchema,
 	ethValueSchema,
