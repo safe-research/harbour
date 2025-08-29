@@ -36,7 +36,7 @@ jobs:
         run: npm run format --workspace=webapp --check
 
       - name: Run tests with coverage
-        run: npm run test --workspace=webapp -- --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text
+        run: npm run test --workspace=webapp -- --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text --coverage.reporter=html
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -57,15 +57,19 @@ jobs:
             const t = summary.total;
             const pct = (n) => (Math.round(Number(n) * 100) / 100).toFixed(2);
 
+            const artifactUrl = '${{ steps.upload-coverage.outputs.artifact-url }}';
+
             const body = `
             <!-- vitest-coverage-comment -->
-            ## ✅ Test Coverage
+            ## Test Coverage
             | Metric | % | Covered / Total |
             |---|---:|---:|
             | Statements | ${pct(t.statements.pct)}% | ${t.statements.covered} / ${t.statements.total} |
             | Branches   | ${pct(t.branches.pct)}%   | ${t.branches.covered} / ${t.branches.total} |
             | Functions  | ${pct(t.functions.pct)}%  | ${t.functions.covered} / ${t.functions.total} |
             | Lines      | ${pct(t.lines.pct)}%      | ${t.lines.covered} / ${t.lines.total} |
+
+            **HTML report:** [Download / view artifact](${artifactUrl})
             `;
 
             const { owner, repo } = context.repo;
