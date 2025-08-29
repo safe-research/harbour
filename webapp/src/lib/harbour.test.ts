@@ -212,7 +212,6 @@ describe("harbour", () => {
 
 	it("returns chainId from RPC when rpcUrl is configured", async () => {
 		vi.mocked(loadCurrentSettings).mockResolvedValue({ rpcUrl: "http://rpc" });
-		console.log(JsonRpcProvider.prototype);
 		const spy = vi
 			.spyOn(JsonRpcProvider.prototype, "getNetwork")
 			.mockResolvedValue({ chainId: 123n } as Network);
