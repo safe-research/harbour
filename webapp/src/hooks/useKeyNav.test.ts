@@ -1,4 +1,3 @@
-// useKeyNav.unit.test.tsx
 import { act, renderHook } from "@testing-library/react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { describe, expect, it } from "vitest";
@@ -35,6 +34,7 @@ describe("useKeyNav", () => {
 
 	it("ArrowUp decrements index and wraps", () => {
 		const { result } = renderHook(() => useKeyNav(3));
+
 		act(() => result.current.onKey(reactKeyEvt("ArrowUp")));
 		expect(result.current.index).toBe(1);
 		act(() => result.current.onKey(reactKeyEvt("ArrowUp")));
@@ -43,14 +43,28 @@ describe("useKeyNav", () => {
 
 	it("Escape resets index to -1", () => {
 		const { result } = renderHook(() => useKeyNav(3));
+
 		act(() => result.current.onKey(reactKeyEvt("ArrowDown")));
 		expect(result.current.index).toBe(0);
 		act(() => result.current.onKey(reactKeyEvt("Escape")));
+
+		act(() => {
+			result.current.onKey({
+				key: "ArrowDown",
+				preventDefault: () => {},
+			} as any);
+		});
+		expect(result.current.index).toBe(0);
+		act(() => {
+			result.current.onKey({ key: "Escape", preventDefault: () => {} } as any);
+		});
+
 		expect(result.current.index).toBe(-1);
 	});
 
 	it("reset sets index to -1", () => {
 		const { result } = renderHook(() => useKeyNav(3));
+
 		act(() => result.current.onKey(reactKeyEvt("ArrowDown")));
 		expect(result.current.index).toBe(0);
 		act(() => result.current.reset());
@@ -59,7 +73,9 @@ describe("useKeyNav", () => {
 
 	it("does nothing if listLength is 0", () => {
 		const { result } = renderHook(() => useKeyNav(0));
+
 		act(() => result.current.onKey(reactKeyEvt("ArrowDown")));
+
 		expect(result.current.index).toBe(-1);
 	});
 });

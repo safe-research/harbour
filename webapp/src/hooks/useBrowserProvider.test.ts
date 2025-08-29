@@ -27,6 +27,7 @@ describe("useBrowserProvider", () => {
 		vi.mocked(useConnectWalletTyped).mockReturnValue(mockReturn);
 
 		const { result } = renderHook(() => useBrowserProvider());
+
 		expect(result.current).toBeUndefined();
 	});
 
@@ -44,5 +45,6 @@ describe("useBrowserProvider", () => {
 
 		const { result } = renderHook(() => useBrowserProvider());
 		expect(result.current).toBeInstanceOf(BrowserProvider);
+
 	});
 });

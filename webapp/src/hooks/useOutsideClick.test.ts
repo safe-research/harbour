@@ -13,6 +13,7 @@ describe("useOutsideClick", () => {
 		const ref2 = {
 			current: document.createElement("div"),
 		} as React.RefObject<HTMLElement>;
+
 		if (ref1.current) {
 			document.body.appendChild(ref1.current);
 		}
@@ -33,6 +34,7 @@ describe("useOutsideClick", () => {
 		const ref1 = {
 			current: document.createElement("div"),
 		} as React.RefObject<HTMLElement>;
+
 		if (ref1.current) {
 			document.body.appendChild(ref1.current);
 		}
