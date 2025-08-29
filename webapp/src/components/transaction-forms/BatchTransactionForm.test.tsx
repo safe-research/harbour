@@ -1,7 +1,7 @@
 import type { SafeConfiguration } from "@/lib/safe";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import type { BrowserProvider } from "ethers";
+import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const safeAddress = "0xSafe";
@@ -10,6 +10,7 @@ const browserProvider = {} as unknown as BrowserProvider;
 const config = {
 	nonce: "1",
 } as unknown as SafeConfiguration;
+const rpcProvider = {} as unknown as JsonRpcApiProvider;
 
 describe("BatchTransactionForm", () => {
 	beforeEach(() => {
@@ -39,6 +40,7 @@ describe("BatchTransactionForm", () => {
 				chainId={chainId}
 				browserProvider={browserProvider}
 				config={config}
+				rpcProvider={rpcProvider}
 			/>,
 		);
 		expect(
@@ -75,6 +77,7 @@ describe("BatchTransactionForm", () => {
 				chainId={chainId}
 				browserProvider={browserProvider}
 				config={config}
+				rpcProvider={rpcProvider}
 			/>,
 		);
 		expect(screen.getByText(/Batch Transactions/)).toBeInTheDocument();

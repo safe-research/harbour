@@ -39,7 +39,8 @@ describe("ERC20TransferForm", () => {
 				...actual,
 				useForm: () => ({
 					register: vi.fn(),
-					handleSubmit: (fn: any) => fn,
+					handleSubmit: <T extends unknown[]>(fn: (...args: T) => unknown) =>
+						fn,
 					watch: (_field: string) => "", // always return empty string for recipient/amount
 					formState: { errors: {} },
 				}),
@@ -85,7 +86,8 @@ describe("ERC20TransferForm", () => {
 				...actual,
 				useForm: () => ({
 					register: vi.fn(),
-					handleSubmit: (fn: any) => fn,
+					handleSubmit: <T extends unknown[]>(fn: (...args: T) => unknown) =>
+						fn,
 					watch: (_field: string) => "", // always return empty string for recipient/amount
 					formState: { errors: {} },
 				}),

@@ -1,10 +1,12 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import type { JsonRpcApiProvider } from "ethers";
+import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const signerAddress = "0xSigner";
 const quotaManagerAddress = "0xQuotaManager";
-const harbourProvider = {};
+const harbourProvider = {} as unknown as JsonRpcApiProvider;
 const className = "test-class";
 
 describe("QuotaTokenBalance", () => {
@@ -32,12 +34,20 @@ describe("QuotaTokenBalance", () => {
 			}),
 		}));
 		vi.doMock("../Groups", () => ({
-			Box: (props: any) => <div>{props.children}</div>,
-			BoxTitle: (props: any) => <div>{props.children}</div>,
+			Box: (props: PropsWithChildren<Record<string, unknown>>) => (
+				<div>{props.children}</div>
+			),
+			BoxTitle: (props: PropsWithChildren<Record<string, unknown>>) => (
+				<div>{props.children}</div>
+			),
 		}));
 		vi.doMock("../Forms", () => ({
-			FormItem: (_props: any) => <div data-testid="form-item">FormItem</div>,
-			SubmitItem: (_props: any) => <button type="submit">Top Up</button>,
+			FormItem: (_props: Record<string, unknown>) => (
+				<div data-testid="form-item">FormItem</div>
+			),
+			SubmitItem: (_props: Record<string, unknown>) => (
+				<button type="submit">Top Up</button>
+			),
 		}));
 		const { QuotaTokenBalance } = await import("./QuotaTokenBalance");
 		render(

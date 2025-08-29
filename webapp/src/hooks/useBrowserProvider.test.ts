@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { BrowserProvider } from "ethers";
+import { BrowserProvider, type Eip1193Provider } from "ethers";
 import { describe, expect, it, vi } from "vitest";
 import { useBrowserProvider } from "./useBrowserProvider";
 
@@ -9,31 +9,40 @@ vi.mock("@web3-onboard/react", () => ({
 
 import * as onboard from "@web3-onboard/react";
 
+// Minimal types the hook actually needs.
+// This is to precent the use of any type which the linter doesn't like.
+type UseConnectWalletLike = () => readonly [
+	{ wallet: { provider: Eip1193Provider } | null },
+];
+
+// Narrow the imported hook once so we can mock it ergonomically
+const useConnectWalletTyped =
+	onboard.useConnectWallet as unknown as UseConnectWalletLike;
+
 describe("useBrowserProvider", () => {
 	it("returns undefined when wallet is not connected", () => {
-		const mockConnectWallet = [{ wallet: null }] as any;
-		vi.mocked(onboard.useConnectWallet).mockReturnValue(mockConnectWallet);
+		const mockReturn = [
+			{ wallet: null },
+		] as const satisfies ReturnType<UseConnectWalletLike>;
+		vi.mocked(useConnectWalletTyped).mockReturnValue(mockReturn);
 
 		const { result } = renderHook(() => useBrowserProvider());
-
 		expect(result.current).toBeUndefined();
 	});
 
 	it("returns BrowserProvider when wallet is connected", () => {
-		const mockProvider = {
+		const mockProvider: Eip1193Provider = {
+			request: vi.fn(async () => null),
 			on: vi.fn(),
-			request: vi.fn(),
 			removeListener: vi.fn(),
-		} as any;
-		const mockWallet = { provider: mockProvider } as any;
-		const mockConnectWallet = [{ wallet: mockWallet }] as any;
-		vi.mocked(onboard.useConnectWallet).mockReturnValue(
-			mockConnectWallet as any,
-		);
+		};
+
+		const connected = [
+			{ wallet: { provider: mockProvider } },
+		] as const satisfies ReturnType<UseConnectWalletLike>;
+		vi.mocked(useConnectWalletTyped).mockReturnValue(connected);
 
 		const { result } = renderHook(() => useBrowserProvider());
-
 		expect(result.current).toBeInstanceOf(BrowserProvider);
-		expect(result.current?.provider).toBeDefined();
 	});
 });

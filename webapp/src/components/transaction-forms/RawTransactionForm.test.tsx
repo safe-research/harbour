@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
-import type { BrowserProvider } from "ethers";
+import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const safeAddress = "0xSafe";
@@ -15,6 +15,7 @@ const config = {
 	guard: "0xGuard",
 	singleton: "0xSingleton",
 };
+const rpcProvider = {} as unknown as JsonRpcApiProvider;
 
 describe("RawTransactionForm", () => {
 	beforeEach(() => {
@@ -42,6 +43,7 @@ describe("RawTransactionForm", () => {
 				chainId={chainId}
 				browserProvider={browserProvider}
 				config={config}
+				rpcProvider={rpcProvider}
 			/>,
 		);
 		expect(screen.getByLabelText(/To Address/)).toBeInTheDocument();

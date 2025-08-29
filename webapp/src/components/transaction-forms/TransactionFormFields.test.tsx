@@ -1,10 +1,24 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
+import type { FieldError, UseFormRegister } from "react-hook-form";
+
+type TransactionFormData = {
+	to: string;
+	value: string;
+	data: string;
+	nonce: string | bigint;
+};
+
 import { describe, expect, it } from "vitest";
 import { TransactionFormFields } from "./TransactionFormFields";
 
 describe("TransactionFormFields", () => {
-	const register = () => ({ name: "", onChange: () => {}, onBlur: () => {} });
+	const register: UseFormRegister<TransactionFormData> = (name) => ({
+		name,
+		onChange: async () => {},
+		onBlur: async () => {},
+		ref: () => {},
+	});
 	const errors = {
 		to: undefined,
 		value: undefined,
@@ -31,10 +45,10 @@ describe("TransactionFormFields", () => {
 
 	it("shows error messages for fields", () => {
 		const errorsWithMessages = {
-			to: { message: "Invalid address" },
-			value: { message: "Invalid value" },
-			data: { message: "Invalid data" },
-			nonce: { message: "Invalid nonce" },
+			to: { message: "Invalid address", type: "manual" } as FieldError,
+			value: { message: "Invalid value", type: "manual" } as FieldError,
+			data: { message: "Invalid data", type: "manual" } as FieldError,
+			nonce: { message: "Invalid nonce", type: "manual" } as FieldError,
 		};
 		render(
 			<TransactionFormFields
