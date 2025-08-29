@@ -39,6 +39,7 @@ jobs:
         run: npm run test --workspace=webapp -- --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text --coverage.reporter=html
 
       - name: Upload coverage artifact
+        id: upload-coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage
@@ -69,7 +70,8 @@ jobs:
             | Functions  | ${pct(t.functions.pct)}%  | ${t.functions.covered} / ${t.functions.total} |
             | Lines      | ${pct(t.lines.pct)}%      | ${t.lines.covered} / ${t.lines.total} |
 
-            [View full HTML report](webapp/coverage/coverage-summary.json)
+            **HTML report:** ${artifactUrl ? `[Download / view](${artifactUrl})` : "_(artifact URL unavailable)_" }
+
             `;
 
             const { owner, repo } = context.repo;
