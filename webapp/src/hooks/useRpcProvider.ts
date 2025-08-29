@@ -1,7 +1,10 @@
 import type { JsonRpcApiProvider, JsonRpcApiProviderOptions } from "ethers";
 import { JsonRpcProvider } from "ethers";
 import { useCallback, useEffect, useState } from "react";
-import { loadCurrentSettings } from "@/components/settings/SettingsForm";
+import {
+	loadCurrentSettings,
+	type SettingsFormData,
+} from "@/components/settings/SettingsForm";
 import { getRpcUrlByChainId } from "@/lib/chains";
 import { HARBOUR_CHAIN_ID } from "@/lib/harbour";
 
@@ -40,13 +43,19 @@ export function useChainlistRpcProvider(
 }
 
 export function useHarbourRpcProvider(
+	currentSettings:
+		| Pick<Partial<SettingsFormData>, "rpcUrl">
+		| undefined = undefined,
 	providerOptions: JsonRpcApiProviderOptions = DEFAULT_PROVIDER_OPTIONS,
 ): UseChainlistRpcProviderResult {
+	const settingsProvided = currentSettings !== undefined;
+	const currentRpcUrl = currentSettings?.rpcUrl;
 	const loadRpcUrl = useCallback(async (): Promise<string> => {
-		const currentSettings = await loadCurrentSettings();
-		if (currentSettings.rpcUrl) return currentSettings.rpcUrl;
-		return getRpcUrlByChainId(HARBOUR_CHAIN_ID);
-	}, []);
+		const { rpcUrl } = settingsProvided
+			? { rpcUrl: currentRpcUrl }
+			: ((await loadCurrentSettings()) ?? {});
+		return rpcUrl ?? getRpcUrlByChainId(HARBOUR_CHAIN_ID);
+	}, [settingsProvided, currentRpcUrl]);
 	return useRpcProvider(HARBOUR_CHAIN_ID, providerOptions, loadRpcUrl);
 }
 

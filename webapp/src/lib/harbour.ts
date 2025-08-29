@@ -450,7 +450,7 @@ async function fetchSecretHarbourSafeQueue(
 	}
 
 	const txResults = await aggregateMulticall(provider, txCalls);
-	const txRegistrations = txResults.flatMap((res, i) => {
+	const txRegistrations = [...txResults].flatMap((res, i) => {
 		const { nonce } = txMeta[i];
 		const [page] = secretHarbour.interface.decodeFunctionResult(
 			"retrieveRegistrations",
@@ -530,7 +530,7 @@ async function fetchSecretHarbourSafeQueue(
 	}
 
 	const sigResults = await aggregateMulticall(provider, sigCalls);
-	const sigRegistrations = sigResults
+	const sigRegistrations = [...sigResults]
 		.flatMap((res, i) => {
 			const { safeTxHash } = uniqueTransactions[i];
 			const [blockNumbers] = secretHarbour.interface.decodeFunctionResult(

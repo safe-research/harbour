@@ -339,7 +339,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 	);
 
 	const create = useCallback(
-		() =>
+		(currentSettings?: HarbourContractSettings) =>
 			update(async () => {
 				if (!wallet || !provider) {
 					throw new Error(
@@ -350,7 +350,10 @@ function SessionProvider({ children }: { children: ReactNode }) {
 				const signer = await wallet.getSigner();
 				const address = await signer.getAddress();
 				const { chainId } = await provider.getNetwork();
-				const salt = generateContextSalt();
+				const onchain = await fetchEncryptionKey(address, currentSettings);
+				const salt = onchain
+					? decodeContext(ethers.getBytes(onchain.context))
+					: generateContextSalt();
 				const signin = new SiweMessage({
 					scheme: window.location.protocol.replace(/:$/, ""),
 					domain: window.location.host,

@@ -106,11 +106,12 @@ function EncryptionFormInner({
 			<span className="block text-sm font-medium text-gray-700 mb-1">
 				Encryption
 			</span>
-			{!keys && !isUpdating && (
+			{!keys && (
 				<button
 					type="button"
 					onClick={handleSignin}
-					className="px-4 py-2 text-sm font-medium bg-black text-white rounded hover:bg-gray-800 transition"
+					disabled={isUpdating}
+					className="px-4 py-2 text-sm font-medium bg-black text-white rounded hover:bg-gray-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
 				>
 					Sign In
 				</button>
@@ -157,10 +158,10 @@ function EncryptionFormInner({
 }
 
 function EncryptionForm({ currentSettings }: EncryptionFormParameters) {
-	const { provider } = useHarbourRpcProvider();
+	const { provider } = useHarbourRpcProvider(currentSettings);
 	const wallet = useBrowserProvider();
 	const [supported, setSupported] = useState(false);
-	const harbourAddress = currentSettings?.harbourAddress;
+	const { harbourAddress } = currentSettings || {};
 
 	const params = useMemo(() => {
 		return harbourAddress && provider && wallet && supported
@@ -169,13 +170,21 @@ function EncryptionForm({ currentSettings }: EncryptionFormParameters) {
 	}, [harbourAddress, provider, wallet, supported]);
 
 	useEffect(() => {
+		let cancelled = false;
 		if (harbourAddress && provider) {
 			supportsSecretHarbourInterface(harbourAddress, provider).then(
-				setSupported,
+				(supported) => {
+					if (!cancelled) {
+						setSupported(supported);
+					}
+				},
 			);
 		} else {
 			setSupported(false);
 		}
+		return () => {
+			cancelled = true;
+		};
 	}, [harbourAddress, provider]);
 
 	return <>{params && <EncryptionFormInner {...params} />}</>;
