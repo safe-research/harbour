@@ -45,6 +45,5 @@ describe("useBrowserProvider", () => {
 
 		const { result } = renderHook(() => useBrowserProvider());
 		expect(result.current).toBeInstanceOf(BrowserProvider);
-
 	});
 });

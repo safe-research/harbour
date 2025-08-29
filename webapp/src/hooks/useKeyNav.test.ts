@@ -49,14 +49,12 @@ describe("useKeyNav", () => {
 		act(() => result.current.onKey(reactKeyEvt("Escape")));
 
 		act(() => {
-			result.current.onKey({
-				key: "ArrowDown",
-				preventDefault: () => {},
-			} as any);
+			result.current.onKey(reactKeyEvt("ArrowDown"));
 		});
 		expect(result.current.index).toBe(0);
+
 		act(() => {
-			result.current.onKey({ key: "Escape", preventDefault: () => {} } as any);
+			result.current.onKey(reactKeyEvt("Escape"));
 		});
 
 		expect(result.current.index).toBe(-1);
