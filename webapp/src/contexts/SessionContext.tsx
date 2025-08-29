@@ -1,7 +1,6 @@
 import { x25519 } from "@noble/curves/ed25519";
 import {
 	type BigNumberish,
-	type BrowserProvider,
 	type BytesLike,
 	ethers,
 	type SignatureLike,
@@ -12,11 +11,18 @@ import {
 	type ReactNode,
 	useCallback,
 	useContext,
+	useEffect,
 	useMemo,
 	useState,
 	useTransition,
 } from "react";
 import { SiweMessage } from "siwe";
+import { useBrowserProvider } from "@/hooks/useBrowserProvider";
+import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
+import {
+	fetchEncryptionKey,
+	type HarbourContractSettings,
+} from "@/lib/harbour";
 
 const STORAGE_KEY_PREFIX = "session";
 const SESSION_PREFIX = "harbour:session:v1:";
@@ -67,8 +73,8 @@ type ChainIdFunction = () => Promise<BigNumberish>;
 interface SessionValue {
 	keys: SessionKeys | null;
 	pendingRegistration: EncryptionKeyRegistration | null;
-	connect: (signer: BrowserProvider, retrieve: RetrieveFunction) => void;
-	create: (signer: BrowserProvider, chainId: ChainIdFunction) => void;
+	connect: (settings?: HarbourContractSettings) => void;
+	create: (settings?: HarbourContractSettings) => void;
 	disconnect: () => void;
 	connected: boolean;
 	isUpdating: boolean;
@@ -267,6 +273,9 @@ function isError(o: unknown): o is Error {
 const SessionContext = createContext<SessionValue | null>(null);
 
 function SessionProvider({ children }: { children: ReactNode }) {
+	const wallet = useBrowserProvider();
+	const { provider } = useHarbourRpcProvider();
+
 	const [session, setSession] = useState<Session | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const [isUpdating, startUpdate] = useTransition();
@@ -286,13 +295,17 @@ function SessionProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const connect = useCallback(
-		(wallet: BrowserProvider, retrieve: RetrieveFunction) =>
+		(currentSettings?: HarbourContractSettings) =>
 			update(async () => {
+				if (!wallet || !provider) {
+					return null;
+				}
+
 				const signer = await wallet.getSigner();
 				const address = await signer.getAddress();
-				const onchain = await retrieve(address);
+				const onchain = await fetchEncryptionKey(address, currentSettings);
 				const entropy = loadSessionEntropy(address);
-				if (entropy === null) {
+				if (onchain === null || entropy === null) {
 					return null;
 				}
 
@@ -322,14 +335,21 @@ function SessionProvider({ children }: { children: ReactNode }) {
 					pendingRegistration: isRegistered(onchain) ? null : registration,
 				};
 			}),
-		[update],
+		[update, wallet, provider],
 	);
 
 	const create = useCallback(
-		(wallet: BrowserProvider, chainId: ChainIdFunction) =>
+		() =>
 			update(async () => {
+				if (!wallet || !provider) {
+					throw new Error(
+						"Session creation is not available without a connected wallet",
+					);
+				}
+
 				const signer = await wallet.getSigner();
 				const address = await signer.getAddress();
+				const { chainId } = await provider.getNetwork();
 				const salt = generateContextSalt();
 				const signin = new SiweMessage({
 					scheme: window.location.protocol.replace(/:$/, ""),
@@ -338,7 +358,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 					statement: "Log into Harbour to access encrypted transaction data",
 					uri: window.location.origin,
 					version: "1",
-					chainId: ethers.toNumber(await chainId()),
+					chainId: ethers.toNumber(chainId),
 					nonce: ethers.encodeBase58(salt.nonce),
 					issuedAt: salt.issuedAt.toISOString(),
 				});
@@ -357,7 +377,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 				storeSessionEntropy(address, entropy);
 				return { entropy, keys, pendingRegistration };
 			}),
-		[update],
+		[update, wallet, provider],
 	);
 
 	const disconnect = useCallback(() => {
@@ -379,6 +399,10 @@ function SessionProvider({ children }: { children: ReactNode }) {
 		[session, connect, create, disconnect, isUpdating, error],
 	);
 
+	useEffect(() => {
+		connect();
+	}, [connect]);
+
 	return (
 		<SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 	);
@@ -389,6 +413,7 @@ function useSession(): SessionValue {
 	if (value === null) {
 		throw new Error("useSession must be used within a SessionContext provider");
 	}
+	console.log(value);
 	return value;
 }
 

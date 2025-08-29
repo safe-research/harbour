@@ -3,7 +3,7 @@ import { JsonRpcProvider } from "ethers";
 import { useCallback, useEffect, useState } from "react";
 import { loadCurrentSettings } from "@/components/settings/SettingsForm";
 import { HARBOUR_CHAIN_ID } from "@/lib/harbour";
-import { getRpcUrlByChainId } from "../lib/chains";
+import { getRpcUrlByChainId } from "@/lib/chains";
 
 /**
  * Represents the result of the useChainlistRpcProvider hook.

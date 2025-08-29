@@ -195,7 +195,10 @@ function EnqueueContent(props: EnqueueContentProps) {
 			<div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
 				<div className="mb-8">
 					<BackToDashboardButton safeAddress={safeAddress} chainId={chainId} />
-					<h1 className="text-3xl font-bold text-gray-900 mt-4">{pageTitle}</h1>
+					<h1 className="text-3xl font-bold text-gray-900 mt-4">
+						{pageTitle}
+						{!!encryptedQueue && " 🔐"}
+					</h1>
 					<p className="text-gray-700 mt-2">
 						Safe:{" "}
 						<span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">

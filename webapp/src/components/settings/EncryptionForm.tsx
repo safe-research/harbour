@@ -33,20 +33,9 @@ function EncryptionFormInner({
 	const [isGnosisChain, setIsGnosisChain] = useState<boolean>(false);
 	const [isRegistereing, startRegistration] = useTransition();
 
-	const connectWallet = useCallback(() => {
-		connect(wallet, async (address) => {
-			const harbour = secretHarbourAt(harbourAddress, provider);
-			const [context, publicKey] = await harbour.retrieveEncryptionKey(address);
-			return { context, publicKey };
-		});
-	}, [harbourAddress, provider, wallet, connect]);
-
 	const handleSignin = useCallback(async () => {
-		create(wallet, async () => {
-			const { chainId } = await provider.getNetwork();
-			return chainId;
-		});
-	}, [wallet, provider, create]);
+		create();
+	}, [create]);
 
 	const handleRegistration = useCallback(
 		() =>
@@ -83,21 +72,10 @@ function EncryptionFormInner({
 				await transaction.wait();
 
 				// reconnect the wallet for the onchain registration check.
-				connectWallet();
+				connect();
 			}),
-		[
-			harbourAddress,
-			wallet,
-			provider,
-			keys,
-			pendingRegistration,
-			connectWallet,
-		],
+		[harbourAddress, wallet, provider, keys, pendingRegistration, connect],
 	);
-
-	useEffect(() => {
-		connectWallet();
-	}, [connectWallet]);
 
 	useEffect(() => {
 		const relayer = keys?.relayer?.address;
@@ -181,9 +159,7 @@ function EncryptionFormInner({
 function EncryptionForm({ currentSettings }: EncryptionFormParameters) {
 	const { provider } = useHarbourRpcProvider();
 	const wallet = useBrowserProvider();
-	const { disconnect } = useSession();
 	const [supported, setSupported] = useState(false);
-
 	const harbourAddress = currentSettings?.harbourAddress;
 
 	const params = useMemo(() => {
@@ -201,12 +177,6 @@ function EncryptionForm({ currentSettings }: EncryptionFormParameters) {
 			setSupported(false);
 		}
 	}, [harbourAddress, provider]);
-
-	useEffect(() => {
-		if (!params) {
-			disconnect();
-		}
-	}, [params, disconnect]);
 
 	return <>{params && <EncryptionFormInner {...params} />}</>;
 }

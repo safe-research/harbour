@@ -88,6 +88,46 @@ async function supportsSecretHarbourInterface(
 	}
 }
 
+/** Harbour contract specific settings. */
+type HarbourRpcSettings = Pick<Partial<SettingsFormData>, "rpcUrl">;
+
+async function getConfiguredHarbourRpc(settings?: HarbourRpcSettings) {
+	const rpcUrl =
+		settings?.rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+	return new JsonRpcProvider(rpcUrl);
+}
+
+/** Harbour contract specific settings. */
+type HarbourContractSettings = Pick<
+	Partial<SettingsFormData>,
+	"harbourAddress" | "rpcUrl"
+>;
+
+async function getConfiguredSecretHarbour(
+	settings?: HarbourContractSettings,
+	runner?: ContractRunner,
+) {
+	const harbourSettings = settings ?? (await loadCurrentSettings()) ?? {};
+	const harbourAddress = harbourSettings?.harbourAddress;
+	if (!harbourAddress) {
+		// The default harbour contract does not support the secret harbour
+		// interface, so its not even worth checking.
+		return null;
+	}
+
+	const harbourRunner =
+		runner ?? (await getConfiguredHarbourRpc(harbourSettings));
+	const supported = await supportsSecretHarbourInterface(
+		harbourAddress,
+		harbourRunner,
+	);
+	if (!supported) {
+		return null;
+	}
+
+	return secretHarbourAt(harbourAddress, harbourRunner);
+}
+
 /**
  * Enqueues a transaction to the Harbour contract
  * @param signer - The ethers.js signer
@@ -531,7 +571,7 @@ async function signAndEnqueueSafeTransaction(
 	}
 
 	const rpcUrl =
-		currentSettings.rpcUrl || (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+		currentSettings.rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
 	const harbourProvider = new JsonRpcProvider(rpcUrl);
 
 	// TODO: deprecate this
@@ -571,6 +611,9 @@ async function signAndEnqueueSafeTransaction(
 		]);
 		return { hash, transactionHash: hash };
 	}
+
+	// If we have encrypted queue configuration and harbour supports it,
+	// submit it with our session relayer EOA.
 	if (
 		encryptedQueue &&
 		currentSettings.harbourAddress &&
@@ -579,6 +622,7 @@ async function signAndEnqueueSafeTransaction(
 			harbourProvider,
 		))
 	) {
+		console.log("Use Encrypted Queue");
 		const relayer = encryptedQueue.sessionKeys.relayer.connect(harbourProvider);
 		const secretHarbour = secretHarbourAt(
 			currentSettings.harbourAddress,
@@ -595,6 +639,7 @@ async function signAndEnqueueSafeTransaction(
 
 	// Transaction cannot be relayed. User has to submit the transaction
 	// Switch to Harbour chain for enqueuing
+	console.log("Use Manual Submission");
 	await switchToChain(walletProvider, await getChainId(currentSettings));
 	const receipt = await enqueueSafeTransaction(
 		signer,
@@ -642,6 +687,22 @@ interface FetchEncryptionPublicKeysParams {
 }
 
 /**
+ * Fetches encryption key and context for the specified account.
+ */
+async function fetchEncryptionKey(
+	address: string,
+	settings?: HarbourContractSettings,
+): Promise<{ context: string; publicKey: string } | null> {
+	const secretHarbour = await getConfiguredSecretHarbour(settings);
+	if (!secretHarbour) {
+		return null;
+	}
+	const [context, publicKey] =
+		await secretHarbour.retrieveEncryptionKey(address);
+	return { context, publicKey };
+}
+
+/**
  * Fetches public encryption keys for a Safe owner. Returns `null` if the
  * currently configured Harbour contract does not support encryption.
  */
@@ -651,22 +712,11 @@ async function fetchEncryptionPublicKeys({
 	string,
 	CryptoKey | undefined
 > | null> {
-	const { harbourAddress, rpcUrl } = (await loadCurrentSettings()) || {};
-	if (!harbourAddress) {
+	const secretHarbour = await getConfiguredSecretHarbour();
+	if (!secretHarbour) {
 		return null;
 	}
 
-	const providerUrl = rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
-	const provider = new JsonRpcProvider(providerUrl);
-	const supported = await supportsSecretHarbourInterface(
-		harbourAddress,
-		provider,
-	);
-	if (!supported) {
-		return null;
-	}
-
-	const secretHarbour = secretHarbourAt(harbourAddress, provider);
 	const publicKeys = await secretHarbour.retrieveEncryptionPublicKeys([
 		...owners,
 	]);
@@ -684,15 +734,18 @@ async function fetchEncryptionPublicKeys({
 	);
 }
 
-export type { EncryptedQueueParams };
+export type { EncryptedQueueParams, HarbourContractSettings };
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
 	harbourAt,
 	secretHarbourAt,
 	supportsSecretHarbourInterface,
+	getConfiguredHarbourRpc,
+	getConfiguredSecretHarbour,
 	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
 	fetchEncryptionPublicKeys,
+	fetchEncryptionKey,
 };
