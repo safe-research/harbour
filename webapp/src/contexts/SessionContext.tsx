@@ -134,7 +134,7 @@ async function deriveEncryptionKeyPair(
 		["deriveBits"],
 	);
 	const publicKeyRaw = x25519.getPublicKey(secret.substr(2));
-	const publicKey = await decodePublicEncryptionKey(publicKeyRaw);
+	const publicKey = await importEncryptionPublicKey(publicKeyRaw);
 
 	return { publicKey, privateKey, publicKeyHex: ethers.hexlify(publicKeyRaw) };
 }
@@ -188,7 +188,7 @@ function encodeContext({ issuedAt, nonce, relayer }: Context): Hex {
 	);
 }
 
-async function encodePublicEncryptionKey(
+async function encodeEncryptionPublicKey(
 	publicKey: CryptoKey,
 ): Promise<Uint8Array> {
 	const raw = await crypto.subtle.exportKey("raw", publicKey);
@@ -216,7 +216,7 @@ function decodeContext(context: Uint8Array): Context {
 	return { ...salt, relayer };
 }
 
-async function decodePublicEncryptionKey(raw: Uint8Array): Promise<CryptoKey> {
+async function importEncryptionPublicKey(raw: Uint8Array): Promise<CryptoKey> {
 	return await crypto.subtle.importKey(
 		"raw",
 		raw,
@@ -224,6 +224,20 @@ async function decodePublicEncryptionKey(raw: Uint8Array): Promise<CryptoKey> {
 		true,
 		[],
 	);
+}
+
+async function decodeEncryptionPublicKey(
+	publicKey: BytesLike,
+): Promise<CryptoKey | null> {
+	if (ethers.hexlify(publicKey) === ethers.ZeroHash) {
+		return null;
+	}
+	try {
+		const raw = ethers.getBytes(publicKey);
+		return await importEncryptionPublicKey(raw);
+	} catch {
+		return null;
+	}
 }
 
 function bytesEqual(a: BytesLike, b: BytesLike): boolean {
@@ -288,7 +302,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 						...entropy.salt,
 						relayer: keys.relayer.address,
 					}),
-					publicKey: await encodePublicEncryptionKey(keys.encryption.publicKey),
+					publicKey: await encodeEncryptionPublicKey(keys.encryption.publicKey),
 				};
 
 				// We need to make sure that the onchain registration (if there
@@ -338,7 +352,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 						...entropy.salt,
 						relayer: keys.relayer.address,
 					}),
-					publicKey: await encodePublicEncryptionKey(keys.encryption.publicKey),
+					publicKey: await encodeEncryptionPublicKey(keys.encryption.publicKey),
 				};
 				storeSessionEntropy(address, entropy);
 				return { entropy, keys, pendingRegistration };
@@ -388,6 +402,6 @@ export type {
 export {
 	SessionProvider,
 	useSession,
-	decodePublicEncryptionKey,
+	decodeEncryptionPublicKey,
 	decodeContext,
 };

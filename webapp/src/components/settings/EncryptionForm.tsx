@@ -147,7 +147,7 @@ function EncryptionFormInner({
 			{keys && (
 				<div className="flex space-x-2 pl-4">
 					<span className="text-sm">
-						Notary: <code>{keys.relayer.address}</code>
+						Notary: <code>{keys.relayer.address}</code>{" "}
 						{needsFunding && isGnosisChain ? (
 							<a
 								className="ml-3 underline"

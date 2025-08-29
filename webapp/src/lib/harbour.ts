@@ -13,7 +13,7 @@ import {
 } from "@/components/settings/SettingsForm";
 import {
 	decodeContext,
-	decodePublicEncryptionKey,
+	decodeEncryptionPublicKey,
 	type SessionKeys,
 } from "@/contexts/SessionContext";
 import type { WakuManager } from "@/contexts/WakuContext";
@@ -83,8 +83,7 @@ async function supportsSecretHarbourInterface(
 	const harbour = secretHarbourAt(harbourAddress, runner);
 	try {
 		return await harbour.supportsInterface(SECRET_HARBOUR_INTERFACE_ID);
-	} catch (err) {
-		console.error(err);
+	} catch {
 		return false;
 	}
 }
@@ -351,26 +350,29 @@ async function fetchSecretHarbourSafeQueue(
 	}
 
 	const keyResults = await aggregateMulticall(provider, keyCalls);
-	const encryptionKeys = Object.fromEntries(
+	const notaries = Object.fromEntries(
 		await Promise.all(
 			keyResults.map(async (res, i) => {
 				const { owner } = keyMeta[i];
-				const [[context, publicKeyRaw]] = iface.decodeFunctionResult(
+				const [[context]] = iface.decodeFunctionResult(
 					"retrieveEncryptionKey",
 					res.returnData,
 				);
-				if (context === ethers.ZeroHash && publicKeyRaw === ethers.ZeroHash) {
+				if (context === ethers.ZeroHash) {
 					return [owner, null];
 				}
 				const { relayer } = decodeContext(ethers.getBytes(context));
-				const publicKey = await decodePublicEncryptionKey(
-					ethers.getBytes(publicKeyRaw),
-				);
-				return [owner, { relayer, publicKey }];
+				return [owner, { relayer }];
 			}),
 		),
 	);
-	console.log(encryptionKeys);
+	console.log({
+		safeAddress,
+		safeChainId,
+		maxNoncesToFetch,
+		startNonce,
+		notaries,
+	});
 	/*
 	sigResults.forEach((res, idx) => {
 		const { owner, nonce } = sigMeta[idx];
@@ -512,7 +514,7 @@ async function signAndEnqueueSafeTransaction(
 	walletProvider: JsonRpcApiProvider,
 	transaction: FullSafeTransaction,
 	waku: WakuManager,
-	encryption?: EncryptedQueueParams,
+	encryptedQueue: EncryptedQueueParams | null,
 ) {
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
@@ -570,14 +572,14 @@ async function signAndEnqueueSafeTransaction(
 		return { hash, transactionHash: hash };
 	}
 	if (
-		encryption &&
+		encryptedQueue &&
 		currentSettings.harbourAddress &&
 		(await supportsSecretHarbourInterface(
 			currentSettings.harbourAddress,
 			harbourProvider,
 		))
 	) {
-		const relayer = encryption.sessionKeys.relayer.connect(harbourProvider);
+		const relayer = encryptedQueue.sessionKeys.relayer.connect(harbourProvider);
 		const secretHarbour = secretHarbourAt(
 			currentSettings.harbourAddress,
 			relayer,
@@ -586,7 +588,7 @@ async function signAndEnqueueSafeTransaction(
 			secretHarbour,
 			transaction,
 			signature,
-			encryption,
+			encryptedQueue,
 		);
 		return receipt;
 	}
@@ -607,17 +609,17 @@ async function encryptAndEnqueueSafeTransaction(
 	secretHarbour: Contract,
 	transaction: FullSafeTransaction,
 	signature: string,
-	encryption: EncryptedQueueParams,
+	encryptedQueue: EncryptedQueueParams,
 ) {
 	const transactionHash = getSafeTransactionStructHash(transaction);
 	// As a gas optimization, we do not re-publish the encryption blob in the
 	// case that an already registered transaction is being signed.
 	const encryptionBlob =
-		encryption.operation === "encrypt-and-sign"
+		encryptedQueue.operation === "encrypt-and-sign"
 			? await encryptSafeTransaction(
 					transaction,
-					encryption.sessionKeys.encryption,
-					encryption.recipientPublicKeys,
+					encryptedQueue.sessionKeys.encryption,
+					encryptedQueue.recipientPublicKeys,
 				)
 			: "0x";
 	const enqueue = await secretHarbour.enqueueTransaction(
@@ -631,6 +633,58 @@ async function encryptAndEnqueueSafeTransaction(
 	return await enqueue.wait();
 }
 
+/**
+ * Parameters for the fetchEncryptionPublicKeys function.
+ */
+interface FetchEncryptionPublicKeysParams {
+	/** Partial Safe configuration, specifically needing the owners. */
+	safeConfig: Pick<SafeConfiguration, "owners">;
+}
+
+/**
+ * Fetches public encryption keys for a Safe owner. Returns `null` if the
+ * currently configured Harbour contract does not support encryption.
+ */
+async function fetchEncryptionPublicKeys({
+	safeConfig: { owners },
+}: FetchEncryptionPublicKeysParams): Promise<Record<
+	string,
+	CryptoKey | undefined
+> | null> {
+	const { harbourAddress, rpcUrl } = (await loadCurrentSettings()) || {};
+	if (!harbourAddress) {
+		return null;
+	}
+
+	const providerUrl = rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
+	const provider = new JsonRpcProvider(providerUrl);
+	const supported = await supportsSecretHarbourInterface(
+		harbourAddress,
+		provider,
+	);
+	if (!supported) {
+		return null;
+	}
+
+	const secretHarbour = secretHarbourAt(harbourAddress, provider);
+	const publicKeys = await secretHarbour.retrieveEncryptionPublicKeys([
+		...owners,
+	]);
+	const ownerPublicKeys = await Promise.all(
+		(publicKeys as string[]).map(
+			async (publicKey, i) =>
+				[owners[i], await decodeEncryptionPublicKey(publicKey)] as const,
+		),
+	);
+	return Object.fromEntries(
+		ownerPublicKeys.filter(([, publicKey]) => publicKey) as [
+			string,
+			CryptoKey,
+		][],
+	);
+}
+
+export type { EncryptedQueueParams };
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
@@ -640,4 +694,5 @@ export {
 	getHarbourChainId,
 	fetchSafeQueue,
 	signAndEnqueueSafeTransaction,
+	fetchEncryptionPublicKeys,
 };

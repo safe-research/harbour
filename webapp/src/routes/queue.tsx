@@ -3,26 +3,26 @@ import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
 import { PlusCircle } from "lucide-react";
 import { useState } from "react";
+import { ActionCard } from "@/components/ActionCard";
+import { BackToDashboardButton } from "@/components/BackButton";
+import { QueueTransactionItem } from "@/components/QueueTransactionItem";
+import { RequireWallet, useWalletProvider } from "@/components/RequireWallet";
+import { useSession } from "@/contexts/SessionContext";
 import { useWaku } from "@/contexts/WakuContext";
-import type { ChainId } from "@/lib/types";
-import { ActionCard } from "../components/ActionCard";
-import { BackToDashboardButton } from "../components/BackButton";
-import { QueueTransactionItem } from "../components/QueueTransactionItem";
-import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
 import {
 	type TransactionToExecute,
 	useExecuteTransaction,
-} from "../hooks/useExecuteTransaction";
+} from "@/hooks/useExecuteTransaction";
 import {
 	useChainlistRpcProvider,
 	useHarbourRpcProvider,
-} from "../hooks/useRpcProvider";
-import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
-import { useSafeQueue } from "../hooks/useSafeQueue";
-import { type NonceGroup, signAndEnqueueSafeTransaction } from "../lib/harbour";
-import type { SafeConfiguration } from "../lib/safe";
-import type { FullSafeTransaction } from "../lib/types";
-import { safeIdSchema } from "../lib/validators";
+} from "@/hooks/useRpcProvider";
+import { useSafeConfiguration } from "@/hooks/useSafeConfiguration";
+import { useSafeQueue } from "@/hooks/useSafeQueue";
+import { type NonceGroup, signAndEnqueueSafeTransaction } from "@/lib/harbour";
+import type { SafeConfiguration } from "@/lib/safe";
+import type { ChainId, FullSafeTransaction } from "@/lib/types";
+import { safeIdSchema } from "@/lib/validators";
 
 // Define the route before the component so Route is in scope
 /**
@@ -63,6 +63,7 @@ function QueueContent({
 	chainId,
 }: QueueContentProps) {
 	const waku = useWaku();
+	const { keys: sessionKeys } = useSession();
 	const {
 		data: queue,
 		isLoading: isLoadingQueue,
@@ -128,7 +129,15 @@ function QueueContent({
 				safeAddress,
 				chainId,
 			};
-			await signAndEnqueueSafeTransaction(walletProvider, fullTx, waku);
+			const encryptedQueue = sessionKeys
+				? ({ operation: "sign-only", sessionKeys } as const)
+				: null;
+			await signAndEnqueueSafeTransaction(
+				walletProvider,
+				fullTx,
+				waku,
+				encryptedQueue,
+			);
 			setSignSuccessTxHash(txWithSigs.safeTxHash);
 		} catch (err) {
 			const errMsg =
