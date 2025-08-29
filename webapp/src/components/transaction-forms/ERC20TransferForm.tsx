@@ -36,6 +36,7 @@ export function ERC20TransferForm({
 	browserProvider,
 	rpcProvider,
 	config,
+	encryptedQueue,
 	tokenAddress: initialTokenAddress,
 }: ERC20TransferFormProps) {
 	const {
@@ -87,6 +88,7 @@ export function ERC20TransferForm({
 		chainId,
 		browserProvider,
 		config,
+		encryptedQueue,
 		parser,
 	});
 

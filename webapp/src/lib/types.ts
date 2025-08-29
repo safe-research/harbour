@@ -64,11 +64,18 @@ interface HarbourTransactionDetails extends SafeTransaction {
 }
 
 /**
- * Interface representing a complete Safe transaction, including nonce, chainId, and Safe address.
+ * Interface extending SafeTransaction a nonce. This is the transaction
+ * parameters that are signed as part of the EIP-712 message.
  */
-interface FullSafeTransaction extends SafeTransaction {
+interface SafeTransactionWithNonce extends SafeTransaction {
 	/** The nonce of the Safe transaction. */
 	nonce: string;
+}
+
+/**
+ * Interface representing a complete Safe transaction, including nonce, chainId, and Safe address.
+ */
+interface FullSafeTransaction extends SafeTransactionWithNonce {
 	/** The chain ID where the transaction is intended to be executed. */
 	chainId: ChainId;
 	/** The address of the Safe contract. */
@@ -82,5 +89,6 @@ export type {
 	HarbourTransactionDetails,
 	MetaTransaction,
 	FullSafeTransaction,
+	SafeTransactionWithNonce,
 	SafeTransaction,
 };

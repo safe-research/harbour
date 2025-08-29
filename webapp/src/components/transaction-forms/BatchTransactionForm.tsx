@@ -13,6 +13,7 @@ export function BatchTransactionForm({
 	chainId,
 	browserProvider,
 	config,
+	encryptedQueue,
 }: CommonTransactionFormProps) {
 	const { getBatch, removeTransaction, clearBatch } = useBatch();
 
@@ -32,6 +33,7 @@ export function BatchTransactionForm({
 		chainId,
 		browserProvider,
 		config,
+		encryptedQueue,
 		parser,
 		onEnqueued: () => {
 			clearBatch(safeAddress, chainId);
