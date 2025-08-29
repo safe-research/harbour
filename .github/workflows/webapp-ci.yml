@@ -69,7 +69,7 @@ jobs:
             | Functions  | ${pct(t.functions.pct)}%  | ${t.functions.covered} / ${t.functions.total} |
             | Lines      | ${pct(t.lines.pct)}%      | ${t.lines.covered} / ${t.lines.total} |
 
-            **HTML report:** [Download / view artifact](${artifactUrl})
+            [View full HTML report](webapp/coverage/coverage-summary.json)
             `;
 
             const { owner, repo } = context.repo;
