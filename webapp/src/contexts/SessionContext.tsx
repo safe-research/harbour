@@ -413,7 +413,6 @@ function useSession(): SessionValue {
 	if (value === null) {
 		throw new Error("useSession must be used within a SessionContext provider");
 	}
-	console.log(value);
 	return value;
 }
 

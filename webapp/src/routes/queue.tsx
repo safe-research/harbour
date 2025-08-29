@@ -73,6 +73,7 @@ function QueueContent({
 		safeAddress,
 		safeConfig,
 		safeChainId: chainId,
+		sessionKeys,
 	});
 
 	// State for managing execution feedback for a specific transaction
@@ -171,6 +172,7 @@ function QueueContent({
 					<BackToDashboardButton safeAddress={safeAddress} chainId={chainId} />
 					<h1 className="text-3xl font-bold text-gray-900 mt-4">
 						Transaction Queue
+						{!!sessionKeys && " 🔐"}
 					</h1>
 					<p className="text-gray-700 mt-2">
 						Safe:{" "}

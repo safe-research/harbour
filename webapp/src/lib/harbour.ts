@@ -19,7 +19,7 @@ import {
 import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
-import { encryptSafeTransaction } from "./encryption";
+import { decryptSafeTransaction, encryptSafeTransaction } from "./encryption";
 import { aggregateMulticall } from "./multicall";
 import {
 	getSafeTransactionStructHash,
@@ -50,6 +50,8 @@ const HARBOUR_ABI = [
 
 /** ABI for the Secret Harbour contract. */
 const SECRET_HARBOUR_ABI = [
+	"event SafeTransactionRegistered(bytes32 indexed uid, bytes32 indexed safeTxHash, bytes encryptionBlob)",
+	"event SafeTransactionSigned(address indexed signer, bytes32 indexed safeTxHash, bytes signature)",
 	"function supportsInterface(bytes4 interfaceId) view returns (bool supported)",
 	"function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
 	"function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, bytes calldata signature)",
@@ -185,6 +187,13 @@ export interface NonceGroup {
 }
 
 /**
+ * Session keys used for decrypting transactions.
+ */
+interface SessionDecryptionKey {
+	encryption: Pick<SessionKeys["encryption"], "privateKey">;
+}
+
+/**
  * Parameters for the fetchSafeQueue function.
  */
 interface FetchSafeQueueParams {
@@ -196,8 +205,12 @@ interface FetchSafeQueueParams {
 	safeConfig: Pick<SafeConfiguration, "nonce" | "owners">;
 	/** The chain ID of the Safe contract (not Harbour's chain ID). */
 	safeChainId: ChainId;
+	/** The session keys for decrypting secret harbour transactions. */
+	sessionKeys: SessionDecryptionKey | null;
 	/** Optional maximum number of nonces to fetch ahead of the current Safe nonce (default: 5). */
 	maxNoncesToFetch?: number;
+	/** Optional maximum number of transactions to fetch per nonce (default: 100). */
+	maxTxsPerNonce?: number;
 }
 
 /**
@@ -229,6 +242,7 @@ async function fetchHarbourSafeQueue(
 		safeConfig,
 		safeChainId,
 		maxNoncesToFetch = 5,
+		maxTxsPerNonce = 100,
 	}: FetchSafeQueueParams,
 ): Promise<NonceGroup[]> {
 	const iface = new Interface(HARBOUR_ABI);
@@ -256,7 +270,7 @@ async function fetchHarbourSafeQueue(
 					safeChainId,
 					nonce,
 					0,
-					100,
+					maxTxsPerNonce,
 				]),
 			});
 			sigMeta.push({ owner, nonce: nonce.toString() });
@@ -364,55 +378,170 @@ async function fetchSecretHarbourSafeQueue(
 		safeAddress,
 		safeConfig,
 		safeChainId,
+		sessionKeys,
 		maxNoncesToFetch = 5,
+		maxTxsPerNonce = 100,
 	}: FetchSafeQueueParams,
 ): Promise<NonceGroup[]> {
-	const iface = new Interface(SECRET_HARBOUR_ABI);
+	if (!sessionKeys) {
+		// No decription keys, no transactions!
+		return [];
+	}
+
+	const secretHarbour = secretHarbourAt(harbourAddress, provider);
 	const startNonce = Number(safeConfig.nonce);
 	const owners = safeConfig.owners || [];
 
-	// Batch retrieven encryption key calls
-	type KeyMeta = { owner: string };
+	// Batch retrieve encryption key calls
 	const keyCalls: Array<{
 		target: string;
 		allowFailure: boolean;
 		callData: string;
 	}> = [];
-	const keyMeta: KeyMeta[] = [];
+	const keyMeta: Array<{ owner: string }> = [];
 
 	for (const owner of owners) {
 		keyCalls.push({
 			target: harbourAddress,
 			allowFailure: false,
-			callData: iface.encodeFunctionData("retrieveEncryptionKey", [owner]),
+			callData: secretHarbour.interface.encodeFunctionData(
+				"retrieveEncryptionKey",
+				[owner],
+			),
 		});
 		keyMeta.push({ owner });
 	}
 
 	const keyResults = await aggregateMulticall(provider, keyCalls);
-	const notaries = Object.fromEntries(
-		await Promise.all(
-			keyResults.map(async (res, i) => {
-				const { owner } = keyMeta[i];
-				const [[context]] = iface.decodeFunctionResult(
-					"retrieveEncryptionKey",
-					res.returnData,
-				);
-				if (context === ethers.ZeroHash) {
-					return [owner, null];
-				}
-				const { relayer } = decodeContext(ethers.getBytes(context));
-				return [owner, { relayer }];
-			}),
-		),
-	);
-	console.log({
-		safeAddress,
-		safeChainId,
-		maxNoncesToFetch,
-		startNonce,
-		notaries,
+	const notaries = keyResults
+		.map((res, i) => {
+			const { owner } = keyMeta[i];
+			const [[context]] = secretHarbour.interface.decodeFunctionResult(
+				"retrieveEncryptionKey",
+				res.returnData,
+			);
+			const { relayer } = decodeContext(ethers.getBytes(context));
+			return { owner, notary: relayer };
+		})
+		.filter(({ notary }) => notary !== ethers.ZeroAddress);
+
+	// Batch retrieve transaction registration calls
+	const regCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+	const regMeta: Array<{ nonce: number }> = [];
+
+	for (let i = 0; i < maxNoncesToFetch; i++) {
+		const nonce = startNonce + i;
+		for (const { notary } of notaries) {
+			regCalls.push({
+				target: harbourAddress,
+				allowFailure: false,
+				callData: secretHarbour.interface.encodeFunctionData(
+					"retrieveRegistrations",
+					[safeChainId, safeAddress, nonce, notary, 0, maxTxsPerNonce],
+				),
+			});
+			regMeta.push({ nonce });
+		}
+	}
+
+	const regResults = await aggregateMulticall(provider, regCalls);
+	const registrations = regResults.flatMap((res, i) => {
+		const { nonce } = regMeta[i];
+		const [page] = secretHarbour.interface.decodeFunctionResult(
+			"retrieveRegistrations",
+			res.returnData,
+		);
+		return page.map(([blockNumber, uid]: [string, string]) => ({
+			nonce,
+			blockNumber,
+			uid,
+		}));
 	});
+
+	// Retrieve transaction data from events.
+	const details = (await Promise.all(
+		registrations.map(({ blockNumber, uid }) =>
+			secretHarbour.queryFilter(
+				secretHarbour.filters.SafeTransactionRegistered(uid),
+				Number(blockNumber),
+				Number(blockNumber),
+			),
+		),
+	)) as ethers.EventLog[][];
+
+	const decryptedTransactions = await Promise.all(
+		details.flatMap(async (logs, i) => {
+			try {
+				const [{ args }] = logs;
+				const { safeTxHash, encryptionBlob } = args;
+				const { nonce, blockNumber } = registrations[i];
+				const transaction = await decryptSafeTransaction(
+					encryptionBlob,
+					sessionKeys.encryption.privateKey,
+				);
+				return [{ nonce, blockNumber, safeTxHash, transaction }];
+			} catch {
+				return [];
+			}
+		}),
+	);
+
+	// Clients MUST verify transaction hashes for decrypted Safe transactions.
+
+	console.log({ decryptedTransactions });
+
+	// Batch retrieve signature registration calls
+	const sigCalls: Array<{
+		target: string;
+		allowFailure: boolean;
+		callData: string;
+	}> = [];
+	const sigMeta: Array<{ nonce: number }> = [];
+
+	for (let i = 0; i < maxNoncesToFetch; i++) {
+		const nonce = startNonce + i;
+		for (const { notary } of notaries) {
+			regCalls.push({
+				target: harbourAddress,
+				allowFailure: false,
+				callData: secretHarbour.interface.encodeFunctionData(
+					"retrieveRegistrations",
+					[safeChainId, safeAddress, nonce, notary, 0, maxTxsPerNonce],
+				),
+			});
+			regMeta.push({ nonce });
+		}
+	}
+
+	const regResults = await aggregateMulticall(provider, regCalls);
+	const registrations = regResults.flatMap((res, i) => {
+		const { nonce } = regMeta[i];
+		const [page] = secretHarbour.interface.decodeFunctionResult(
+			"retrieveRegistrations",
+			res.returnData,
+		);
+		return page.map(([blockNumber, uid]: [string, string]) => ({
+			nonce,
+			blockNumber,
+			uid,
+		}));
+	});
+
+	// Retrieve transaction data from events.
+	const details = (await Promise.all(
+		registrations.map(({ blockNumber, uid }) =>
+			secretHarbour.queryFilter(
+				secretHarbour.filters.SafeTransactionRegistered(uid),
+				Number(blockNumber),
+				Number(blockNumber),
+			),
+		),
+	)) as ethers.EventLog[][];
+
 	/*
 	sigResults.forEach((res, idx) => {
 		const { owner, nonce } = sigMeta[idx];
@@ -734,7 +863,11 @@ async function fetchEncryptionPublicKeys({
 	);
 }
 
-export type { EncryptedQueueParams, HarbourContractSettings };
+export type {
+	EncryptedQueueParams,
+	HarbourContractSettings,
+	SessionDecryptionKey,
+};
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
