@@ -34,8 +34,6 @@ describe("useBrowserProvider", () => {
 	it("returns BrowserProvider when wallet is connected", () => {
 		const mockProvider: Eip1193Provider = {
 			request: vi.fn(async () => null),
-			on: vi.fn(),
-			removeListener: vi.fn(),
 		};
 
 		const connected = [
