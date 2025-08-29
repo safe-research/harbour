@@ -35,11 +35,8 @@ jobs:
         run: npm run format --workspace=webapp --check
 
       - name: Run tests with coverage
-        run: npm run test --workspace=webapp --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text
-      - run: |
-          pwd
-          ls -la
-          ls -la coverage || true
+        run: npm run test --workspace=webapp -- --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text
+
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
