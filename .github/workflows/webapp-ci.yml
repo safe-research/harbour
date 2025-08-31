@@ -46,6 +46,7 @@ jobs:
           path: webapp/coverage/
 
       - name: Comment coverage on PR
+        if: ${{ github.event_name == 'pull_request' }}. # Only comment on PRs, not on pushes to main since that step would otherwise fail.
         uses: actions/github-script@v7
         with:
           script: |
