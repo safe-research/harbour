@@ -9,8 +9,7 @@ vi.mock("@web3-onboard/react", () => ({
 
 import * as onboard from "@web3-onboard/react";
 
-// Minimal types the hook actually needs.
-// This is to precent the use of any type which the linter doesn't like.
+// This is to prevent the use of any type which the linter doesn't like.
 type UseConnectWalletLike = () => readonly [
 	{ wallet: { provider: Eip1193Provider } | null },
 ];
