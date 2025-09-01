@@ -24,11 +24,16 @@ import {
 	type HarbourContractSettings,
 } from "@/lib/harbour";
 
-const STORAGE_KEY_PREFIX = "session";
+const STORAGE_KEY_PREFIX = "session.v1";
 const SESSION_PREFIX = "harbour:session:v1:";
 
 type Address = string;
 type Hex = string;
+
+interface SessionStorageKey {
+	chainId: bigint;
+	address: Address;
+}
 
 interface Context {
 	nonce: Uint8Array;
@@ -81,13 +86,13 @@ interface SessionValue {
 	error: Error | null;
 }
 
-function storageKeyFor(address: Address): string {
-	return `${STORAGE_KEY_PREFIX}.${ethers.getAddress(address)}`;
+function storageKeyFor({ chainId, address }: SessionStorageKey): string {
+	return `${STORAGE_KEY_PREFIX}:${chainId}@${ethers.getAddress(address)}`;
 }
 
-function loadSessionEntropy(address: Address): Entropy | null {
+function loadSessionEntropy(key: SessionStorageKey): Entropy | null {
 	try {
-		const storageKey = storageKeyFor(address);
+		const storageKey = storageKeyFor(key);
 		const encoded = localStorage.getItem(storageKey) ?? "";
 		if (!encoded.startsWith(SESSION_PREFIX)) {
 			return null;
@@ -106,12 +111,12 @@ function loadSessionEntropy(address: Address): Entropy | null {
 	}
 }
 
-function storeSessionEntropy(address: Address, { seed, salt }: Entropy) {
+function storeSessionEntropy(key: SessionStorageKey, { seed, salt }: Entropy) {
 	const data = ethers.encodeBase64(
 		ethers.concat([seed, encodeContextSalt(salt)]),
 	);
 	const encoded = `${SESSION_PREFIX}${data}`;
-	const storageKey = storageKeyFor(address);
+	const storageKey = storageKeyFor(key);
 	localStorage.setItem(storageKey, encoded);
 }
 
@@ -303,8 +308,9 @@ function SessionProvider({ children }: { children: ReactNode }) {
 
 				const signer = await wallet.getSigner();
 				const address = await signer.getAddress();
+				const { chainId } = await provider.getNetwork();
 				const onchain = await fetchEncryptionKey(address, currentSettings);
-				const entropy = loadSessionEntropy(address);
+				const entropy = loadSessionEntropy({ chainId, address });
 				if (onchain === null || entropy === null) {
 					return null;
 				}
@@ -351,9 +357,10 @@ function SessionProvider({ children }: { children: ReactNode }) {
 				const address = await signer.getAddress();
 				const { chainId } = await provider.getNetwork();
 				const onchain = await fetchEncryptionKey(address, currentSettings);
-				const salt = onchain
-					? decodeContext(ethers.getBytes(onchain.context))
-					: generateContextSalt();
+				const salt =
+					onchain && isRegistered(onchain)
+						? decodeContext(ethers.getBytes(onchain.context))
+						: generateContextSalt();
 				const signin = new SiweMessage({
 					scheme: window.location.protocol.replace(/:$/, ""),
 					domain: window.location.host,
@@ -377,7 +384,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 					}),
 					publicKey: await encodeEncryptionPublicKey(keys.encryption.publicKey),
 				};
-				storeSessionEntropy(address, entropy);
+				storeSessionEntropy({ chainId, address }, entropy);
 				return { entropy, keys, pendingRegistration };
 			}),
 		[update, wallet, provider],
