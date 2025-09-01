@@ -641,6 +641,29 @@ async function signAndEnqueueSafeTransaction(
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
 	const signer = await walletProvider.getSigner();
+
+	// When using encrypted harbour and adding a new transaction, try and add
+	// some entropy to the transaction so that it isn't guessable. Otherwise an
+	// attacker can potentially fairly trivially mine a `safeTxHash` preimage,
+	// especially for Safes that tend to do limited set of operations.
+	if (encryptedQueue?.operation === "encrypt-and-sign") {
+		// Safe transactions have a built-in fee payment mechanism, which is
+		// controlled on-or-off by the `gasPrice` parameter. That is, if
+		// `gasPrice == 0`, then the fee payment logic is disabled, and there
+		// are three additional gas-related properties (`baseGas`, `gasToken`
+		// and `refundReceiver`) that have no effect on the actual Safe
+		// transaction execution when the fee payment logic is disabled, which
+		// we can use to inject some entropy to make the transaction unfeasible
+		// to guess. We chose `gasToken` as it is the least error prone (if we
+		// incorrectly overwrite this field, then the relayer will be at a loss,
+		// as no tokens will be transferred, and not the account itself).
+		if (BigInt(transaction.gasPrice) === 0n) {
+			transaction.gasToken = ethers.getAddress(
+				ethers.hexlify(ethers.randomBytes(20)),
+			);
+		}
+	}
+
 	const signature = await signSafeTransaction(signer, transaction);
 
 	const currentSettings = await loadCurrentSettings();
