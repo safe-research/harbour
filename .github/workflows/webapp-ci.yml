@@ -3,9 +3,6 @@ name: Webapp CI
 on:
   push:
     branches: ["main"]
-    paths:
-      - "webapp/**"
-      - ".github/workflows/**"
   pull_request:
     paths:
       - "webapp/**"
