@@ -1,6 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import type { BrowserProvider } from "ethers";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from "vitest";
 
 const params = {
 	safeAddress: "0xSafe",
@@ -24,6 +32,17 @@ vi.mock("@/hooks/walletConnect", () => ({
 }));
 
 describe("useWalletConnectTransaction", () => {
+	// Suppress error logs in test to not spam the console when running tests.
+	// Restore after all tests in this suite.
+	let errorSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeAll(() => {
+		errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	afterAll(() => {
+		errorSpy.mockRestore();
+	});
 	beforeEach(() => {
 		vi.resetModules();
 	});
