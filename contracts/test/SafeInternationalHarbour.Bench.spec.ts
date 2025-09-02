@@ -4,7 +4,7 @@ import { build4337Config } from "./utils/erc4337";
 import { signSafeTransaction } from "./utils/safeTx";
 
 describeBench(
-	"SafeSecretHarbour",
+	"SafeInternationalHarbour",
 	async ([entryPoint]) => {
 		const Factory = await ethers.getContractFactory("SafeInternationalHarbour");
 		const erc4337config = build4337Config({ entryPoint: entryPoint.address });

@@ -11,7 +11,7 @@ library RegistrationKey {
     type T is bytes32;
 
     /**
-     * @notice Compute the registeration key for a given `(chainId, safe, nonce, signer)` tuple.
+     * @notice Compute the registration key for a given `(chainId, safe, nonce, signer)` tuple.
      */
     function get(
         uint256 chainId,
