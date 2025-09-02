@@ -1,20 +1,19 @@
-const fs = require("fs");
+module.exports = async ({ github, context, core }) => {
+	const fs = require("fs");
+	const path = "webapp/coverage/coverage-summary.json";
 
-async function run() {
-	try {
-		const path = "webapp/coverage/coverage-summary.json";
-		if (!fs.existsSync(path)) {
-			core.setFailed(`Missing ${path}. Did Vitest run with json-summary reporter?`);
-			return;
-		}
+	if (!fs.existsSync(path)) {
+		core.setFailed(`Missing ${path}. Did Vitest run with json-summary reporter?`);
+		return;
+	}
 
-		const summary = JSON.parse(fs.readFileSync(path, "utf8"));
-		const t = summary.total;
-		const pct = (n) => (Math.round(Number(n) * 100) / 100).toFixed(2);
+	const summary = JSON.parse(fs.readFileSync(path, "utf8"));
+	const t = summary.total;
+	const pct = (n) => (Math.round(Number(n) * 100) / 100).toFixed(2);
 
-		const artifactUrl = process.env.ARTIFACT_URL;
+	const artifactUrl = process.env.ARTIFACT_URL;
 
-		const body = `
+	const body = `
 <!-- vitest-coverage-comment -->
 ## Test Coverage
 | Metric | % | Covered / Total |
@@ -27,33 +26,30 @@ async function run() {
 **HTML report:** ${artifactUrl ? `[Download / view](${artifactUrl})` : "_(artifact URL unavailable)_"}
 `;
 
-		const { owner, repo } = github.context.repo;
-		const issue_number = github.context.payload.pull_request.number;
+	const { owner, repo } = context.repo;
+	const issue_number = context.payload.pull_request.number;
 
-		const { data: comments } = await github.rest.issues.listComments({
+	const { data: comments } = await github.rest.issues.listComments({
+		owner,
+		repo,
+		issue_number,
+	});
+
+	const existing = comments.find((c) => c.body?.includes("vitest-coverage-comment"));
+
+	if (existing) {
+		await github.rest.issues.updateComment({
+			owner,
+			repo,
+			comment_id: existing.id,
+			body,
+		});
+	} else {
+		await github.rest.issues.createComment({
 			owner,
 			repo,
 			issue_number,
+			body,
 		});
-		const existing = comments.find((c) => c.body?.includes("vitest-coverage-comment"));
-		if (existing) {
-			await github.rest.issues.updateComment({
-				owner,
-				repo,
-				comment_id: existing.id,
-				body,
-			});
-		} else {
-			await github.rest.issues.createComment({
-				owner,
-				repo,
-				issue_number,
-				body,
-			});
-		}
-	} catch (error) {
-		core.setFailed(error.message);
 	}
-}
-
-run();
+};
