@@ -15,7 +15,7 @@ module.exports = async ({ github, context, core }) => {
 
 	const body = `
 <!-- vitest-coverage-comment -->
-## Test Coverage
+## Webapp Test Coverage
 | Metric | % | Covered / Total |
 |---|---:|---:|
 | Statements | ${pct(t.statements.pct)}% | ${t.statements.covered} / ${t.statements.total} |
