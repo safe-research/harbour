@@ -30,10 +30,8 @@ jobs:
       - name: Build webapp
         run: npm run build --workspace=webapp
 
-      - name: Run linter
-        run: npm run lint --workspace=webapp
-      - name: Run formatter
-        run: npm run format --workspace=webapp --check
+      - name: Run formatter, linter and import sorting.
+        run: npm run check --workspace=webapp
 
       - name: Run tests with coverage
         run: npm run test --workspace=webapp -- --coverage.enabled --coverage.reporter=lcov --coverage.reporter=json-summary --coverage.reporter=text --coverage.reporter=html
@@ -50,38 +48,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const path = 'webapp/coverage/coverage-summary.json';
-            if (!fs.existsSync(path)) {
-              core.setFailed(`Missing ${path}. Did Vitest run with json-summary reporter?`);
-            }
-            const summary = JSON.parse(fs.readFileSync(path, 'utf8'));
-            const t = summary.total;
-            const pct = (n) => (Math.round(Number(n) * 100) / 100).toFixed(2);
-
-            const artifactUrl = '${{ steps.upload-coverage.outputs.artifact-url }}';
-
-            const body = `
-            <!-- vitest-coverage-comment -->
-            ## Test Coverage
-            | Metric | % | Covered / Total |
-            |---|---:|---:|
-            | Statements | ${pct(t.statements.pct)}% | ${t.statements.covered} / ${t.statements.total} |
-            | Branches   | ${pct(t.branches.pct)}%   | ${t.branches.covered} / ${t.branches.total} |
-            | Functions  | ${pct(t.functions.pct)}%  | ${t.functions.covered} / ${t.functions.total} |
-            | Lines      | ${pct(t.lines.pct)}%      | ${t.lines.covered} / ${t.lines.total} |
-
-            **HTML report:** ${artifactUrl ? `[Download / view](${artifactUrl})` : "_(artifact URL unavailable)_" }
-
-            `;
-
-            const { owner, repo } = context.repo;
-            const issue_number = context.payload.pull_request.number;
-
-            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
-            const existing = comments.find(c => c.body?.includes('vitest-coverage-comment'));
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
+            const { execSync } = require("child_process");
+            process.env.ARTIFACT_URL = "${{ steps.upload-coverage.outputs.artifact-url }}";
+            require("./.github/scripts/comment-coverage.js");
