@@ -58,7 +58,7 @@ function getSafeTransactionStructHash(safeTransaction: SafeTransaction) {
 
 /**
  * @param partialSafeTx - The partial Safe transaction to populate
- * @returns The fully populated Safe transaction with default values for the unspecfied fields
+ * @returns The fully populated Safe transaction with default values for the unspecified fields
  */
 function populateSafeTransaction(partialSafeTx: Partial<SafeTransaction>): SafeTransaction {
 	return {
