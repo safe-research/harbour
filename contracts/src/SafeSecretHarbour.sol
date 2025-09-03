@@ -57,7 +57,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
 
     /**
      * @dev Mapping of signers to their encryption key registration nonces, to prevent replaying
-	 *      past encryption key registrations after a key rotation.
+     *      past encryption key registrations after a key rotation.
      */
     mapping(address signer => uint256) private _encryptionKeyRegistrationNonces;
 

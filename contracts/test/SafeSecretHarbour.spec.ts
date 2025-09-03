@@ -32,6 +32,14 @@ describe("SafeInternationalHarbour", () => {
 		return { deployer, signer, notary, alice, harbour, chainId, safe, decryptionKey, encryptionKey };
 	}
 
+	async function getBlockTimestamp() {
+		const block = await ethers.provider.getBlock("latest");
+		if (block === null) {
+			throw new Error("no latest block");
+		}
+		return block.timestamp;
+	}
+
 	it("should act as an encrypted transaction queue", async () => {
 		const { deployer, harbour, chainId, safe } = await loadFixture(deployFixture);
 
@@ -255,8 +263,7 @@ describe("SafeInternationalHarbour", () => {
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
 		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
-		const { timestamp } = await ethers.provider.getBlock("latest");
-		const deadline = timestamp + 600; // 10 minutes.
+		const deadline = (await getBlockTimestamp()) + 600; // 10 minutes.
 		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
 			context,
 			publicKey: encryptionKey,
@@ -358,14 +365,14 @@ describe("SafeInternationalHarbour", () => {
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
 		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
-		const { timestamp } = await ethers.provider.getBlock("latest");
+		const timestamp = await getBlockTimestamp();
 
 		for (const [deadline, ok] of [
 			[0, false],
 			[timestamp - 1, false],
 			[timestamp, true],
 			[timestamp + 1, true],
-		]) {
+		] as const) {
 			const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
 				context,
 				publicKey: encryptionKey,

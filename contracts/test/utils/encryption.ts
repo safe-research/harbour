@@ -1,6 +1,6 @@
 import zlib from "node:zlib";
 import { x25519 } from "@noble/curves/ed25519";
-import { type BytesLike, ethers, type Signer } from "ethers";
+import { type BigNumberish, type BytesLike, ethers, type Signer } from "ethers";
 import jose, { type GeneralJWE } from "jose";
 import { rlpDecodeSafeTransaction, rlpEncodeSafeTransaction, type SafeTransaction } from "./safeTx";
 
