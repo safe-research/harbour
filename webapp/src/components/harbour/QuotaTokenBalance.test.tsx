@@ -1,7 +1,6 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import type { JsonRpcApiProvider } from "ethers";
-import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const signerAddress = "0xSigner";
@@ -42,9 +41,13 @@ describe("QuotaTokenBalance", () => {
 				className={className}
 			/>,
 		);
+		screen.debug();
 		expect(screen.getByText("TestToken")).toBeInTheDocument();
 		expect(screen.getByText(/0x0000…0001/)).toBeInTheDocument();
 		expect(screen.getByText(/0.5 TTK/)).toBeInTheDocument();
+		expect(
+			screen.getByLabelText(/Amount \(Balance: 1\.0\)/),
+		).toBeInTheDocument();
 		expect(screen.getByText("Top Up")).toBeInTheDocument();
 	});
 });
