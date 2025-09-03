@@ -33,22 +33,6 @@ describe("QuotaTokenBalance", () => {
 				isLoading: false,
 			}),
 		}));
-		vi.doMock("../Groups", () => ({
-			Box: (props: PropsWithChildren<Record<string, unknown>>) => (
-				<div>{props.children}</div>
-			),
-			BoxTitle: (props: PropsWithChildren<Record<string, unknown>>) => (
-				<div>{props.children}</div>
-			),
-		}));
-		vi.doMock("../Forms", () => ({
-			FormItem: (_props: Record<string, unknown>) => (
-				<div data-testid="form-item">FormItem</div>
-			),
-			SubmitItem: (_props: Record<string, unknown>) => (
-				<button type="submit">Top Up</button>
-			),
-		}));
 		const { QuotaTokenBalance } = await import("./QuotaTokenBalance");
 		render(
 			<QuotaTokenBalance
@@ -61,7 +45,6 @@ describe("QuotaTokenBalance", () => {
 		expect(screen.getByText("TestToken")).toBeInTheDocument();
 		expect(screen.getByText(/0x0000…0001/)).toBeInTheDocument();
 		expect(screen.getByText(/0.5 TTK/)).toBeInTheDocument();
-		expect(screen.getByTestId("form-item")).toBeInTheDocument();
 		expect(screen.getByText("Top Up")).toBeInTheDocument();
 	});
 });
