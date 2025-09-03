@@ -44,7 +44,7 @@ error UnexpectedSignatureVS(bytes32 extractedVS);
 error UnexpectedNonce(address expectedKey);
 
 /**
- * @notice Thrown when registring an encryption key on behalf of a signer with an invalid nonce.
+ * @notice Thrown when registering an encryption key on behalf of a signer with an invalid nonce.
  *
  * @param currentNonce The current encryption key registration nonce, which is valid.
  */
