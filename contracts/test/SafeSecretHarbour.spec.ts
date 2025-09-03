@@ -7,6 +7,7 @@ import {
 	deterministicX25519KeyPair,
 	encryptSafeTransaction,
 	randomX25519KeyPair,
+	signEncryptionKeyRegistration,
 } from "./utils/encryption";
 import { computeInterfaceId } from "./utils/erc165";
 import {
@@ -206,8 +207,8 @@ describe("SafeInternationalHarbour", () => {
 	it("should report support for the secret harbour interface", async () => {
 		const { harbour } = await loadFixture(deployFixture);
 
-		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0xe18a4e58");
-		for (const interfaceId of ["0x01ffc9a7", "0xe18a4e58"]) {
+		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0xc19159db");
+		for (const interfaceId of ["0x01ffc9a7", "0xc19159db"]) {
 			expect(await harbour.supportsInterface(interfaceId)).to.be.true;
 		}
 	});
@@ -253,22 +254,42 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const signature = await signer.signTypedData(
-			{
-				verifyingContract: await harbour.getAddress(),
-				salt: ethers.toBeHex(chainId, 32),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
-		await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature);
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const { timestamp } = await ethers.provider.getBlock("latest");
+		const deadline = timestamp + 600; // 10 minutes.
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature);
 		const storedEncryptionKey = await harbour.retrieveEncryptionKey(signer);
 		expect(storedEncryptionKey).to.deep.equal([context, encryptionKey]);
+	});
+
+	it("should increment the nonce when registering an encryption key on behalf of a signer", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const startingNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+
+		for (let i = 0; i < 5; i++) {
+			const nonce = startingNonce + BigInt(i);
+			const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+				context,
+				publicKey: encryptionKey,
+				harbourChainId: chainId,
+				nonce,
+				deadline,
+			});
+			await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature);
+			const storedNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+			expect(storedNonce).to.equal(nonce + 1n);
+		}
 	});
 
 	it("should emit a key registration event when registering on behalf of a signer", async () => {
@@ -276,22 +297,96 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const signature = await signer.signTypedData(
-			{
-				verifyingContract: await harbour.getAddress(),
-				salt: ethers.toBeHex(chainId, 32),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
-		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature))
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
 			.to.emit(harbour, "EncryptionKeyRegistered")
 			.withArgs(signer.address, context, encryptionKey);
+	});
+
+	it("should revert if the encryption key registration nonce is invalid", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const currentNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const nonce = 42n;
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
+			.to.be.revertedWithCustomError(harbour, "InvalidEncryptionKeyRegistrationNonce")
+			.withArgs(currentNonce);
+	});
+
+	it("should revert when replaying encryption key registrations", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature)).to.not.be
+			.reverted;
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
+			.to.be.revertedWithCustomError(harbour, "InvalidEncryptionKeyRegistrationNonce")
+			.withArgs(nonce + 1n);
+	});
+
+	it("should revert when encryption key deadline has expired", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const { timestamp } = await ethers.provider.getBlock("latest");
+
+		for (const [deadline, ok] of [
+			[0, false],
+			[timestamp - 1, false],
+			[timestamp, true],
+			[timestamp + 1, true],
+		]) {
+			const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+				context,
+				publicKey: encryptionKey,
+				harbourChainId: chainId,
+				nonce,
+				deadline,
+			});
+			const call = harbour.registerEncryptionKeyFor.staticCall(
+				signer,
+				context,
+				encryptionKey,
+				nonce,
+				deadline,
+				signature,
+			);
+			if (ok) {
+				await expect(call).to.not.be.reverted;
+			} else {
+				await expect(call).to.be.revertedWithCustomError(harbour, "EncryptionKeyRegistrationExpired");
+			}
+		}
 	});
 
 	it("should revert when encryption key authentication is invalid", async () => {
@@ -299,19 +394,15 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const aliceSignature = await alice.signTypedData(
-			{
-				chainId,
-				verifyingContract: await harbour.getAddress(),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const aliceSignature = await signEncryptionKeyRegistration(alice, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
 
 		for (const [signature, error] of [
 			["0x1234", "InvalidECDSASignatureLength"],
@@ -319,7 +410,7 @@ describe("SafeInternationalHarbour", () => {
 			[aliceSignature, "UnexpectedSigner"],
 		]) {
 			await expect(
-				harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature),
+				harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature),
 			).to.be.revertedWithCustomError(harbour, error);
 		}
 	});

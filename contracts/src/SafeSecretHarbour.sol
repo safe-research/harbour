@@ -2,6 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {
+    EncryptionKeyRegistrationExpired,
+    InvalidEncryptionKeyRegistrationNonce,
     NothingToEnqueue,
     SignerAlreadySignedTransaction,
     UnexpectedSigner
@@ -52,6 +54,12 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      * @dev Mapping of signers to their encryption keys.
      */
     mapping(address signer => EncryptionKey) private _encryptionKeys;
+
+    /**
+     * @dev Mapping of signers to their encryption key registration nonces, to prevent replaying
+	 *      past encryption key registrations after a key rotation.
+     */
+    mapping(address signer => uint256) private _encryptionKeyRegistrationNonces;
 
     /**
      * @dev Mapping of registration key to an array of block numbers where a Safe transaction was
@@ -107,25 +115,43 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      * @param signer    The signer to register the encryption key for.
      * @param context   A 32-byte context specific to the public encryption key.
      * @param publicKey The public encryption key to be registered for the `signer`.
+     * @param nonce     Encryption key registration nonce.
+     * @param deadline  Deadline for the registration.
      * @param signature The ECDSA signature of the `signer` over the encryption key registration.
      */
     function registerEncryptionKeyFor(
         address signer,
         bytes32 context,
         bytes32 publicKey,
+        uint256 nonce,
+        uint256 deadline,
         bytes calldata signature
     ) external {
-        bytes32 encryptionKeyHash = CoreLib.computeEncryptionKeyHash(
-            block.chainid,
+        uint256 currentNonce = _encryptionKeyRegistrationNonces[signer];
+        require(
+            nonce == currentNonce,
+            InvalidEncryptionKeyRegistrationNonce(currentNonce)
+        );
+        require(
+            deadline >= block.timestamp,
+            EncryptionKeyRegistrationExpired()
+        );
+
+        bytes32 registrationHash = CoreLib.computeEncryptionKeyRegistrationHash(
             address(this),
             context,
-            publicKey
+            publicKey,
+            block.chainid,
+            nonce,
+            deadline
         );
         (address recoveredSigner, , ) = CoreLib.recoverSigner(
-            encryptionKeyHash,
+            registrationHash,
             signature
         );
         require(recoveredSigner == signer, UnexpectedSigner(recoveredSigner));
+
+        _encryptionKeyRegistrationNonces[signer] = nonce + 1;
         _registerEncryptionKey(signer, context, publicKey);
     }
 
@@ -224,6 +250,19 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         address signer
     ) external view returns (EncryptionKey memory encryptionKey) {
         encryptionKey = _encryptionKeys[signer];
+    }
+
+    /**
+     * @notice Retrieves the current encryption key registration nonce for signing.
+     *
+     * @param signer The signer to fetch encryption key registration nonce for.
+     *
+     * @return nonce The current encryption key registration nonce.
+     */
+    function retrieveEncryptionKeyRegistrationNonce(
+        address signer
+    ) external view returns (uint256 nonce) {
+        nonce = _encryptionKeyRegistrationNonces[signer];
     }
 
     /**

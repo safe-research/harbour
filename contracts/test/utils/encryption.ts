@@ -85,4 +85,37 @@ async function decryptSafeTransaction(encryptionBlob: BytesLike, decryptionKey: 
 	return rlpDecodeSafeTransaction(plaintext);
 }
 
-export { randomX25519KeyPair, deterministicX25519KeyPair, encryptSafeTransaction, decryptSafeTransaction };
+interface EncryptionKeyRegistration {
+	context: BytesLike;
+	publicKey: BytesLike;
+	harbourChainId: BigNumberish;
+	nonce: BigNumberish;
+	deadline: BigNumberish;
+}
+
+const EIP712_ENCRYPTION_KEY_REGISTRATION_TYPE = {
+	EncryptionKeyRegistration: [
+		{ name: "context", type: "bytes32" },
+		{ name: "publicKey", type: "bytes32" },
+		{ name: "harbourChainId", type: "uint256" },
+		{ name: "nonce", type: "uint256" },
+		{ name: "deadline", type: "uint256" },
+	],
+};
+
+function signEncryptionKeyRegistration(
+	signer: Pick<Signer, "signTypedData">,
+	harbour: string,
+	registration: EncryptionKeyRegistration,
+): Promise<string> {
+	return signer.signTypedData({ verifyingContract: harbour }, EIP712_ENCRYPTION_KEY_REGISTRATION_TYPE, registration);
+}
+
+export type { EncryptionKeyRegistration };
+export {
+	randomX25519KeyPair,
+	deterministicX25519KeyPair,
+	encryptSafeTransaction,
+	decryptSafeTransaction,
+	signEncryptionKeyRegistration,
+};
