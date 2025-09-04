@@ -37,7 +37,7 @@ interface ISafeSecretHarbour {
         address signers
     ) external view returns (uint256 nonce);
 
-    function retrieveRegistrations(
+    function retrieveTransactions(
         uint256 chainId,
         address safe,
         uint256 nonce,
