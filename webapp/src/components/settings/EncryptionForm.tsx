@@ -11,7 +11,7 @@ import type { SettingsFormData } from "@/components/settings/SettingsForm";
 import { useSession } from "@/contexts/SessionContext";
 import { useBrowserProvider } from "@/hooks/useBrowserProvider";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
-import { secretHarbourAt, supportsSecretHarbourInterface } from "@/lib/harbour";
+import { secretHarbourAt, supportsSecretHarbourInterface, fetchEncryptionKeyRegistrationNonce } from "@/lib/harbour";
 
 interface EncryptionFormParameters {
 	currentSettings: Partial<SettingsFormData>;
@@ -49,24 +49,36 @@ function EncryptionFormInner({
 
 				const { chainId } = await provider.getNetwork();
 				const signer = await wallet.getSigner();
+				const signerAddress = await signer.getAddress();
+				const nonce = await fetchEncryptionKeyRegistrationNonce(signerAddress);
+				const deadline = Math.ceil(Date.now() / 1000) + 600; // 10 minutes
 				const signature = await signer.signTypedData(
 					{
 						verifyingContract: harbourAddress,
-						salt: ethers.toBeHex(chainId, 32),
 					},
 					{
-						EncryptionKey: [
+						EncryptionKeyRegistration: [
 							{ name: "context", type: "bytes32" },
 							{ name: "publicKey", type: "bytes32" },
+							{ name: "harbourChainId", type: "uint256" },
+							{ name: "nonce", type: "uint256" },
+							{ name: "deadline", type: "uint256" },
 						],
 					},
-					pendingRegistration,
+					{
+						...pendingRegistration,
+						harbourChainId: chainId,
+						nonce,
+						deadline,
+					},
 				);
 				const harbour = secretHarbourAt(harbourAddress, relayer);
 				const transaction = await harbour.registerEncryptionKeyFor(
 					await signer.getAddress(),
 					pendingRegistration.context,
 					pendingRegistration.publicKey,
+					nonce,
+					deadline,
 					signature,
 				);
 				await transaction.wait();

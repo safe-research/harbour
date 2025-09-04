@@ -366,7 +366,7 @@ function SessionProvider({ children }: { children: ReactNode }) {
 					domain: window.location.host,
 					address,
 					statement: "Log into Harbour to access encrypted transaction data",
-					uri: window.location.origin,
+					uri: `${window.location.origin}/harbour`,
 					version: "1",
 					chainId: ethers.toNumber(chainId),
 					nonce: ethers.encodeBase58(salt.nonce),
