@@ -2,6 +2,8 @@
 pragma solidity ^0.8.29;
 
 import {
+    EncryptionKeyRegistrationExpired,
+    InvalidEncryptionKeyRegistrationNonce,
     NothingToEnqueue,
     SignerAlreadySignedTransaction,
     UnexpectedSigner
@@ -19,7 +21,7 @@ import {
 import {IERC165} from "./interfaces/ERC165.sol";
 import {BlockNumbers} from "./libs/BlockNumbers.sol";
 import {CoreLib} from "./libs/CoreLib.sol";
-import {RegistrationKey} from "./libs/RegistrationKey.sol";
+import {RegistrationSelector} from "./libs/RegistrationSelector.sol";
 
 /**
  * @title Safe Secret Harbour
@@ -42,7 +44,7 @@ import {RegistrationKey} from "./libs/RegistrationKey.sol";
 contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     using BlockNumbers for BlockNumbers.T;
     using BlockNumbers for BlockNumbers.Iterator;
-    using RegistrationKey for RegistrationKey.T;
+    using RegistrationSelector for RegistrationSelector.T;
 
     // ------------------------------------------------------------------
     // Storage
@@ -54,15 +56,21 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     mapping(address signer => EncryptionKey) private _encryptionKeys;
 
     /**
-     * @dev Mapping of registration key to an array of block numbers where a Safe transaction was
-     *      registered with the harbour.
+     * @dev Mapping of signers to their encryption key registration nonces, to prevent replaying
+     *      past encryption key registrations after a key rotation.
+     */
+    mapping(address signer => uint256) private _encryptionKeyRegistrationNonces;
+
+    /**
+     * @dev Mapping of registration selector to an array of block numbers where Safe transactions
+     *      were registered with the harbour.
      *
      *      Note that the same Safe transaction can be registered **multiple times** with harbour.
      *      This is important to allow appending additional encryption data (such as new wrapped
      *      encryption keys for signers that either rotated or registered their public encryption
-     *      key after the initial transaction submission.
+     *      key after the initial transaction submission).
      */
-    mapping(RegistrationKey.T => BlockNumbers.T) private _registrations;
+    mapping(RegistrationSelector.T => BlockNumbers.T) private _transactions;
 
     /**
      * @dev Mapping per signer from Safe transaction hashes to the block in which a signature was
@@ -107,25 +115,43 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      * @param signer    The signer to register the encryption key for.
      * @param context   A 32-byte context specific to the public encryption key.
      * @param publicKey The public encryption key to be registered for the `signer`.
+     * @param nonce     Encryption key registration nonce.
+     * @param deadline  Deadline for the registration.
      * @param signature The ECDSA signature of the `signer` over the encryption key registration.
      */
     function registerEncryptionKeyFor(
         address signer,
         bytes32 context,
         bytes32 publicKey,
+        uint256 nonce,
+        uint256 deadline,
         bytes calldata signature
     ) external {
-        bytes32 encryptionKeyHash = CoreLib.computeEncryptionKeyHash(
-            block.chainid,
+        uint256 currentNonce = _encryptionKeyRegistrationNonces[signer];
+        require(
+            nonce == currentNonce,
+            InvalidEncryptionKeyRegistrationNonce(currentNonce)
+        );
+        require(
+            deadline >= block.timestamp,
+            EncryptionKeyRegistrationExpired()
+        );
+
+        bytes32 registrationHash = CoreLib.computeEncryptionKeyRegistrationHash(
             address(this),
             context,
-            publicKey
+            publicKey,
+            block.chainid,
+            nonce,
+            deadline
         );
         (address recoveredSigner, , ) = CoreLib.recoverSigner(
-            encryptionKeyHash,
+            registrationHash,
             signature
         );
         require(recoveredSigner == signer, UnexpectedSigner(recoveredSigner));
+
+        _encryptionKeyRegistrationNonces[signer] = nonce + 1;
         _registerEncryptionKey(signer, context, publicKey);
     }
 
@@ -227,7 +253,20 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     }
 
     /**
-     * @notice Paginated getter for Safe transaction registrations.
+     * @notice Retrieves the current encryption key registration nonce for signing.
+     *
+     * @param signer The signer to fetch encryption key registration nonce for.
+     *
+     * @return nonce The current encryption key registration nonce.
+     */
+    function retrieveEncryptionKeyRegistrationNonce(
+        address signer
+    ) external view returns (uint256 nonce) {
+        nonce = _encryptionKeyRegistrationNonces[signer];
+    }
+
+    /**
+     * @notice Paginated getter for Safe transactions.
      *
      * @dev Note that this function does not return the full registered transaction directly, but
      *      a unique identifier and block number that can be used to query an log with the full
@@ -244,7 +283,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      * @return totalCount Total number of registrations for the `(chainId, safe, nonce, signer)`
      *                    tuple.
      */
-    function retrieveRegistrations(
+    function retrieveTransactions(
         uint256 chainId,
         address safe,
         uint256 nonce,
@@ -259,13 +298,13 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
             uint256 totalCount
         )
     {
-        RegistrationKey.T registration = RegistrationKey.get(
+        RegistrationSelector.T registration = RegistrationSelector.get(
             chainId,
             safe,
             nonce,
             notary
         );
-        BlockNumbers.Iterator memory it = _registrations[registration].iter();
+        BlockNumbers.Iterator memory it = _transactions[registration].iter();
 
         totalCount = it.count();
         it.skip(start);
@@ -282,7 +321,7 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
     }
 
     /**
-     * @notice Convenience getter returning the **number** of registrations stored for a specific
+     * @notice Convenience getter returning the **number** of transaction registered for a specific
      *         `(chainId, safe, nonce, notary)` tuple.
      *
      * @param chainId Target chain id.
@@ -292,19 +331,19 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
      *
      * @return count  Number of registrations.
      */
-    function retrieveRegistrationCount(
+    function retrieveTransactionCount(
         uint256 chainId,
         address safe,
         uint256 nonce,
         address notary
     ) external view returns (uint256 count) {
-        RegistrationKey.T registration = RegistrationKey.get(
+        RegistrationSelector.T registration = RegistrationSelector.get(
             chainId,
             safe,
             nonce,
             notary
         );
-        count = _registrations[registration].len();
+        count = _transactions[registration].len();
     }
 
     /**
@@ -372,13 +411,13 @@ contract SafeSecretHarbour is IERC165, ISafeSecretHarbour {
         bytes32 safeTxHash,
         bytes calldata encryptionBlob
     ) private returns (bytes32 uid) {
-        RegistrationKey.T registration = RegistrationKey.get(
+        RegistrationSelector.T registration = RegistrationSelector.get(
             chainId,
             safe,
             nonce,
             notary
         );
-        uint256 index = _registrations[registration].append(block.number);
+        uint256 index = _transactions[registration].append(block.number);
 
         uid = registration.uniqueIdentifier(index);
         emit SafeTransactionRegistered(uid, safeTxHash, encryptionBlob);

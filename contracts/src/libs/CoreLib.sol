@@ -2,7 +2,7 @@
 pragma solidity ^0.8.29;
 
 import {
-    ENCRYPTION_KEY_TYPEHASH,
+    ENCRYPTION_KEY_REGISTRATION_TYPEHASH,
     HARBOUR_DOMAIN_TYPEHASH,
     SAFE_DOMAIN_TYPEHASH,
     SAFE_TX_TYPEHASH,
@@ -126,47 +126,62 @@ library CoreLib {
     /**
      * @notice Computes the EIP-712 domain separator for Harbour.
      *
-     * @param chainId          The chain ID of the Harbour.
-     * @param harbour          The address of the Harbour.
+     * @param harbour          The address of the Harbour contract.
      *
      * @return domainSeparator The EIP-712 domain separator hash.
      */
     function harbourDomainSeparator(
-        uint256 chainId,
         address harbour
     ) internal pure returns (bytes32 domainSeparator) {
         // NOTE: The Harbour domain separator does _NOT_ use the chain ID as
-        // part of the domain, but instead as part of the salt. Why? Harbour
-        // contains cross-chain data, so approvals for harbour actions (like
-        // registering an encryption key) aren't tied to a specific chain but
-        // rather a Harbour deployment. Furthermore, this allows wallets to sign
-        // for Harbour actions to be relayed without changing networks.
+        // part of the domain. Why? Harbour contains cross-chain data, so
+        // approvals for harbour actions (like registering an encryption key)
+        // aren't tied to a specific chain.
         domainSeparator = keccak256(
-            abi.encode(HARBOUR_DOMAIN_TYPEHASH, harbour, chainId)
+            abi.encode(HARBOUR_DOMAIN_TYPEHASH, harbour)
         );
     }
 
     /**
-     * @notice Computes the encryption key hash for authentication.
+     * @notice Computes the encryption key registration hash for authentication.
      *
-     * @param context            A 32-byte context specific to the public encryption key.
-     * @param publicKey          The public encryption key.
+     * @dev Note that Harbour encryption key registration hashes include the harbour chain ID in
+     *      the message and not in the signing domain. This is because the encryption key is used
+     *      for Safe transactions on **all** chains, and not just on the chain Harbour chain where
+     *      it is stored. Essentially, `harbourChainId` represents the chain where the encryption
+     *      key is _stored_ and not where it is _used_.
      *
-     * @return encryptionKeyHash The EIP-712 encoded encryption key hash.
+     * @param harbour           The address of the Harbour contract.
+     * @param context           A 32-byte context specific to the public encryption key.
+     * @param publicKey         The public encryption key.
+     * @param harbourChainId    The Harbour chain where the encryption key will be stored.
+     * @param nonce             The encryption key registration nonce.
+     * @param deadline          Deadline for the registration.
+     *
+     * @return registrationHash The EIP-712 encoded encryption key registration hash.
      */
-    function computeEncryptionKeyHash(
-        uint256 chainId,
+    function computeEncryptionKeyRegistrationHash(
         address harbour,
         bytes32 context,
-        bytes32 publicKey
-    ) internal pure returns (bytes32 encryptionKeyHash) {
-        bytes32 domainSeparator = harbourDomainSeparator(chainId, harbour);
-        bytes32 encryptionKeyStructHash = keccak256(
-            abi.encode(ENCRYPTION_KEY_TYPEHASH, context, publicKey)
+        bytes32 publicKey,
+        uint256 harbourChainId,
+        uint256 nonce,
+        uint256 deadline
+    ) internal pure returns (bytes32 registrationHash) {
+        bytes32 domainSeparator = harbourDomainSeparator(harbour);
+        bytes32 registrationStructHash = keccak256(
+            abi.encode(
+                ENCRYPTION_KEY_REGISTRATION_TYPEHASH,
+                context,
+                publicKey,
+                harbourChainId,
+                nonce,
+                deadline
+            )
         );
-        encryptionKeyHash = computeErc712Hash(
+        registrationHash = computeErc712Hash(
             domainSeparator,
-            encryptionKeyStructHash
+            registrationStructHash
         );
     }
 

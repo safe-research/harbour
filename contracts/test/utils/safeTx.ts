@@ -81,7 +81,7 @@ function populateSafeTransaction(partialSafeTx: Partial<SafeTransaction>): SafeT
  * @param safeTx - the Safe transaction to sign
  * @returns The ECDSA signature for the Safe transaction
  */
-async function signSafeTransaction(
+function signSafeTransaction(
 	signer: Pick<Signer, "signTypedData">,
 	safe: string,
 	chainId: bigint,

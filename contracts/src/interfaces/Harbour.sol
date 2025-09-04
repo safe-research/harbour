@@ -11,6 +11,8 @@ interface ISafeSecretHarbour {
         address signer,
         bytes32 context,
         bytes32 publicKey,
+        uint256 nonce,
+        uint256 deadline,
         bytes calldata signature
     ) external;
 
@@ -31,7 +33,11 @@ interface ISafeSecretHarbour {
         address signers
     ) external view returns (EncryptionKey memory encryptionKey);
 
-    function retrieveRegistrations(
+    function retrieveEncryptionKeyRegistrationNonce(
+        address signers
+    ) external view returns (uint256 nonce);
+
+    function retrieveTransactions(
         uint256 chainId,
         address safe,
         uint256 nonce,

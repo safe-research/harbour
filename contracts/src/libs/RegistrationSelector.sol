@@ -2,16 +2,16 @@
 pragma solidity ^0.8.29;
 
 /**
- * @title Safe Secret Harbour Registration Key
- * @dev This registration key is used internally as a mapping key to transaction registration block
- *      numbers. It allows enumeration of block numbers where Safe transactions for a given chain,
- *      Safe, and nonce were registered by a notary.
+ * @title Safe Secret Harbour Registration Selector
+ * @dev This registration selector is used internally as a mapping key to transaction registration
+ *      block numbers. It allows enumeration of block numbers where Safe transactions were
+ *      registered by a notary for a given chain, Safe address, and nonce.
  */
-library RegistrationKey {
+library RegistrationSelector {
     type T is bytes32;
 
     /**
-     * @notice Compute the registration key for a given `(chainId, safe, nonce, signer)` tuple.
+     * @notice Compute the registration selector for a given `(chainId, safe, nonce, signer)` tuple.
      */
     function get(
         uint256 chainId,
@@ -32,12 +32,12 @@ library RegistrationKey {
     }
 
     /**
-     * @notice Computes an opaque unique identifier for the specified registration key and index.
+     * @notice Computes an opaque unique identifier for a registration selector and index.
      *
-     * @dev This UID is indexed in transaction registration events, and can be used to an RPC node
-     *      for Ethereum logs for a specific transaction registration. This allows the harbour
+     * @dev This UID is indexed in transaction registration events, and can be used to query an RPC
+     *      node for Ethereum logs for a specific transaction registration. This allows the harbour
      *      contract to be used without event indexing with RPC nodes that do not support queries
-     *      over large block ranges.
+     *      over large block ranges, without keeping lots amount of data in contract storage.
      */
     function uniqueIdentifier(
         T self,

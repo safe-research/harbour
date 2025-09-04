@@ -7,6 +7,7 @@ import {
 	deterministicX25519KeyPair,
 	encryptSafeTransaction,
 	randomX25519KeyPair,
+	signEncryptionKeyRegistration,
 } from "./utils/encryption";
 import { computeInterfaceId } from "./utils/erc165";
 import {
@@ -29,6 +30,14 @@ describe("SafeInternationalHarbour", () => {
 		const { decryptionKey, encryptionKey } = await randomX25519KeyPair();
 
 		return { deployer, signer, notary, alice, harbour, chainId, safe, decryptionKey, encryptionKey };
+	}
+
+	async function getBlockTimestamp() {
+		const block = await ethers.provider.getBlock("latest");
+		if (block === null) {
+			throw new Error("no latest block");
+		}
+		return block.timestamp;
 	}
 
 	it("should act as an encrypted transaction queue", async () => {
@@ -64,7 +73,7 @@ describe("SafeInternationalHarbour", () => {
 
 		async function getPendingTransactionsGroupedByHash() {
 			const registrations = await Promise.all(
-				notaries.map((notary) => harbour.retrieveRegistrations(chainId, safe, nonce, notary, 0, 10)),
+				notaries.map((notary) => harbour.retrieveTransactions(chainId, safe, nonce, notary, 0, 10)),
 			);
 			const details = await Promise.all(
 				registrations
@@ -206,8 +215,8 @@ describe("SafeInternationalHarbour", () => {
 	it("should report support for the secret harbour interface", async () => {
 		const { harbour } = await loadFixture(deployFixture);
 
-		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0xe18a4e58");
-		for (const interfaceId of ["0x01ffc9a7", "0xe18a4e58"]) {
+		expect(await computeInterfaceId("ISafeSecretHarbour")).to.equal("0xe030e473");
+		for (const interfaceId of ["0x01ffc9a7", "0xe030e473"]) {
 			expect(await harbour.supportsInterface(interfaceId)).to.be.true;
 		}
 	});
@@ -253,22 +262,41 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const signature = await signer.signTypedData(
-			{
-				verifyingContract: await harbour.getAddress(),
-				salt: ethers.toBeHex(chainId, 32),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
-		await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature);
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = (await getBlockTimestamp()) + 600; // 10 minutes.
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature);
 		const storedEncryptionKey = await harbour.retrieveEncryptionKey(signer);
 		expect(storedEncryptionKey).to.deep.equal([context, encryptionKey]);
+	});
+
+	it("should increment the nonce when registering an encryption key on behalf of a signer", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const startingNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+
+		for (let i = 0; i < 5; i++) {
+			const nonce = startingNonce + BigInt(i);
+			const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+				context,
+				publicKey: encryptionKey,
+				harbourChainId: chainId,
+				nonce,
+				deadline,
+			});
+			await harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature);
+			const storedNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+			expect(storedNonce).to.equal(nonce + 1n);
+		}
 	});
 
 	it("should emit a key registration event when registering on behalf of a signer", async () => {
@@ -276,22 +304,96 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const signature = await signer.signTypedData(
-			{
-				verifyingContract: await harbour.getAddress(),
-				salt: ethers.toBeHex(chainId, 32),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
-		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature))
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
 			.to.emit(harbour, "EncryptionKeyRegistered")
 			.withArgs(signer.address, context, encryptionKey);
+	});
+
+	it("should revert if the encryption key registration nonce is invalid", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const currentNonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const nonce = 42n;
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
+			.to.be.revertedWithCustomError(harbour, "InvalidEncryptionKeyRegistrationNonce")
+			.withArgs(currentNonce);
+	});
+
+	it("should revert when replaying encryption key registrations", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature)).to.not.be
+			.reverted;
+		await expect(harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature))
+			.to.be.revertedWithCustomError(harbour, "InvalidEncryptionKeyRegistrationNonce")
+			.withArgs(nonce + 1n);
+	});
+
+	it("should revert when encryption key deadline has expired", async () => {
+		const { signer, harbour, encryptionKey } = await loadFixture(deployFixture);
+
+		const context = ethers.id("context");
+		const { chainId } = await ethers.provider.getNetwork();
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const timestamp = await getBlockTimestamp();
+
+		for (const [deadline, ok] of [
+			[0, false],
+			[timestamp - 1, false],
+			[timestamp, true],
+			[timestamp + 1, true],
+		] as const) {
+			const signature = await signEncryptionKeyRegistration(signer, await harbour.getAddress(), {
+				context,
+				publicKey: encryptionKey,
+				harbourChainId: chainId,
+				nonce,
+				deadline,
+			});
+			const call = harbour.registerEncryptionKeyFor.staticCall(
+				signer,
+				context,
+				encryptionKey,
+				nonce,
+				deadline,
+				signature,
+			);
+			if (ok) {
+				await expect(call).to.not.be.reverted;
+			} else {
+				await expect(call).to.be.revertedWithCustomError(harbour, "EncryptionKeyRegistrationExpired");
+			}
+		}
 	});
 
 	it("should revert when encryption key authentication is invalid", async () => {
@@ -299,19 +401,15 @@ describe("SafeInternationalHarbour", () => {
 
 		const context = ethers.id("context");
 		const { chainId } = await ethers.provider.getNetwork();
-		const aliceSignature = await alice.signTypedData(
-			{
-				chainId,
-				verifyingContract: await harbour.getAddress(),
-			},
-			{
-				EncryptionKey: [
-					{ name: "context", type: "bytes32" },
-					{ name: "publicKey", type: "bytes32" },
-				],
-			},
-			{ context, publicKey: encryptionKey },
-		);
+		const nonce = await harbour.retrieveEncryptionKeyRegistrationNonce(signer);
+		const deadline = ethers.MaxUint256;
+		const aliceSignature = await signEncryptionKeyRegistration(alice, await harbour.getAddress(), {
+			context,
+			publicKey: encryptionKey,
+			harbourChainId: chainId,
+			nonce,
+			deadline,
+		});
 
 		for (const [signature, error] of [
 			["0x1234", "InvalidECDSASignatureLength"],
@@ -319,7 +417,7 @@ describe("SafeInternationalHarbour", () => {
 			[aliceSignature, "UnexpectedSigner"],
 		]) {
 			await expect(
-				harbour.registerEncryptionKeyFor(signer, context, encryptionKey, signature),
+				harbour.registerEncryptionKeyFor(signer, context, encryptionKey, nonce, deadline, signature),
 			).to.be.revertedWithCustomError(harbour, error);
 		}
 	});
@@ -441,8 +539,8 @@ describe("SafeInternationalHarbour", () => {
 		const register = await harbour.connect(notary).enqueueTransaction(...params);
 		const receipt = await register.wait();
 
-		const registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, safeTx.nonce, notary);
-		const [registrations] = await harbour.retrieveRegistrations(
+		const registrationCount = await harbour.retrieveTransactionCount(chainId, safe, safeTx.nonce, notary);
+		const [registrations] = await harbour.retrieveTransactions(
 			chainId,
 			safe,
 			safeTx.nonce,
@@ -495,7 +593,7 @@ describe("SafeInternationalHarbour", () => {
 				.enqueueTransaction(chainId, safe, nonce, safeTxStructHash, signature, encryptionBlob);
 		}
 
-		expect(await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary)).to.equal(1);
+		expect(await harbour.retrieveTransactionCount(chainId, safe, nonce, notary)).to.equal(1);
 	});
 
 	it("should allow registering the same transaction more than once", async () => {
@@ -515,7 +613,7 @@ describe("SafeInternationalHarbour", () => {
 			harbour.connect(notary).enqueueTransaction(chainId, safe, safeTx.nonce, safeTxStructHash, "0x", encryptionBlob),
 		).to.emit(harbour, "SafeTransactionRegistered");
 
-		expect(await harbour.retrieveRegistrationCount(chainId, safe, safeTx.nonce, notary)).to.equal(2);
+		expect(await harbour.retrieveTransactionCount(chainId, safe, safeTx.nonce, notary)).to.equal(2);
 	});
 
 	it("should revert when repeating a signature for the same transaction", async () => {
@@ -571,7 +669,7 @@ describe("SafeInternationalHarbour", () => {
 		// Alice can retrieve registrations for a specific Safe, nonce and signers (you). The
 		// registration handle is enough to make a log query that **only** returns the data for the
 		// transaction you registered, on a range including only a single block.
-		const [[[blockNumber, uid]]] = await harbour.retrieveRegistrations(chainId, safe, safeTx.nonce, notary, 0, 1);
+		const [[[blockNumber, uid]]] = await harbour.retrieveTransactions(chainId, safe, safeTx.nonce, notary, 0, 1);
 
 		const [{ args }] = await harbour.queryFilter(
 			harbour.filters.SafeTransactionRegistered(uid),
@@ -611,26 +709,26 @@ describe("SafeInternationalHarbour", () => {
 		}
 
 		// Retrieve total count
-		const registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary);
+		const registrationCount = await harbour.retrieveTransactionCount(chainId, safe, nonce, notary);
 		expect(registrationCount).to.equal(5);
 
 		// Page 1: start=0, count=2
-		let [page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 0, 2);
+		let [page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 0, 2);
 		expect(page).to.deep.equal(registrations.slice(0, 2));
 		expect(count).to.equal(5);
 
 		// Page 2: start=2, count=2
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 2, 2);
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 2, 2);
 		expect(page).to.deep.equal(registrations.slice(2, 4));
 		expect(count).to.equal(5);
 
 		// Page 3: start=4, count=2 (only 1 element left)
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 4, 2);
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 4, 2);
 		expect(page).to.deep.equal(registrations.slice(4, 5));
 		expect(count).to.equal(5);
 	});
 
-	it("should return empty array for retrieveRegistrations when start index >= totalCount", async () => {
+	it("should return empty array for retrieveTransactions when start index >= totalCount", async () => {
 		const { signer, notary, harbour, chainId, safe, encryptionKey } = await loadFixture(deployFixture);
 
 		const nonce = 8n;
@@ -643,27 +741,27 @@ describe("SafeInternationalHarbour", () => {
 
 		await harbour.connect(notary).enqueueTransaction(chainId, safe, nonce, safeTxStructHash, signature, encryptionBlob);
 
-		const registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary);
+		const registrationCount = await harbour.retrieveTransactionCount(chainId, safe, nonce, notary);
 		expect(registrationCount).to.equal(1);
 
 		// Start index == totalCount
-		let [page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 1, 10);
+		let [page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 1, 10);
 		expect(page).to.deep.equal([]);
 		expect(count).to.equal(1);
 
 		// Start index > totalCount
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 2, 10);
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 2, 10);
 		expect(page).to.deep.equal([]);
 		expect(count).to.equal(1);
 	});
 
-	it("should return correct total count via retrieveRegistrationCount", async () => {
+	it("should return correct total count via retrieveTransactionCount", async () => {
 		const { signer, notary, harbour, chainId, safe, encryptionKey } = await loadFixture(deployFixture);
 
 		const nonce = 9n;
 
 		// Check count when empty
-		let registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary);
+		let registrationCount = await harbour.retrieveTransactionCount(chainId, safe, nonce, notary);
 		expect(registrationCount).to.equal(0);
 
 		for (let i = 0; i < 3; i++) {
@@ -682,7 +780,7 @@ describe("SafeInternationalHarbour", () => {
 		}
 
 		// Check count after adding
-		registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary);
+		registrationCount = await harbour.retrieveTransactionCount(chainId, safe, nonce, notary);
 		expect(registrationCount).to.equal(3);
 	});
 
@@ -706,27 +804,27 @@ describe("SafeInternationalHarbour", () => {
 		}
 
 		// Case 1: count = 0
-		let [page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 0, 0);
+		let [page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 0, 0);
 		expect(page.length).to.equal(0);
 		expect(count).to.equal(2);
 
 		// Case 2: start > 0, count = 0
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 1, 0);
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 1, 0);
 		expect(page.length).to.equal(0);
 		expect(count).to.equal(2);
 
 		// Case 3: count > totalCount
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 0, 10); // Ask for 10, only 2 exist
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 0, 10); // Ask for 10, only 2 exist
 		expect(page.length).to.equal(2);
 		expect(count).to.equal(2);
 
 		// Case 4: start > 0, count > remaining
-		[page, count] = await harbour.retrieveRegistrations(chainId, safe, nonce, notary, 1, 10); // Ask for 10 starting at 1, only 1 left
+		[page, count] = await harbour.retrieveTransactions(chainId, safe, nonce, notary, 1, 10); // Ask for 10 starting at 1, only 1 left
 		expect(page.length).to.equal(1);
 		expect(count).to.equal(2);
 	});
 
-	it("should return zero via retrieveRegistrationCount for unknown chainId/safe/nonce/signer", async () => {
+	it("should return zero via retrieveTransactionCount for unknown chainId/safe/nonce/signer", async () => {
 		const { signer, notary, alice, harbour, chainId, safe, encryptionKey } = await loadFixture(deployFixture);
 
 		const nonce = 11n;
@@ -738,12 +836,12 @@ describe("SafeInternationalHarbour", () => {
 		const encryptionBlob = await encryptSafeTransaction(safeTx, [encryptionKey]);
 		await harbour.connect(notary).enqueueTransaction(chainId, safe, nonce, safeTxStructHash, signature, encryptionBlob);
 
-		expect(await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary)).to.equal(1);
+		expect(await harbour.retrieveTransactionCount(chainId, safe, nonce, notary)).to.equal(1);
 
-		expect(await harbour.retrieveRegistrationCount(chainId + 1n, safe, nonce, notary)).to.equal(0);
-		expect(await harbour.retrieveRegistrationCount(chainId, otherSafe, nonce, notary)).to.equal(0);
-		expect(await harbour.retrieveRegistrationCount(chainId, safe, nonce + 1n, notary)).to.equal(0);
-		expect(await harbour.retrieveRegistrationCount(chainId, safe, nonce, alice)).to.equal(0);
+		expect(await harbour.retrieveTransactionCount(chainId + 1n, safe, nonce, notary)).to.equal(0);
+		expect(await harbour.retrieveTransactionCount(chainId, otherSafe, nonce, notary)).to.equal(0);
+		expect(await harbour.retrieveTransactionCount(chainId, safe, nonce + 1n, notary)).to.equal(0);
+		expect(await harbour.retrieveTransactionCount(chainId, safe, nonce, alice)).to.equal(0);
 	});
 
 	it("should compute a unique registration identifier for event filtering", async () => {
@@ -785,7 +883,7 @@ describe("SafeInternationalHarbour", () => {
 				.withArgs(uid, safeTxHash, encryptionBlob);
 		}
 
-		const registrationCount = await harbour.retrieveRegistrationCount(chainId, safe, nonce, notary);
+		const registrationCount = await harbour.retrieveTransactionCount(chainId, safe, nonce, notary);
 		expect(registrationCount).to.equal(5);
 	});
 });
