@@ -1,7 +1,7 @@
 import { x25519 } from "@noble/curves/ed25519";
 import { type BytesLike, ethers } from "ethers";
 import { GeneralEncrypt, generalDecrypt, type Recipient } from "jose";
-import type { SafeTransaction } from "./types";
+import type { SafeTransaction } from "@/lib/types";
 
 type Hex = string;
 
