@@ -359,6 +359,15 @@ async function signAndEnqueueSafeTransaction(
 	return receipt;
 }
 
+/**
+ * The encryption key information that is stored onchain with Secret Harbour.
+ */
+interface EncryptionKey {
+	context: string;
+	publicKey: string;
+}
+
+export type { EncryptionKey };
 export {
 	HARBOUR_CHAIN_ID,
 	enqueueSafeTransaction,
