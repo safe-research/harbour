@@ -15,14 +15,14 @@ async function importKeyPair(secret: BytesLike): Promise<CryptoKeyPair> {
 
 	// Because x25519 private keys are always 32 bytes, we can pretty trivially
 	// PKCS #8 encode the private key in ASN.1 BER[1] format for importing the
-	// private key with the Crypto Subtle API by just contenating a prefix to
+	// private key with the Crypto Subtle API by just concatenating a prefix to
 	// the raw private key bytes (`#xx` represent byte lengths):
 	//
 	// 30 #2e             - `PrivateKeyInfo`[2] constructed sequence
 	//   02 #01 00        - `version` value of 0
 	//   30 #05           - `AlgorithmIdentifier`[3] constructed sequence
 	//     06 #03 2b656e  - The algorithm object identifier for x25519[4]
-	//   04 #22]           - `PrivateKey` octet string
+	//   04 #22           - `PrivateKey` octet string
 	//     04 #20 <KEY>   - For x25519, the BER encoded 32-byte octet string
 	//
 	// [1]: <https://en.wikipedia.org/wiki/X.690>
@@ -153,7 +153,7 @@ async function encryptSafeTransaction(
 	// we can use it for doing ECDH, meaning that we no longer need to include
 	// the x25519 key information in JWE blob. For our demo, and to write less
 	// code, lets just be wasteful...
-	// @ts-ignore
+	// @ts-expect-error
 	const _todo = privateKey;
 
 	const encoded = rlpEncodeSafeTransaction(transaction);
