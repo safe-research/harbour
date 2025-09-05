@@ -80,16 +80,17 @@ async function exportPublicKey({
  * RLP-encode a Safe transaction for encryption.
  */
 function rlpEncodeSafeTransaction(safeTx: SafeTransaction): Uint8Array {
-	const n = ethers.toBeArray;
+	const quantityToField = ethers.toBeArray;
+	const operationToField = ethers.toBeArray;
 	return ethers.getBytes(
 		ethers.encodeRlp([
 			safeTx.to,
-			n(safeTx.value),
+			quantityToField(safeTx.value),
 			safeTx.data,
-			n(safeTx.operation),
-			n(safeTx.safeTxGas),
-			n(safeTx.baseGas),
-			n(safeTx.gasPrice),
+			operationToField(safeTx.operation),
+			quantityToField(safeTx.safeTxGas),
+			quantityToField(safeTx.baseGas),
+			quantityToField(safeTx.gasPrice),
 			safeTx.gasToken,
 			safeTx.refundReceiver,
 		]),
@@ -110,13 +111,13 @@ function rlpDecodeSafeTransaction(data: BytesLike): SafeTransaction {
 	}
 	const fields = decoded as string[];
 
-	const a = ethers.getAddress;
-	const n = (field: string) =>
+	const fieldToAddress = ethers.getAddress;
+	const fieldToQuantity = (field: string) =>
 		field === "0x"
 			? "0x0"
 			: ethers.toQuantity(BigInt(ethers.toBeHex(field, 32)));
-	const o = (field: string) => {
-		const value = n(field);
+	const fieldToOperation = (field: string) => {
+		const value = fieldToQuantity(field);
 		if (value === "0x0") {
 			return 0;
 		}
@@ -127,15 +128,15 @@ function rlpDecodeSafeTransaction(data: BytesLike): SafeTransaction {
 	};
 
 	return {
-		to: a(fields[0]),
-		value: n(fields[1]),
+		to: fieldToAddress(fields[0]),
+		value: fieldToQuantity(fields[1]),
 		data: fields[2],
-		operation: o(fields[3]),
-		safeTxGas: n(fields[4]),
-		baseGas: n(fields[5]),
-		gasPrice: n(fields[6]),
-		gasToken: a(fields[7]),
-		refundReceiver: a(fields[8]),
+		operation: fieldToOperation(fields[3]),
+		safeTxGas: fieldToQuantity(fields[4]),
+		baseGas: fieldToQuantity(fields[5]),
+		gasPrice: fieldToQuantity(fields[6]),
+		gasToken: fieldToAddress(fields[7]),
+		refundReceiver: fieldToAddress(fields[8]),
 	};
 }
 
@@ -147,12 +148,17 @@ async function encryptSafeTransaction(
 	{ privateKey }: Pick<CryptoKeyPair, "privateKey">,
 	recipientPublicKeys: CryptoKey[],
 ): Promise<Hex> {
-	// TODO: `jose` generates a random x25519 private key per receiver for
-	// encrypting the symmetric encryption key. In our case, this is wasteful as
-	// we already have a private x25519 that we generate with our session, and
-	// we can use it for doing ECDH, meaning that we no longer need to include
-	// the x25519 key information in JWE blob. For our demo, and to write less
-	// code, lets just be wasteful...
+	// TODO: `jose` generates a random ephemeral x25519 private key
+	// per recipient for encrypting the symmetric encryption key. In
+	// our case, this is wasteful as we already have a private x25519
+	// that we generate with our session and is public onchain. We
+	// should eventually change our encryption routine to do ECDH
+	// directly with our session private key, which would allow us to
+	// include one less recipient (we would no longer need to encrypt
+	// for "self"), and not encode the ephemeral public key per
+	// recipient in the JWE blob (the recipients can read our public
+	// key from Secret Harbour). This woud reduce the overall size of
+	// what we need to store with Secret Harbour.
 	// @ts-expect-error
 	const _todo = privateKey;
 
