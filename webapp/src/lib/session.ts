@@ -13,6 +13,16 @@ import type { EncryptionKey } from "@/lib/harbour";
 type Address = string;
 type Hex = string;
 
+/**
+ * A domain separator used for deriving session secrets from some shared
+ * entropy. This ensures that we do not reuse secret material for different
+ * purposes in a single session.
+ */
+enum Domain {
+	ENCRYPT = 0,
+	RELAY = 1,
+}
+
 const sessionTokenSchema = z.object({
 	type: z.literal("harbour:session:v1"),
 	seed: z.string().regex(/^0x[0-9a-f]{64}$/),
@@ -133,7 +143,7 @@ function deriveSeed(signature: SignatureLike): Hex {
 }
 
 function deriveSecret(
-	domain: number,
+	domain: Domain,
 	{ seed }: Pick<SessionToken, "seed">,
 ): Hex {
 	return ethers.solidityPackedKeccak256(["uint8", "bytes32"], [domain, seed]);
@@ -142,13 +152,13 @@ function deriveSecret(
 async function deriveEncryptionKeyPair(
 	token: Pick<SessionToken, "seed">,
 ): Promise<CryptoKeyPair> {
-	const secret = deriveSecret(0, token);
-	return await importKeyPair(secret);
+	const privateKey = deriveSecret(Domain.ENCRYPT, token);
+	return await importKeyPair(privateKey);
 }
 
 function deriveRelayerWallet(token: Pick<SessionToken, "seed">): Wallet {
-	const secret = deriveSecret(1, token);
-	return new Wallet(secret);
+	const privateKey = deriveSecret(Domain.RELAY, token);
+	return new Wallet(privateKey);
 }
 
 function encodeContext({
