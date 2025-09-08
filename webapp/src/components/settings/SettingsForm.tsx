@@ -103,14 +103,14 @@ function SettingsForm({
 				register={register}
 				error={errors.harbourAddress}
 				label="Harbour Address"
-				placeholder="0x...."
+				placeholder="0x..."
 			/>
 			<FormItem
 				id="quotaManagerAddress"
 				register={register}
 				error={errors.quotaManagerAddress}
 				label="Quota Manager Address"
-				placeholder="0x...."
+				placeholder="0x..."
 			/>
 			<FormItem
 				id="bundlerUrl"

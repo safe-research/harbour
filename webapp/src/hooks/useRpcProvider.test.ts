@@ -28,12 +28,8 @@ describe("useHarbourRpcProvider", () => {
 				.mockResolvedValue({ rpcUrl: "https://rpc.harbour" }),
 		}));
 		vi.doMock("../lib/chains", () => ({ getRpcUrlByChainId: vi.fn() }));
-		const { useHarbourRpcProvider, DEFAULT_PROVIDER_OPTIONS } = await import(
-			"./useRpcProvider"
-		);
-		const { result } = renderHook(() =>
-			useHarbourRpcProvider(DEFAULT_PROVIDER_OPTIONS),
-		);
+		const { useHarbourRpcProvider } = await import("./useRpcProvider");
+		const { result } = renderHook(() => useHarbourRpcProvider());
 		await waitFor(() => {
 			expect(result.current.provider).not.toBeNull();
 			expect(result.current.error).toBeNull();
@@ -48,12 +44,8 @@ describe("useHarbourRpcProvider", () => {
 		vi.doMock("../lib/chains", () => ({
 			getRpcUrlByChainId: vi.fn().mockResolvedValue("https://rpc.fallback"),
 		}));
-		const { useHarbourRpcProvider, DEFAULT_PROVIDER_OPTIONS } = await import(
-			"./useRpcProvider"
-		);
-		const { result } = renderHook(() =>
-			useHarbourRpcProvider(DEFAULT_PROVIDER_OPTIONS),
-		);
+		const { useHarbourRpcProvider } = await import("./useRpcProvider");
+		const { result } = renderHook(() => useHarbourRpcProvider());
 		await waitFor(() => {
 			expect(result.current.provider).not.toBeNull();
 			expect(result.current.error).toBeNull();
