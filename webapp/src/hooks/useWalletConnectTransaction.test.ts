@@ -21,6 +21,9 @@ const params = {
 	topic: "topic",
 	reqId: "42",
 };
+const props = {
+	encryptedQueue: null,
+};
 
 vi.mock("@/contexts/WakuContext", () => ({ useWaku: () => ({}) }));
 vi.mock("@/hooks/walletConnect", () => ({
@@ -59,7 +62,7 @@ describe("useWalletConnectTransaction", () => {
 		const { useWalletConnectTransaction } = await import(
 			"./useWalletConnectTransaction"
 		);
-		const { result } = renderHook(() => useWalletConnectTransaction());
+		const { result } = renderHook(() => useWalletConnectTransaction(props));
 		await act(async () => {
 			await result.current.submitTransaction(params);
 		});
@@ -80,7 +83,7 @@ describe("useWalletConnectTransaction", () => {
 		const { useWalletConnectTransaction } = await import(
 			"./useWalletConnectTransaction"
 		);
-		const { result } = renderHook(() => useWalletConnectTransaction());
+		const { result } = renderHook(() => useWalletConnectTransaction(props));
 		await act(async () => {
 			await result.current.submitTransaction(params);
 		});
@@ -110,7 +113,7 @@ describe("useWalletConnectTransaction", () => {
 		const { useWalletConnectTransaction } = await import(
 			"./useWalletConnectTransaction"
 		);
-		const { result } = renderHook(() => useWalletConnectTransaction());
+		const { result } = renderHook(() => useWalletConnectTransaction(props));
 		await act(async () => {
 			await result.current.submitTransaction(params);
 		});
@@ -132,7 +135,7 @@ describe("useWalletConnectTransaction", () => {
 		const { useWalletConnectTransaction } = await import(
 			"./useWalletConnectTransaction"
 		);
-		const { result } = renderHook(() => useWalletConnectTransaction());
+		const { result } = renderHook(() => useWalletConnectTransaction(props));
 		await act(async () => {
 			await result.current.submitTransaction(params);
 			result.current.clearResult();

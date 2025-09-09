@@ -44,6 +44,7 @@ describe("useSignAndEnqueue", () => {
 				browserProvider,
 				config,
 				parser,
+				encryptedQueue: null,
 			}),
 		);
 		await act(async () => {
@@ -71,6 +72,7 @@ describe("useSignAndEnqueue", () => {
 				browserProvider,
 				config,
 				parser,
+				encryptedQueue: null,
 			}),
 		);
 		await act(async () => {
@@ -100,6 +102,7 @@ describe("useSignAndEnqueue", () => {
 				config,
 				parser,
 				onEnqueued,
+				encryptedQueue: null,
 			}),
 		);
 		await act(async () => {

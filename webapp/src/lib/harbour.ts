@@ -14,9 +14,10 @@ import type { SessionKeys } from "@/contexts/SessionContext";
 import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
+import { encryptSafeTransaction, importPublicKey } from "./encryption";
 import { aggregateMulticall } from "./multicall";
 import type { SafeConfiguration } from "./safe";
-import { signSafeTransaction } from "./safe";
+import { getSafeTransactionStructHash, signSafeTransaction } from "./safe";
 import type {
 	ChainId,
 	FullSafeTransaction,
@@ -362,6 +363,20 @@ async function getHarbourChainId(
 }
 
 /**
+ * Secret Harbour encrypted queue parameters.
+ */
+type EncryptedQueueParams =
+	| {
+			operation: "encrypt-and-sign";
+			sessionKeys: SessionKeys;
+			recipientPublicKeys: CryptoKey[];
+	  }
+	| {
+			operation: "sign-only";
+			sessionKeys: Pick<SessionKeys, "relayer">;
+	  };
+
+/**
  * Signs a Safe transaction and enqueues it to the Harbour contract.
  * This function handles the complete flow:
  * 1. Switches to the Safe's chain for signing
@@ -375,9 +390,33 @@ async function getHarbourChainId(
  */
 async function signAndEnqueueSafeTransaction(
 	walletProvider: JsonRpcApiProvider,
-	transaction: FullSafeTransaction,
+	transactionRequest: FullSafeTransaction,
 	waku: WakuManager,
+	encryptedQueue: EncryptedQueueParams | null,
 ) {
+	// When using encrypted harbour and adding a new transaction, try and add
+	// some entropy to the transaction so that it isn't guessable. Otherwise an
+	// attacker can potentially fairly trivially mine a `safeTxHash` preimage,
+	// especially for Safes that tend to do limited set of operations.
+	const transaction = { ...transactionRequest };
+	if (encryptedQueue?.operation === "encrypt-and-sign") {
+		// Safe transactions have a built-in fee payment mechanism, which is
+		// controlled on-or-off by the `gasPrice` parameter. That is, if
+		// `gasPrice == 0`, then the fee payment logic is disabled, and there
+		// are three additional gas-related properties (`baseGas`, `gasToken`
+		// and `refundReceiver`) that have no effect on the actual Safe
+		// transaction execution when the fee payment logic is disabled, which
+		// we can use to inject some entropy to make the transaction unfeasible
+		// to guess. We chose `gasToken` as it is the least error prone (if we
+		// incorrectly overwrite this field, then the relayer will be at a loss,
+		// as no tokens will be transferred, and not the account itself).
+		if (BigInt(transaction.gasPrice) === 0n) {
+			transaction.gasToken = ethers.getAddress(
+				ethers.hexlify(ethers.randomBytes(20)),
+			);
+		}
+	}
+
 	// Switch to Safe's chain for signing
 	await switchToChain(walletProvider, transaction.chainId);
 	const signer = await walletProvider.getSigner();
@@ -441,7 +480,18 @@ async function signAndEnqueueSafeTransaction(
 	// Harbour.
 	if (harbour.type === "secret") {
 		console.log("Use Secret Harbour");
-		throw new Error("not yet implemented");
+		if (!encryptedQueue) {
+			throw new Error("Secret Harbour missing encrypted queue parameters");
+		}
+		const harbourProvider = harbour.secret.runner as JsonRpcProvider;
+		const relayer = encryptedQueue.sessionKeys.relayer.connect(harbourProvider);
+		const receipt = await encryptAndEnqueueSafeTransaction(
+			harbour.secret.connect(relayer) as Contract,
+			transaction,
+			signature,
+			encryptedQueue,
+		);
+		return receipt;
 	}
 
 	// Transaction cannot be relayed. User has to submit the transaction
@@ -454,6 +504,37 @@ async function signAndEnqueueSafeTransaction(
 		currentSettings,
 	);
 	return receipt;
+}
+
+/**
+ * Encrypt and enqueue a Safe trnasction to Secret Harbour.
+ */
+async function encryptAndEnqueueSafeTransaction(
+	secretHarbour: Contract,
+	transaction: FullSafeTransaction,
+	signature: string,
+	encryptedQueue: EncryptedQueueParams,
+) {
+	const transactionHash = getSafeTransactionStructHash(transaction);
+	// As a gas optimization, we do not re-publish the encryption blob in the
+	// case that an already registered transaction is being signed.
+	const encryptionBlob =
+		encryptedQueue.operation === "encrypt-and-sign"
+			? await encryptSafeTransaction(
+					transaction,
+					encryptedQueue.sessionKeys.encryption,
+					encryptedQueue.recipientPublicKeys,
+				)
+			: "0x";
+	const enqueue = await secretHarbour.enqueueTransaction(
+		transaction.chainId,
+		transaction.safeAddress,
+		transaction.nonce,
+		transactionHash,
+		signature,
+		encryptionBlob,
+	);
+	return await enqueue.wait();
 }
 
 /**
@@ -574,7 +655,46 @@ async function signAndRegisterEncryptionKey({
 	return await transaction.wait();
 }
 
-export type { EncryptionKey, HarbourContractSettings };
+interface FetchEncryptionPublicKeysParams {
+	safeConfig: Pick<SafeConfiguration, "owners">;
+}
+
+/**
+ * Fetches public encryption keys for a Safe owner. Returns `null` if the
+ * currently configured Harbour contract does not support encryption.
+ */
+async function fetchEncryptionPublicKeys({
+	safeConfig: { owners },
+}: FetchEncryptionPublicKeysParams): Promise<Record<
+	string,
+	CryptoKey | undefined
+> | null> {
+	const harbour = await getHarbourContract();
+	if (harbour.type !== "secret") {
+		throw new Error("Only Secret Harbour may fetch public encryption keys");
+	}
+
+	const publicKeys = await harbour.secret.retrieveEncryptionPublicKeys([
+		...owners,
+	]);
+	const ownerPublicKeys = await Promise.all(
+		(publicKeys as string[]).map(async (publicKey, i) => {
+			try {
+				return [owners[i], await importPublicKey(publicKey)] as const;
+			} catch {
+				return [owners[i], null] as const;
+			}
+		}),
+	);
+	return Object.fromEntries(
+		ownerPublicKeys.filter(([, publicKey]) => publicKey) as [
+			string,
+			CryptoKey,
+		][],
+	);
+}
+
+export type { EncryptionKey, HarbourContractSettings, EncryptedQueueParams };
 export {
 	HARBOUR_CHAIN_ID,
 	HARBOUR_ADDRESS,
@@ -582,6 +702,7 @@ export {
 	fetchSafeQueue,
 	supportsEncryption,
 	fetchEncryptionKey,
+	fetchEncryptionPublicKeys,
 	signAndEnqueueSafeTransaction,
 	signAndRegisterEncryptionKey,
 };

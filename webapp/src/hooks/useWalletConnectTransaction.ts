@@ -3,8 +3,15 @@ import { ethers } from "ethers";
 import { useCallback, useState } from "react";
 import { useWaku } from "@/contexts/WakuContext";
 import { useWalletConnect } from "@/hooks/walletConnect";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
+import {
+	type EncryptedQueueParams,
+	signAndEnqueueSafeTransaction,
+} from "@/lib/harbour";
 import { getSafeTransaction } from "@/lib/safe";
+
+type UseWalletConnectTransactionParams = {
+	encryptedQueue: EncryptedQueueParams | null;
+};
 
 type WalletConnectTransactionParams = {
 	safeAddress: string;
@@ -32,7 +39,9 @@ type WalletConnectTransactionResult = {
  *
  * @returns Object containing transaction result state and submission functions
  */
-export function useWalletConnectTransaction() {
+export function useWalletConnectTransaction({
+	encryptedQueue,
+}: UseWalletConnectTransactionParams) {
 	const waku = useWaku();
 	const { walletkit } = useWalletConnect();
 	const [result, setResult] = useState<WalletConnectTransactionResult>({
@@ -76,6 +85,7 @@ export function useWalletConnectTransaction() {
 					browserProvider,
 					transaction,
 					waku,
+					encryptedQueue,
 				);
 
 				// 2. Attempt to respond to WalletConnect session (separate from transaction success)
@@ -146,7 +156,7 @@ export function useWalletConnectTransaction() {
 				});
 			}
 		},
-		[walletkit, waku],
+		[walletkit, waku, encryptedQueue],
 	);
 
 	/**

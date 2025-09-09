@@ -1,23 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import z from "zod";
+import { BackToDashboardButton } from "@/components/BackButton";
+import { RequireWallet, useWalletProvider } from "@/components/RequireWallet";
+import { BatchTransactionForm } from "@/components/transaction-forms/BatchTransactionForm";
+import { ERC20TransferForm } from "@/components/transaction-forms/ERC20TransferForm";
+import { NativeTransferForm } from "@/components/transaction-forms/NativeTransferForm";
+import { RawTransactionForm } from "@/components/transaction-forms/RawTransactionForm";
+import { WalletConnectTransactionForm } from "@/components/transaction-forms/WalletConnectTransactionForm";
+import { useSession } from "@/contexts/SessionContext";
+import { useEncryptionPublicKeys } from "@/hooks/useEncryptionPublicKeys";
+import { useChainlistRpcProvider } from "@/hooks/useRpcProvider";
+import { useSafeConfiguration } from "@/hooks/useSafeConfiguration";
+import type { ChainId } from "@/lib/types";
 import {
 	ethereumAddressSchema,
 	hexDataSchema,
 	safeIdSchema,
 } from "@/lib/validators";
-import { BackToDashboardButton } from "../components/BackButton";
-import { RequireWallet, useWalletProvider } from "../components/RequireWallet";
-import { BatchTransactionForm } from "../components/transaction-forms/BatchTransactionForm";
-import { ERC20TransferForm } from "../components/transaction-forms/ERC20TransferForm";
-import { NativeTransferForm } from "../components/transaction-forms/NativeTransferForm";
-import { RawTransactionForm } from "../components/transaction-forms/RawTransactionForm";
-import { WalletConnectTransactionForm } from "../components/transaction-forms/WalletConnectTransactionForm";
-import { useChainlistRpcProvider } from "../hooks/useRpcProvider";
-import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
-import type { ChainId } from "../lib/types";
 
 interface BaseEnqueueContentProps {
 	browserProvider: BrowserProvider;
@@ -71,9 +73,14 @@ function EnqueueContent(props: EnqueueContentProps) {
 		isLoading: isLoadingConfig,
 		error: configError,
 	} = useSafeConfiguration(rpcProvider, safeAddress);
+	const {
+		data: encryptionPublicKeys,
+		isLoading: isLoadingEncryptionPublicKeys,
+		error: encryptionPublicKeysError,
+	} = useEncryptionPublicKeys({ safeConfig: config });
+	const { keys: sessionKeys } = useSession();
 
 	let pageTitle = "Enqueue Transaction";
-
 	switch (flow) {
 		case "batch":
 			pageTitle = "Enqueue Batched Transactions";
@@ -92,6 +99,18 @@ function EnqueueContent(props: EnqueueContentProps) {
 			break;
 	}
 
+	const encryptedQueue = useMemo(() => {
+		if (encryptionPublicKeys?.enabled !== true || !sessionKeys) {
+			return null;
+		}
+
+		return {
+			operation: "encrypt-and-sign",
+			sessionKeys,
+			recipientPublicKeys: encryptionPublicKeys.publicKeys,
+		} as const;
+	}, [encryptionPublicKeys, sessionKeys]);
+
 	let formComponent: ReactNode | null = null;
 	if (config) {
 		switch (flow) {
@@ -103,6 +122,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
+						encryptedQueue={encryptedQueue}
 					/>
 				);
 				break;
@@ -114,6 +134,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
+						encryptedQueue={encryptedQueue}
 						tokenAddress={
 							props.flow === "erc20" ? props.tokenAddress : undefined
 						}
@@ -128,6 +149,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
+						encryptedQueue={encryptedQueue}
 					/>
 				);
 				break;
@@ -140,6 +162,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 							browserProvider={browserProvider}
 							rpcProvider={rpcProvider}
 							config={config}
+							encryptedQueue={encryptedQueue}
 							txTo={props.txTo}
 							txData={props.txData}
 							txValue={props.txValue}
@@ -161,6 +184,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 						browserProvider={browserProvider}
 						rpcProvider={rpcProvider}
 						config={config}
+						encryptedQueue={encryptedQueue}
 					/>
 				);
 		}
@@ -171,7 +195,10 @@ function EnqueueContent(props: EnqueueContentProps) {
 			<div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
 				<div className="mb-8">
 					<BackToDashboardButton safeAddress={safeAddress} chainId={chainId} />
-					<h1 className="text-3xl font-bold text-gray-900 mt-4">{pageTitle}</h1>
+					<h1 className="text-3xl font-bold text-gray-900 mt-4">
+						{pageTitle}
+						{!!encryptedQueue && " 🔐"}
+					</h1>
 					<p className="text-gray-700 mt-2">
 						Safe:{" "}
 						<span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
@@ -188,7 +215,16 @@ function EnqueueContent(props: EnqueueContentProps) {
 					</div>
 				)}
 
-				{isLoadingConfig ? (
+				{encryptionPublicKeysError && (
+					<div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+						<p className="text-red-700">
+							Error loading Safe configuration:{" "}
+							{encryptionPublicKeysError.message}
+						</p>
+					</div>
+				)}
+
+				{isLoadingConfig || isLoadingEncryptionPublicKeys ? (
 					<div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
 						<div className="animate-pulse space-y-4">
 							<div className="h-4 bg-gray-200 rounded w-1/4" />{" "}
@@ -203,7 +239,32 @@ function EnqueueContent(props: EnqueueContentProps) {
 						</p>
 					</div>
 				) : (
-					formComponent
+					<>
+						{encryptionPublicKeys?.enabled &&
+							!!encryptionPublicKeys.missingRegistrations.length && (
+								<div
+									className="flex items-center p-4 text-sm text-yellow-800 border border-yellow-300 rounded-lg bg-yellow-50 mb-2"
+									role="alert"
+								>
+									<span className="text-lg w-4 h-4 me-3">{"⚠"}</span>
+									<div>
+										One ore more Safe owners have not registered their
+										encryption key. The following owners will not be able to see
+										enqueued Safe transactions:
+										<ul className="list-disc ml-4">
+											{encryptionPublicKeys.missingRegistrations.map(
+												(owner) => (
+													<li key={owner}>
+														<span className="font-mono px-2 py-1">{owner}</span>
+													</li>
+												),
+											)}
+										</ul>
+									</div>
+								</div>
+							)}
+						{formComponent}
+					</>
 				)}
 			</div>
 		</div>
