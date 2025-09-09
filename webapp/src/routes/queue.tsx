@@ -73,6 +73,7 @@ function QueueContent({
 		safeAddress,
 		safeConfig,
 		safeChainId: chainId,
+		sessionKeys,
 	});
 
 	// State for managing execution feedback for a specific transaction

@@ -193,6 +193,7 @@ describe("harbour", () => {
 			safeConfig: safeConfig,
 			safeChainId: 100n satisfies ChainId,
 			maxNoncesToFetch: 1,
+			sessionKeys: null,
 		});
 
 		expect(groups).toHaveLength(1);
