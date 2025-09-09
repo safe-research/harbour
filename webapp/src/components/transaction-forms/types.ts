@@ -14,7 +14,7 @@ interface CommonTransactionFormProps {
 	rpcProvider: JsonRpcApiProvider;
 	/** The configuration of the Safe, including the current nonce. */
 	config: SafeConfiguration;
-	/** Paramters for submitting transaction to an encrypted queue. */
+	/** Parameters for submitting transactions to an encrypted queue. */
 	encryptedQueue: EncryptedQueueParams | null;
 }
 
