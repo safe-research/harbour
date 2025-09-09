@@ -1,16 +1,10 @@
 import { type UseQueryResult, useQuery } from "@tanstack/react-query";
-import { ethers } from "ethers";
 import type { SettingsFormData } from "@/components/settings/SettingsForm";
 import { useSession } from "@/contexts/SessionContext";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
+import { getRelayerBalanceInfo, type RelayerBalanceInfo } from "@/lib/relaying";
 
 type UseRelayerBalanceInfoProps = Pick<Partial<SettingsFormData>, "rpcUrl">;
-
-interface RelayerBalanceInfo {
-	formatted: string;
-	needsFunding: boolean;
-	faucet?: string;
-}
 
 /**
  * Custom React Query hook to fetch the current relayer balance information.
@@ -27,22 +21,11 @@ function useRelayerBalanceInfo(
 			keys?.relayer?.address,
 			currentSettings?.rpcUrl,
 		],
-		queryFn: async () => {
+		queryFn: () => {
 			if (!provider || !keys) {
 				return null;
 			}
-
-			const { chainId } = await provider.getNetwork();
-			const balance = await provider.getBalance(keys.relayer);
-
-			return {
-				formatted: `Ξ${ethers.formatEther(balance)}`,
-				needsFunding: balance === 0n,
-				faucet:
-					chainId === 100n
-						? `https://faucet.gnosischain.com/?address=${keys.relayer.address}`
-						: undefined,
-			};
+			return getRelayerBalanceInfo({ relayer: keys.relayer.address, provider });
 		},
 		enabled: !!provider && !!keys,
 		staleTime: 2500,

@@ -5,9 +5,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
-	useMemo,
 	useState,
-	useTransition,
 } from "react";
 import { useBrowserProvider } from "@/hooks/useBrowserProvider";
 import { useHarbourRpcProvider } from "@/hooks/useRpcProvider";
@@ -99,22 +97,25 @@ function SessionProvider({ children }: { children: ReactNode }) {
 	const { provider } = useHarbourRpcProvider();
 
 	const [session, setSession] = useState<SessionState | null>(null);
+	const [isUpdating, setIsUpdating] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
-	const [isUpdating, startUpdate] = useTransition();
 
-	const update = useCallback((handler: () => Promise<SessionState | null>) => {
-		setError(null);
-		startUpdate(async () => {
+	const update = useCallback(
+		async (handler: () => Promise<SessionState | null>) => {
+			setIsUpdating(true);
+			setError(null);
 			try {
 				const session = await handler();
 				setSession(session);
 			} catch (err) {
 				console.error(err);
-				setSession(null);
 				setError(isError(err) ? err : new Error(`${err}`));
+			} finally {
+				setIsUpdating(false);
 			}
-		});
-	}, []);
+		},
+		[],
+	);
 
 	const connect = useCallback(
 		(currentSettings?: HarbourContractSettings) =>
@@ -176,34 +177,31 @@ function SessionProvider({ children }: { children: ReactNode }) {
 		[update, wallet, provider],
 	);
 
-	const disconnect = useCallback(() => {
+	const disconnect = () => {
 		setSession(null);
 		setError(null);
-	}, []);
+	};
 
-	const value = useMemo(
-		() => ({
-			connected: session !== null,
-			keys: session
-				? {
-						encryption: {
-							...session.session.encryption,
-							publicKeyHex: session.session.registration.publicKey,
-						},
-						relayer: session.session.relayer,
-					}
-				: null,
-			pendingRegistration: session?.hasPendingRegistration
-				? session.session.registration
-				: null,
-			connect,
-			create,
-			disconnect,
-			isUpdating,
-			error,
-		}),
-		[session, connect, create, disconnect, isUpdating, error],
-	);
+	const value = {
+		connected: session !== null,
+		keys: session
+			? {
+					encryption: {
+						...session.session.encryption,
+						publicKeyHex: session.session.registration.publicKey,
+					},
+					relayer: session.session.relayer,
+				}
+			: null,
+		pendingRegistration: session?.hasPendingRegistration
+			? session.session.registration
+			: null,
+		connect,
+		create,
+		disconnect,
+		isUpdating,
+		error,
+	};
 
 	useEffect(() => {
 		connect();
