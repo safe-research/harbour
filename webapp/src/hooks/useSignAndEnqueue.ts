@@ -2,7 +2,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { type BrowserProvider, ethers } from "ethers";
 import { useCallback, useState } from "react";
 import { useWaku } from "@/contexts/WakuContext";
-import { signAndEnqueueSafeTransaction } from "@/lib/harbour";
+import {
+	type EncryptedQueueParams,
+	signAndEnqueueSafeTransaction,
+} from "@/lib/harbour";
 import { getSafeTransaction, type SafeConfiguration } from "@/lib/safe";
 import type { ChainId, SafeTransaction } from "@/lib/types";
 
@@ -15,6 +18,9 @@ interface SignAndEnqueueProps<T> {
 	browserProvider: BrowserProvider;
 	/** The configuration of the Safe, including the current nonce. */
 	config: SafeConfiguration;
+	/** The encrypted queue paramters. */
+	encryptedQueue: EncryptedQueueParams | null;
+
 	parser: (input: T) => SafeTransactionInput;
 	onEnqueued?: () => void;
 }
@@ -36,6 +42,7 @@ export function useSignAndEnqueue<T = SafeTransactionInput>({
 	chainId,
 	browserProvider,
 	config,
+	encryptedQueue,
 	parser,
 	onEnqueued,
 }: SignAndEnqueueProps<T>): SignAndEnqueueReturn<T> {
@@ -71,6 +78,7 @@ export function useSignAndEnqueue<T = SafeTransactionInput>({
 					browserProvider,
 					transaction,
 					waku,
+					encryptedQueue,
 				);
 
 				onEnqueued?.();
@@ -94,6 +102,7 @@ export function useSignAndEnqueue<T = SafeTransactionInput>({
 			chainId,
 			browserProvider,
 			config,
+			encryptedQueue,
 		],
 	);
 	return {

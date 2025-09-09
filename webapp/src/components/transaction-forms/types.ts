@@ -1,4 +1,5 @@
 import type { BrowserProvider, JsonRpcApiProvider } from "ethers";
+import type { EncryptedQueueParams } from "@/lib/harbour";
 import type { SafeConfiguration } from "@/lib/safe";
 import type { ChainId } from "@/lib/types";
 
@@ -13,6 +14,8 @@ interface CommonTransactionFormProps {
 	rpcProvider: JsonRpcApiProvider;
 	/** The configuration of the Safe, including the current nonce. */
 	config: SafeConfiguration;
+	/** Parameters for submitting transactions to an encrypted queue. */
+	encryptedQueue: EncryptedQueueParams | null;
 }
 
 interface ERC20TransferFormProps extends CommonTransactionFormProps {

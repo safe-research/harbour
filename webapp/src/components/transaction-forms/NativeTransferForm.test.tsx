@@ -15,6 +15,7 @@ const config = {
 	modules: [],
 	guard: "0xGuard",
 	singleton: "0xSingleton",
+	encryptedQueue: null,
 };
 
 describe("NativeTransferForm", () => {
@@ -51,6 +52,7 @@ describe("NativeTransferForm", () => {
 				browserProvider={browserProvider}
 				rpcProvider={rpcProvider}
 				config={config}
+				encryptedQueue={null}
 			/>,
 		);
 		expect(screen.getByText(/Recipient Address/)).toBeInTheDocument();
@@ -91,6 +93,7 @@ describe("NativeTransferForm", () => {
 				browserProvider={browserProvider}
 				rpcProvider={rpcProvider}
 				config={config}
+				encryptedQueue={null}
 			/>,
 		);
 		expect(screen.getByText(/Balance: 1.0 ETH/)).toBeInTheDocument();

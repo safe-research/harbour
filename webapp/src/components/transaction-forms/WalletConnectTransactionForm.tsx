@@ -98,6 +98,7 @@ export function WalletConnectTransactionForm({
 	chainId,
 	browserProvider,
 	config,
+	encryptedQueue,
 	txTo,
 	txValue,
 	txData,
@@ -116,7 +117,7 @@ export function WalletConnectTransactionForm({
 		warning,
 		isSubmitting,
 		clearResult,
-	} = useWalletConnectTransaction();
+	} = useWalletConnectTransaction({ encryptedQueue });
 
 	const formSchema = useMemo(
 		() => createWalletConnectFormSchema(config.nonce),

@@ -260,7 +260,12 @@ describe("harbour", () => {
 				getSigner: vi.fn().mockResolvedValue({}),
 			} as unknown as JsonRpcApiProvider;
 
-			const res = await signAndEnqueueSafeTransaction(walletProvider, tx, waku);
+			const res = await signAndEnqueueSafeTransaction(
+				walletProvider,
+				tx,
+				waku,
+				null,
+			);
 
 			expect(switchToChain).toHaveBeenCalledWith(walletProvider, tx.chainId);
 			expect(waku.send).toHaveBeenCalledTimes(1);
@@ -296,6 +301,7 @@ describe("harbour", () => {
 				walletProvider,
 				tx,
 				waku as WakuManager,
+				null,
 			);
 
 			// Switch to chain of Safe to sign

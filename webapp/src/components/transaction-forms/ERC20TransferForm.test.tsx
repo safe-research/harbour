@@ -24,6 +24,7 @@ const defaultProps = {
 	rpcProvider,
 	config,
 	tokenAddress: "0xToken",
+	encryptedQueue: null,
 };
 
 describe("ERC20TransferForm", () => {
