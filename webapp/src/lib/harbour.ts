@@ -956,6 +956,7 @@ export type {
 export {
 	HARBOUR_CHAIN_ID,
 	HARBOUR_ADDRESS,
+	SECRET_HARBOUR_ADDRESS,
 	getHarbourChainId,
 	fetchSafeQueue,
 	supportsEncryption,
