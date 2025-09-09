@@ -248,7 +248,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 								>
 									<span className="text-lg w-4 h-4 me-3">{"⚠"}</span>
 									<div>
-										One ore more Safe owners have not registered their
+										One or more Safe owners have not registered their
 										encryption key. The following owners will not be able to see
 										enqueued Safe transactions:
 										<ul className="list-disc ml-4">
