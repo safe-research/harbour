@@ -1,4 +1,9 @@
-import type { ContractRunner, JsonRpcApiProvider, Network } from "ethers";
+import type {
+	ContractRunner,
+	InterfaceAbi,
+	JsonRpcApiProvider,
+	Network,
+} from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mocks
@@ -71,16 +76,18 @@ vi.mock("ethers", async () => {
 
 	class MockContract {
 		address: string;
-		abi: Interface;
+		abi: InterfaceAbi;
 		runner: null | ContractRunner;
+		interface: Interface;
 		constructor(
 			address: string,
-			abi: Interface,
+			abi: InterfaceAbi,
 			runner?: null | ContractRunner,
 		) {
 			this.address = address;
 			this.abi = abi;
 			this.runner = runner as ContractRunner;
+			this.interface = new actual.ethers.Interface(abi);
 		}
 		enqueueTransaction = vi
 			.fn()
@@ -88,7 +95,6 @@ vi.mock("ethers", async () => {
 		getAddress = vi.fn(async () => this.address);
 		TRUSTED_PAYMASTER = vi.fn(async () => "0xPAYMASTER");
 		SUPPORTED_ENTRYPOINT = vi.fn(async () => "0xENTRY");
-		interface = { encodeFunctionData: vi.fn(() => "0xabc") };
 	}
 
 	return {

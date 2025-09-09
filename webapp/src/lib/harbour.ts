@@ -1,7 +1,7 @@
 import {
 	Contract,
 	type ContractRunner,
-	Interface,
+	ethers,
 	type JsonRpcApiProvider,
 	JsonRpcProvider,
 	type JsonRpcSigner,
@@ -10,6 +10,7 @@ import {
 	loadCurrentSettings,
 	type SettingsFormData,
 } from "@/components/settings/SettingsForm";
+import type { SessionKeys } from "@/contexts/SessionContext";
 import type { WakuManager } from "@/contexts/WakuContext";
 import { buildUserOp, getUserOpGasPrice } from "./bundler";
 import { getRpcUrlByChainId, switchToChain } from "./chains";
@@ -25,7 +26,7 @@ import type {
 
 /** The chain ID where the Harbour contract is deployed. */
 const HARBOUR_CHAIN_ID = 100n;
-/** The address of the Harbour contract. */
+/** The address of the default Harbour contract. */
 const HARBOUR_ADDRESS = "0x7E299130D19bd0F3D86718d389a4DEF957034189";
 
 /** ABI for the Harbour contract. */
@@ -39,10 +40,92 @@ const HARBOUR_ABI = [
 ];
 
 function harbourAt(
-	harbourAddress: string | undefined,
+	address: string | undefined,
 	runner?: ContractRunner,
 ): Contract {
-	return new Contract(harbourAddress || HARBOUR_ADDRESS, HARBOUR_ABI, runner);
+	return new Contract(address ?? HARBOUR_ADDRESS, HARBOUR_ABI, runner);
+}
+
+/** The address of the default Secret Harbour contract. */
+const SECRET_HARBOUR_ADDRESS = "0x2F150e90Ec1d33A3D939bcF4ED80108ACd47995b";
+/** The ERC-165 interface ID for Secret Harbour. */
+const SECRET_HARBOUR_INTERFACE_ID = "0xe030e473";
+
+/** ABI for the Secret Harbour contract. */
+const SECRET_HARBOUR_ABI = [
+	"event SafeTransactionRegistered(bytes32 indexed uid, bytes32 indexed safeTxHash, bytes encryptionBlob)",
+	"event SafeTransactionSigned(address indexed signer, bytes32 indexed safeTxHash, bytes signature)",
+	"function supportsInterface(bytes4 interfaceId) view returns (bool supported)",
+	"function registerEncryptionKey(bytes32 context, bytes32 publicKey)",
+	"function registerEncryptionKeyFor(address signer, bytes32 context, bytes32 publicKey, uint256 nonce, uint256 deadline, bytes calldata signature)",
+	"function enqueueTransaction(uint256 chainId, address safe, uint256 nonce, bytes32 safeTxStructHash, bytes calldata signature, bytes calldata encryptionBlob) returns (bytes32 uid)",
+	"function retrieveEncryptionPublicKeys(address[] calldata signers) view returns (bytes32[] publicKeys)",
+	"function retrieveEncryptionKey(address signers) view returns (tuple(bytes32 context, bytes32 publicKey) encryptionKey)",
+	"function retrieveEncryptionKeyRegistrationNonce(address signers) view returns (uint256 nonce)",
+	"function retrieveTransactions(uint256 chainId, address safe, uint256 nonce, address notary, uint256 start, uint256 count) view returns (tuple(uint256 blockNumber, bytes32 uid)[] page, uint256 totalCount)",
+	"function retrieveSignatures(address[] calldata signers, bytes32 safeTxHash) view returns (uint256[] blockNumbers)",
+];
+
+function secretHarbourAt(
+	address: string | undefined,
+	runner?: ContractRunner,
+): Contract {
+	return new Contract(
+		address ?? SECRET_HARBOUR_ADDRESS,
+		SECRET_HARBOUR_ABI,
+		runner,
+	);
+}
+
+async function supportsSecretHarbourInterface(
+	address: string,
+	runner: ContractRunner,
+): Promise<boolean> {
+	const contract = secretHarbourAt(address, runner);
+	try {
+		return await contract.supportsInterface(SECRET_HARBOUR_INTERFACE_ID);
+	} catch {
+		return false;
+	}
+}
+
+/** Harbour contract specific settings. */
+type HarbourContractSettings = Pick<
+	Partial<SettingsFormData>,
+	"harbourAddress" | "rpcUrl"
+>;
+
+/**
+ * Gets the currently configured harbour contract.
+ */
+async function getHarbourContract(
+	settings?: HarbourContractSettings,
+	runner?: ContractRunner,
+): Promise<
+	| { type: "international"; international: Contract }
+	| { type: "secret"; secret: Contract }
+> {
+	const harbourSettings = settings ?? (await loadCurrentSettings()) ?? {};
+	const harbourAddress = harbourSettings?.harbourAddress;
+	const harbourRunner =
+		runner ??
+		new JsonRpcProvider(
+			harbourSettings?.rpcUrl ?? (await getRpcUrlByChainId(HARBOUR_CHAIN_ID)),
+		);
+
+	if (
+		harbourAddress &&
+		(await supportsSecretHarbourInterface(harbourAddress, harbourRunner))
+	) {
+		return {
+			type: "secret",
+			secret: secretHarbourAt(harbourAddress, harbourRunner),
+		};
+	}
+	return {
+		type: "international",
+		international: harbourAt(harbourAddress, harbourRunner),
+	};
 }
 
 /**
@@ -56,11 +139,14 @@ async function enqueueSafeTransaction(
 	signer: JsonRpcSigner,
 	transaction: FullSafeTransaction,
 	signature: string,
-	harbourAddress?: string,
+	settings?: HarbourContractSettings,
 ) {
-	const harbourContract = harbourAt(harbourAddress, signer);
+	const harbour = await getHarbourContract(settings, signer);
+	if (harbour.type !== "international") {
+		throw new Error("Only international harbour supported");
+	}
 
-	const tx = await harbourContract.enqueueTransaction(
+	const tx = await harbour.international.enqueueTransaction(
 		transaction.safeAddress,
 		transaction.chainId,
 		transaction.nonce,
@@ -132,9 +218,12 @@ async function fetchSafeQueue({
 	safeChainId,
 	maxNoncesToFetch = 5,
 }: FetchSafeQueueParams): Promise<NonceGroup[]> {
-	const currentSettings = await loadCurrentSettings();
-	const harbourAddress = currentSettings?.harbourAddress || HARBOUR_ADDRESS;
-	const iface = new Interface(HARBOUR_ABI);
+	const harbour = await getHarbourContract();
+	if (harbour.type !== "international") {
+		throw new Error("Only international harbour supported");
+	}
+	const harbourAddress = await harbour.international.getAddress();
+	const iface = harbour.international.interface;
 	const startNonce = Number(safeConfig.nonce);
 	const owners = safeConfig.owners || [];
 
@@ -260,21 +349,16 @@ async function fetchSafeQueue({
 	return result;
 }
 
-async function getChainId(
-	currentSettings: Partial<SettingsFormData>,
+async function getHarbourChainId(
+	currentSettings?: Pick<HarbourContractSettings, "rpcUrl">,
 ): Promise<bigint> {
-	if (currentSettings.rpcUrl) {
-		const provider = new JsonRpcProvider(currentSettings.rpcUrl);
+	const settings = currentSettings ?? (await loadCurrentSettings());
+	if (settings.rpcUrl) {
+		const provider = new JsonRpcProvider(settings.rpcUrl);
 		const network = await provider.getNetwork();
 		return network.chainId;
 	}
-	switchToChain;
 	return HARBOUR_CHAIN_ID;
-}
-
-async function getHarbourChainId(): Promise<bigint> {
-	const currentSettings = await loadCurrentSettings();
-	return getChainId(currentSettings);
 }
 
 /**
@@ -300,26 +384,31 @@ async function signAndEnqueueSafeTransaction(
 	const signature = await signSafeTransaction(signer, transaction);
 
 	const currentSettings = await loadCurrentSettings();
-	// If a bundler URL is set we will use that to relay the transaction
+	const harbour = await getHarbourContract(currentSettings);
+
+	// Use Waku to broadcast a transaction to the Harbour validator network if
+	// available.
 	if (waku.isAvailable()) {
 		console.log("Use Waku");
 		if (await waku.send(transaction, signature)) {
 			return { hash: "", transactionHash: "" };
 		}
 	}
+
+	// If a bundler URL is set we will use that to relay the transaction
 	// TODO: deprecate this
 	if (currentSettings.bundlerUrl) {
 		console.log("Use Bundler");
+		if (harbour.type !== "international") {
+			throw new Error("Only international harbour supported with ERC-4337");
+		}
+		const harbourProvider = harbour.international.runner as JsonRpcProvider;
 		const bundlerProvider = new JsonRpcProvider(currentSettings.bundlerUrl);
-		const rpcUrl =
-			currentSettings.rpcUrl || (await getRpcUrlByChainId(HARBOUR_CHAIN_ID));
-		const harbourProvider = new JsonRpcProvider(rpcUrl);
-		const harbour = harbourAt(currentSettings.harbourAddress, harbourProvider);
 		const gasFee = await getUserOpGasPrice(harbourProvider);
 		const useValidator = !!currentSettings.validatorUrl;
 		const { userOp, entryPoint } = await buildUserOp(
 			bundlerProvider,
-			harbour,
+			harbour.international,
 			signer,
 			transaction,
 			signature,
@@ -347,16 +436,32 @@ async function signAndEnqueueSafeTransaction(
 		]);
 		return { hash, transactionHash: hash };
 	}
+
+	// If we are configured to use encryption, submit the transaction to Secret
+	// Harbour.
+	if (harbour.type === "secret") {
+		console.log("Use Secret Harbour");
+		throw new Error("not yet implemented");
+	}
+
 	// Transaction cannot be relayed. User has to submit the transaction
 	// Switch to Harbour chain for enqueuing
-	await switchToChain(walletProvider, await getChainId(currentSettings));
+	await switchToChain(walletProvider, await getHarbourChainId(currentSettings));
 	const receipt = await enqueueSafeTransaction(
 		signer,
 		transaction,
 		signature,
-		currentSettings.harbourAddress,
+		currentSettings,
 	);
 	return receipt;
+}
+
+/**
+ * Returns whether or not encryption is supported for the current Harbour settings.
+ */
+async function supportsEncryption(currentSettings?: HarbourContractSettings) {
+	const harbour = await getHarbourContract(currentSettings);
+	return harbour.type === "secret";
 }
 
 /**
@@ -367,12 +472,116 @@ interface EncryptionKey {
 	publicKey: string;
 }
 
-export type { EncryptionKey };
+type FetchedEncryptionKey =
+	| { registered: false }
+	| ({ registered: true } & EncryptionKey);
+
+/**
+ * Fetches encryption key and context for the specified account.
+ */
+async function fetchEncryptionKey(
+	address: string,
+	settings?: HarbourContractSettings,
+): Promise<FetchedEncryptionKey | null> {
+	const harbour = await getHarbourContract(settings);
+	if (harbour.type !== "secret") {
+		throw new Error("Only Secret Harbour may register encryption keys");
+	}
+
+	const [context, publicKey] =
+		await harbour.secret.retrieveEncryptionKey(address);
+
+	if (context !== ethers.ZeroHash && publicKey !== ethers.ZeroHash) {
+		return { registered: true, context, publicKey };
+	}
+	return { registered: false };
+}
+
+/**
+ * An encryption key registration request.
+ */
+interface EncryptionKeyRegistrationRequest extends EncryptionKey {
+	harbourChainId?: bigint;
+	nonce?: bigint;
+	deadline?: bigint;
+}
+
+interface SignAndRegisterEncryptionKeyParams {
+	walletProvider: JsonRpcApiProvider;
+	registration: EncryptionKeyRegistrationRequest;
+	sessionKeys: Pick<SessionKeys, "relayer">;
+	currentSettings?: HarbourContractSettings;
+}
+
+/**
+ * Sign an encryption key registration request and submit it onchain.
+ */
+async function signAndRegisterEncryptionKey({
+	walletProvider,
+	registration,
+	sessionKeys,
+	currentSettings,
+}: SignAndRegisterEncryptionKeyParams) {
+	const harbour = await getHarbourContract(currentSettings);
+	if (harbour.type !== "secret") {
+		throw new Error("Only Secret Harbour may register encryption keys");
+	}
+
+	const signer = await walletProvider.getSigner();
+	const signerAddress = await signer.getAddress();
+	const harbourChainId =
+		registration.harbourChainId ?? (await getHarbourChainId(currentSettings));
+	const nonce =
+		registration.nonce ??
+		(await harbour.secret.retrieveEncryptionKeyRegistrationNonce(
+			signerAddress,
+		));
+	const deadline = registration.deadline ?? Math.ceil(Date.now() / 1000) + 600; // 10 minutes
+	const signature = await signer.signTypedData(
+		{
+			verifyingContract: await harbour.secret.getAddress(),
+		},
+		{
+			EncryptionKeyRegistration: [
+				{ name: "context", type: "bytes32" },
+				{ name: "publicKey", type: "bytes32" },
+				{ name: "harbourChainId", type: "uint256" },
+				{ name: "nonce", type: "uint256" },
+				{ name: "deadline", type: "uint256" },
+			],
+		},
+		{
+			...registration,
+			harbourChainId,
+			nonce,
+			deadline,
+		},
+	);
+
+	const relayer = sessionKeys.relayer.connect(
+		harbour.secret.runner as JsonRpcProvider,
+	);
+	const transaction = await (
+		harbour.secret.connect(relayer) as Contract
+	).registerEncryptionKeyFor(
+		signerAddress,
+		registration.context,
+		registration.publicKey,
+		nonce,
+		deadline,
+		signature,
+	);
+	return await transaction.wait();
+}
+
+export type { EncryptionKey, HarbourContractSettings };
 export {
 	HARBOUR_CHAIN_ID,
-	enqueueSafeTransaction,
-	harbourAt,
+	HARBOUR_ADDRESS,
 	getHarbourChainId,
 	fetchSafeQueue,
+	supportsEncryption,
+	fetchEncryptionKey,
 	signAndEnqueueSafeTransaction,
+	signAndRegisterEncryptionKey,
 };
