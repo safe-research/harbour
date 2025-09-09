@@ -510,7 +510,7 @@ async function signAndEnqueueSafeTransaction(
 }
 
 /**
- * Encrypt and enqueue a Safe trnasction to Secret Harbour.
+ * Encrypt and enqueue a Safe transaction to Secret Harbour.
  */
 async function encryptAndEnqueueSafeTransaction(
 	secretHarbour: Contract,
