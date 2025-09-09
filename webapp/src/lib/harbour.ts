@@ -393,7 +393,7 @@ async function fetchSecretHarbourSafeQueue(
 	}: FetchSafeQueueParams,
 ): Promise<NonceGroup[]> {
 	if (!sessionKeys) {
-		// No decription keys, no transactions!
+		// No decryption keys, no transactions!
 		return [];
 	}
 
