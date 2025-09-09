@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
 
 	// Normalize base path to ensure it always starts and ends with a slash
 	// This prevents routing issues and ensures consistent path handling across environments
-	let basePath = env.VITE_BASE_PATH || "/harbour/";
+	let basePath = env.VITE_BASE_PATH;
 	if (!basePath.startsWith("/")) {
 		basePath = `/${basePath}`;
 	}
