@@ -410,7 +410,10 @@ async function signAndEnqueueSafeTransaction(
 		// to guess. We chose `gasToken` as it is the least error prone (if we
 		// incorrectly overwrite this field, then the relayer will be at a loss,
 		// as no tokens will be transferred, and not the account itself).
-		if (BigInt(transaction.gasPrice) === 0n) {
+		if (
+			BigInt(transaction.gasPrice) === 0n &&
+			transaction.gasToken === ethers.ZeroAddress
+		) {
 			transaction.gasToken = ethers.getAddress(
 				ethers.hexlify(ethers.randomBytes(20)),
 			);
@@ -655,46 +658,56 @@ async function signAndRegisterEncryptionKey({
 	return await transaction.wait();
 }
 
-interface FetchEncryptionPublicKeysParams {
+interface FetchSafeOwnerEncryptionPublicKeysParams {
 	safeConfig: Pick<SafeConfiguration, "owners">;
 }
+
+type SafeOwnerEncryptionPublicKeys =
+	| {
+			/** Encryption is disabled for this Harbour configuration */
+			enabled: false;
+	  }
+	| {
+			/** Encryption is enabled for this Harbour configuration */
+			enabled: true;
+			/** The registered public keys of the Safe owners */
+			publicKeys: CryptoKey[];
+			/** The owners without registered public keys */
+			missingRegistrations: string[];
+	  };
 
 /**
  * Fetches public encryption keys for a Safe owner. Returns `null` if the
  * currently configured Harbour contract does not support encryption.
  */
-async function fetchEncryptionPublicKeys({
+async function fetchSafeOwnerEncryptionPublicKeys({
 	safeConfig: { owners },
-}: FetchEncryptionPublicKeysParams): Promise<Record<
-	string,
-	CryptoKey | undefined
-> | null> {
+}: FetchSafeOwnerEncryptionPublicKeysParams): Promise<SafeOwnerEncryptionPublicKeys> {
 	const harbour = await getHarbourContract();
 	if (harbour.type !== "secret") {
-		throw new Error("Only Secret Harbour may fetch public encryption keys");
+		return { enabled: false };
 	}
 
-	const publicKeys = await harbour.secret.retrieveEncryptionPublicKeys([
-		...owners,
-	]);
-	const ownerPublicKeys = await Promise.all(
-		(publicKeys as string[]).map(async (publicKey, i) => {
-			try {
-				return [owners[i], await importPublicKey(publicKey)] as const;
-			} catch {
-				return [owners[i], null] as const;
-			}
-		}),
-	);
-	return Object.fromEntries(
-		ownerPublicKeys.filter(([, publicKey]) => publicKey) as [
-			string,
-			CryptoKey,
-		][],
-	);
+	const rawPublicKeys: string[] =
+		await harbour.secret.retrieveEncryptionPublicKeys([...owners]);
+	const publicKeys = [];
+	const missingRegistrations = [];
+	for (const [raw, owner] of rawPublicKeys.map((raw, i) => [raw, owners[i]])) {
+		try {
+			publicKeys.push(await importPublicKey(raw));
+		} catch {
+			missingRegistrations.push(owner);
+		}
+	}
+	return { enabled: true, publicKeys, missingRegistrations };
 }
 
-export type { EncryptionKey, HarbourContractSettings, EncryptedQueueParams };
+export type {
+	EncryptionKey,
+	EncryptedQueueParams,
+	HarbourContractSettings,
+	SafeOwnerEncryptionPublicKeys,
+};
 export {
 	HARBOUR_CHAIN_ID,
 	HARBOUR_ADDRESS,
@@ -702,7 +715,7 @@ export {
 	fetchSafeQueue,
 	supportsEncryption,
 	fetchEncryptionKey,
-	fetchEncryptionPublicKeys,
+	fetchSafeOwnerEncryptionPublicKeys,
 	signAndEnqueueSafeTransaction,
 	signAndRegisterEncryptionKey,
 };

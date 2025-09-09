@@ -218,7 +218,7 @@ function EnqueueContent(props: EnqueueContentProps) {
 				{encryptionPublicKeysError && (
 					<div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
 						<p className="text-red-700">
-							Error loading Safe configuration:{" "}
+							Error loading Safe owner encryption keys:{" "}
 							{encryptionPublicKeysError.message}
 						</p>
 					</div>
