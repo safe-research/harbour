@@ -2,9 +2,7 @@ name: Contracts CI
 
 on:
   push:
-    paths:
-      - "contracts/**"
-      - ".github/workflows/**"
+    branches: ["main"]
   pull_request:
     paths:
       - "contracts/**"

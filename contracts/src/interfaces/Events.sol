@@ -55,3 +55,47 @@ event NewTransaction(
     address refundReceiver,
     bytes data
 );
+
+/**
+ * @notice Emitted whenever an encryption key is registered for a signer.
+ *
+ * @param signer    The signer for which the key was registered.
+ * @param context   A 32-byte contract associated with the encryption key.
+ * @param publicKey A 32-byte encryption public key.
+ */
+event EncryptionKeyRegistered(
+    address indexed signer,
+    bytes32 context,
+    bytes32 publicKey
+);
+
+/**
+ * @notice Emitted whenever a signed encrypted Safe transaction is registered.
+ *
+ * @param uid            A unique registration identifier that can be used for event filtering.
+ * @param safeTxHash     EIP-712 hash identifying the Safe transaction.
+ * @param encryptionBlob A blob containing encrypted transaction data. This can either be the
+ *                       encrypted transaction itself, or additional encrypted keys to new signer
+ *                       public keys. The exact format is not enforced and application dependent.
+ *                       The reference implementation uses JWE to encrypt the RLP-encoded Safe
+ *                       transaction with A256-GCM encryption, and ECDH-ES+A256KW for wrapping the
+ *                       encryption keys for recipients' X25519 public keys.
+ */
+event SafeTransactionRegistered(
+    bytes32 indexed uid,
+    bytes32 indexed safeTxHash,
+    bytes encryptionBlob
+);
+
+/**
+ * @notice Emitted when a Safe transaction is signed.
+ *
+ * @param signer     The signer address.
+ * @param safeTxHash The Safe transaction hash that was signed.
+ * @param signature  The Safe transaction signature.
+ */
+event SafeTransactionSigned(
+    address indexed signer,
+    bytes32 indexed safeTxHash,
+    bytes signature
+);

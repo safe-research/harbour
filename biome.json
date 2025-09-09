@@ -12,6 +12,7 @@
 			"**/*.tsx",
 			"**/*.js",
 			"**/*.jsx",
+			"**/package.json",
 			"!**/node_modules/**",
 			"!**/dist/**",
 			"!**/typechain-types/**",

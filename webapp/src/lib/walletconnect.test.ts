@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	canUseWalletConnect,
 	isEthSendTransaction,
+	type WalletKitTypes,
 	walletConnectUriSchema,
 } from "./walletconnect";
 
@@ -9,15 +10,15 @@ describe("walletconnect", () => {
 	it("isEthSendTransaction returns true for eth_sendTransaction", () => {
 		const event = {
 			params: { request: { method: "eth_sendTransaction" } },
-		};
-		expect(isEthSendTransaction(event as any)).toBe(true);
+		} as unknown as WalletKitTypes.SessionRequest;
+		expect(isEthSendTransaction(event)).toBe(true);
 	});
 
 	it("isEthSendTransaction returns false for other methods", () => {
 		const event = {
 			params: { request: { method: "eth_sign" } },
-		};
-		expect(isEthSendTransaction(event as any)).toBe(false);
+		} as unknown as WalletKitTypes.SessionRequest;
+		expect(isEthSendTransaction(event)).toBe(false);
 	});
 
 	it("canUseWalletConnect returns a boolean", () => {
