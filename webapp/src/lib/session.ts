@@ -198,5 +198,19 @@ function newSalt(): SessionSalt {
 	};
 }
 
+function decodeTrustedNotary({
+	context,
+}: Pick<EncryptionKey, "context">): Address {
+	if (ethers.dataLength(context) !== 32) {
+		throw new Error(`invalid encoded context ${context}`);
+	}
+	return ethers.getAddress(ethers.dataSlice(context, 12));
+}
+
 export type { Session, SessionToken };
-export { signinToSession, serializeSession, deserializeSession };
+export {
+	signinToSession,
+	serializeSession,
+	deserializeSession,
+	decodeTrustedNotary,
+};
