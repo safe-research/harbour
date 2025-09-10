@@ -93,7 +93,9 @@ function SettingsForm({
 	};
 
 	const onUseEncryption = () => {
-		setValue("harbourAddress", SECRET_HARBOUR_ADDRESS);
+		setValue("harbourAddress", SECRET_HARBOUR_ADDRESS, {
+			shouldDirty: true,
+		});
 	};
 
 	return (
