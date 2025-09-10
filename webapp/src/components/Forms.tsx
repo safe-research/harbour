@@ -10,6 +10,7 @@ function FormItem<T extends FieldValues>({
 	error,
 	label,
 	placeholder,
+	disabled,
 	register,
 	className,
 }: {
@@ -17,6 +18,7 @@ function FormItem<T extends FieldValues>({
 	error: FieldError | undefined;
 	label: string;
 	placeholder?: string;
+	disabled?: boolean;
 	register: UseFormRegister<T>;
 	className?: string;
 }) {
@@ -33,6 +35,7 @@ function FormItem<T extends FieldValues>({
 				type="text"
 				{...register(id)}
 				placeholder={placeholder}
+				disabled={disabled}
 				className="mt-1 block w-full border border-gray-300 bg-white text-gray-900 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
 			/>
 			{error && <p className="mt-1 text-sm text-red-600">{error.message}</p>}

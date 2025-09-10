@@ -26,7 +26,14 @@ describe("useSafeQueue", () => {
 		}));
 		const { useSafeQueue } = await import("./useSafeQueue");
 		const { result } = renderHook(
-			() => useSafeQueue({ provider, safeAddress, safeConfig, safeChainId }),
+			() =>
+				useSafeQueue({
+					provider,
+					safeAddress,
+					safeConfig,
+					safeChainId,
+					sessionKeys: null,
+				}),
 			{ wrapper: createQueryClientWrapper() },
 		);
 		await waitFor(() => {
@@ -47,6 +54,7 @@ describe("useSafeQueue", () => {
 					safeAddress,
 					safeConfig: { nonce: "1", owners: [] },
 					safeChainId,
+					sessionKeys: null,
 				}),
 			{ wrapper: createQueryClientWrapper() },
 		);

@@ -14,6 +14,7 @@ const config = {
 	modules: [],
 	guard: "0xGuard",
 	singleton: "0xSingleton",
+	encryptedQueue: null,
 };
 const rpcProvider = {} as unknown as JsonRpcApiProvider;
 
@@ -44,6 +45,7 @@ describe("RawTransactionForm", () => {
 				browserProvider={browserProvider}
 				config={config}
 				rpcProvider={rpcProvider}
+				encryptedQueue={null}
 			/>,
 		);
 		expect(screen.getByLabelText(/To Address/)).toBeInTheDocument();

@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 import { describe, expect, it } from "vitest";
 import {
+	decodeTrustedNotary,
 	deserializeSession,
 	type Session,
 	serializeSession,
@@ -78,6 +79,19 @@ describe("session", () => {
 
 		it("throws for invalid encodings", async () => {
 			await expect(() => deserializeSession("invalid")).rejects.toThrowError();
+		});
+	});
+
+	describe("decodeTrustedNotary", () => {
+		it("roundtrips a notary address", async () => {
+			const signer = ethers.Wallet.createRandom();
+			const session = await signinToSession({ signer, chainId: 1n });
+			const notary = decodeTrustedNotary(session.registration);
+			expect(notary).toEqual(session.relayer.address);
+		});
+
+		it("throws for invalid context", async () => {
+			expect(() => decodeTrustedNotary({ context: "0x" })).toThrowError();
 		});
 	});
 });

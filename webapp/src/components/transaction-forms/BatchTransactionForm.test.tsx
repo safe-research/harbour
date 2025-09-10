@@ -41,6 +41,7 @@ describe("BatchTransactionForm", () => {
 				browserProvider={browserProvider}
 				config={config}
 				rpcProvider={rpcProvider}
+				encryptedQueue={null}
 			/>,
 		);
 		expect(
@@ -78,6 +79,7 @@ describe("BatchTransactionForm", () => {
 				browserProvider={browserProvider}
 				config={config}
 				rpcProvider={rpcProvider}
+				encryptedQueue={null}
 			/>,
 		);
 		expect(screen.getByText(/Batch Transactions/)).toBeInTheDocument();
