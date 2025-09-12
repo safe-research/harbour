@@ -53,7 +53,7 @@ function harbourAt(
 	address: string | undefined,
 	runner?: ContractRunner,
 ): Contract {
-	return new Contract(address ?? HARBOUR_ADDRESS, HARBOUR_ABI, runner);
+	return new Contract(address || HARBOUR_ADDRESS, HARBOUR_ABI, runner);
 }
 
 /** The address of the default Secret Harbour contract. */
@@ -814,7 +814,7 @@ async function fetchEncryptionKey(
 ): Promise<FetchedEncryptionKey | null> {
 	const harbour = await getHarbourContract(settings);
 	if (harbour.type !== "secret") {
-		throw new Error("Only Secret Harbour may register encryption keys");
+		return null;
 	}
 
 	const [context, publicKey] =

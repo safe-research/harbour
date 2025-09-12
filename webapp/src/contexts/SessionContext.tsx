@@ -177,10 +177,10 @@ function SessionProvider({ children }: { children: ReactNode }) {
 		[update, wallet, provider],
 	);
 
-	const disconnect = () => {
+	const disconnect = useCallback(() => {
 		setSession(null);
 		setError(null);
-	};
+	}, []);
 
 	const value = {
 		connected: session !== null,
@@ -203,10 +203,6 @@ function SessionProvider({ children }: { children: ReactNode }) {
 		error,
 	};
 
-	useEffect(() => {
-		connect();
-	}, [connect]);
-
 	return (
 		<SessionContext.Provider value={value}>{children}</SessionContext.Provider>
 	);
@@ -217,6 +213,13 @@ function useSession(): SessionValue {
 	if (value === null) {
 		throw new Error("useSession must be used within a SessionContext provider");
 	}
+
+	const { connect, disconnect } = value;
+	useEffect(() => {
+		connect();
+		return disconnect;
+	}, [connect, disconnect]);
+
 	return value;
 }
 
