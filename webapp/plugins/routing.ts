@@ -41,7 +41,7 @@ async function parseRouteTree() {
 	// TODO: This parsing is flimsy at best, and may break if we start putting
 	// special characters into our paths, or React Router changes to use slightly
 	// different TypeScript syntax. Since I don't expect either to happen, this
-	// is good enough for now. In case either of those conditions chain, this
+	// is good enough for now. In case either of those conditions change, this
 	// parsing implementation should be made more robust.
 	const [, start] = tree.split("interface FileRoutesByFullPath {");
 	const [body] = start.split("}");
