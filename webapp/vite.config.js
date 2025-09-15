@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
+import { routing } from "./plugins/routing";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -25,6 +26,7 @@ export default defineConfig(({ mode }) => {
 			TanStackRouterVite({ autoCodeSplitting: true }),
 			viteReact(),
 			tailwindcss(),
+			routing(),
 		],
 		test: {
 			globals: true,
