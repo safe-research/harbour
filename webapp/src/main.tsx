@@ -1,4 +1,8 @@
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import {
+	createHashHistory,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 
@@ -16,10 +20,17 @@ import { WakuProvider } from "./contexts/WakuContext.tsx";
 import reportWebVitals from "./reportWebVitals.ts";
 
 /**
+ * TanStack history provider configured to use hashing instead of paths.
+ * This is to support hosting environments that do not have index.html rewriting.
+ */
+const history = createHashHistory();
+
+/**
  * TanStack Router instance configured with the generated route tree and TanStack Query context.
  */
 const router = createRouter({
 	routeTree,
+	history,
 	basepath: __BASE_PATH__,
 	context: {
 		...TanstackQuery.getContext(),
