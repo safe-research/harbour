@@ -3,6 +3,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "rimraf dist && tsc",
+		"build:mobile": "esbuild validator/src/mobile.ts --bundle --outfile=mobile/harbour.js --format=iife --global-name=Harbour",
 		"dev": "wrangler dev",
 		"deploy": "wrangler deploy --minify",
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
@@ -20,6 +21,7 @@
 	},
 	"devDependencies": {
 		"@types/node": "^24.1.0",
+		"esbuild": "^0.25.9",
 		"rimraf": "^6.0.1",
 		"tsx": "^4.20.3",
 		"typescript": "^5.8.3",
