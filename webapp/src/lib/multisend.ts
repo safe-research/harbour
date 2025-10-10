@@ -4,6 +4,10 @@ import type { MetaTransaction } from "./types";
 const MULTISEND_CALL_ONLY_ADDRESS =
 	"0x9641d764fc13c8B624c04430C7356C1C7C8102e2";
 
+const MULTISEND_INTERFACE = new ethers.Interface([
+	"function multiSend(bytes transactions) payable",
+]);
+
 function encodeMetaTransaction(tx: MetaTransaction): string {
 	const data = ethers.getBytes(tx.data);
 	const encoded = ethers.solidityPacked(
@@ -14,7 +18,8 @@ function encodeMetaTransaction(tx: MetaTransaction): string {
 }
 
 function encodeMultiSend(txs: MetaTransaction[]): string {
-	return `0x${txs.map((tx) => encodeMetaTransaction(tx)).join("")}`;
+	const transactions = `0x${txs.map((tx) => encodeMetaTransaction(tx)).join("")}`;
+	return MULTISEND_INTERFACE.encodeFunctionData("multiSend", [transactions]);
 }
 
 export { MULTISEND_CALL_ONLY_ADDRESS, encodeMultiSend };

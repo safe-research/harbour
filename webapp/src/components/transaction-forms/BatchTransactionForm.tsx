@@ -24,6 +24,7 @@ export function BatchTransactionForm({
 			to: MULTISEND_CALL_ONLY_ADDRESS,
 			value: "0",
 			data: multiData,
+			operation: 1,
 			nonce: config.nonce.toString(),
 		};
 	};
