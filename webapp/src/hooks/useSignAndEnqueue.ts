@@ -71,6 +71,7 @@ export function useSignAndEnqueue<T = SafeTransactionInput>({
 					to: data.to,
 					value: ethers.parseEther(data.value || "0").toString(),
 					data: data.data || "0x",
+					operation: data.operation ?? 0,
 					nonce: currentNonce.toString(),
 				});
 
