@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, HardHat, Link2, ScrollText } from "lucide-react";
-import type { ChangeEvent, MouseEvent } from "react";
+import { type ChangeEvent, type MouseEvent, useState } from "react";
 import { ActionCard } from "@/components/ActionCard";
 import { BackButton } from "@/components/BackButton";
 import { BalancesSection } from "@/components/BalancesSection";
@@ -39,6 +39,7 @@ function DashboardContent({
 		isLoading: isLoadingConfig,
 		error: errorConfig,
 	} = useSafeConfiguration(provider, safeAddress);
+	const [bundleError, setBundleError] = useState<Error | null>(null);
 	const navigate = useNavigate();
 	const { setBatch } = useBatch();
 
@@ -59,7 +60,7 @@ function DashboardContent({
 	const handleTxBundleClick = (event: MouseEvent<HTMLAnchorElement>) => {
 		event.preventDefault();
 
-		// TODO(nlordell): is this is ideomatic React?
+		// TODO(nlordell): is this ideomatic React?
 		const input = document.querySelector("#tx-bundle-file") as HTMLInputElement;
 		input.click();
 	};
@@ -70,12 +71,16 @@ function DashboardContent({
 			return;
 		}
 
-		const batch = await loadTxBundleFromFile(file);
-		setBatch(safeAddress, chainId, batch);
-		navigate({
-			to: "/enqueue",
-			search: { safe: safeAddress, chainId, flow: "batch" },
-		});
+		try {
+			const batch = await loadTxBundleFromFile(file);
+			setBatch(safeAddress, chainId, batch);
+			navigate({
+				to: "/enqueue",
+				search: { safe: safeAddress, chainId, flow: "batch" },
+			});
+		} catch (err) {
+			setBundleError(err as Error);
+		}
 	};
 
 	const walletConnectDisabled = !canUseWalletConnect();
@@ -96,6 +101,9 @@ function DashboardContent({
 				)}
 				{errorConfig && (
 					<p className="text-red-600">Error: {errorConfig.message}</p>
+				)}
+				{bundleError && (
+					<p className="text-red-600">Error: {bundleError.message}</p>
 				)}
 
 				{config && (
