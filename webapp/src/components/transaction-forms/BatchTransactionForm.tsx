@@ -34,11 +34,11 @@ export function BatchTransactionForm({
 		const multiData = encodeMultiSend(transactions);
 
 		return {
+			...tx,
 			to: MULTISEND_CALL_ONLY_ADDRESS,
 			value: "0",
 			data: multiData,
 			operation: 1,
-			...tx,
 		};
 	};
 
