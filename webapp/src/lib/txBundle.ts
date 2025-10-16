@@ -91,10 +91,19 @@ function toMetaTransaction(tx: z.infer<typeof transactionSchema>) {
 }
 
 async function loadTxBundleFromFile(file: File): Promise<MetaTransaction[]> {
-	const raw = await readFile(file);
-	const json = JSON.parse(raw);
-	const bundle = bundleSchema.parse(json);
-	return bundle.transactions.map(toMetaTransaction);
+	try {
+		const raw = await readFile(file);
+		const json = JSON.parse(raw);
+		const bundle = bundleSchema.parse(json);
+		return bundle.transactions.map(toMetaTransaction);
+	} catch (err) {
+		if (err instanceof z.ZodError) {
+			throw new Error(
+				`Invalid transaction bundle format: ${err.errors[0].message}`,
+			);
+		}
+		throw err;
+	}
 }
 
 export { loadTxBundleFromFile };
