@@ -28,14 +28,14 @@ const rawTransactionSchema = z.object({
 	to: ethereumAddressSchema,
 	value: numericStringSchema,
 	data: hexDataSchema,
-	contractMethod: z.undefined().optional(),
-	contractInputsValues: z.undefined().optional(),
+	contractMethod: z.null().optional(),
+	contractInputsValues: z.null().optional(),
 });
 
 const abiTransactionSchema = z.object({
 	to: ethereumAddressSchema,
 	value: numericStringSchema,
-	data: hexDataSchema.optional(),
+	data: hexDataSchema.nullable().optional(),
 	contractMethod: z.object({
 		inputs: z.array(contractMethodParameterSchema),
 		name: z.string(),
