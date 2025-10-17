@@ -74,7 +74,7 @@ type RawTransaction = z.infer<typeof rawTransactionSchema>;
 type Transaction = z.infer<typeof transactionSchema>;
 
 function isRawTransaction(tx: Transaction): tx is RawTransaction {
-	return tx.contractMethod === undefined;
+	return !tx.contractMethod;
 }
 
 function toMetaTransaction(tx: z.infer<typeof transactionSchema>) {
