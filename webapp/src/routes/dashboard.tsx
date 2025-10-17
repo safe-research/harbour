@@ -1,16 +1,19 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
-import { FileCode, Link2, ScrollText } from "lucide-react";
+import { FileCode, HardHat, Link2, ScrollText } from "lucide-react";
+import { type ChangeEvent, createRef, type MouseEvent, useState } from "react";
+import { ActionCard } from "@/components/ActionCard";
 import { BackButton } from "@/components/BackButton";
+import { BalancesSection } from "@/components/BalancesSection";
+import { RequireWallet } from "@/components/RequireWallet";
+import SafeConfigDisplay from "@/components/SafeConfigDisplay";
+import { useBatch } from "@/contexts/BatchTransactionsContext";
+import { useChainlistRpcProvider } from "@/hooks/useRpcProvider";
+import { useSafeConfiguration } from "@/hooks/useSafeConfiguration";
+import { loadTxBundleFromFile } from "@/lib/txBundle";
+import { safeIdSchema } from "@/lib/validators";
 import { canUseWalletConnect } from "@/lib/walletconnect";
-import { ActionCard } from "../components/ActionCard";
-import { BalancesSection } from "../components/BalancesSection";
-import { RequireWallet } from "../components/RequireWallet";
-import SafeConfigDisplay from "../components/SafeConfigDisplay";
-import { useChainlistRpcProvider } from "../hooks/useRpcProvider";
-import { useSafeConfiguration } from "../hooks/useSafeConfiguration";
-import { safeIdSchema } from "../lib/validators";
 
 interface DashboardContentProps {
 	/** Ethers JSON RPC API provider instance. */
@@ -36,7 +39,10 @@ function DashboardContent({
 		isLoading: isLoadingConfig,
 		error: errorConfig,
 	} = useSafeConfiguration(provider, safeAddress);
+	const [bundleError, setBundleError] = useState<Error | null>(null);
 	const navigate = useNavigate();
+	const { setBatch } = useBatch();
+	const fileInput = createRef<HTMLInputElement>();
 
 	const handleSendNative = () => {
 		navigate({
@@ -50,6 +56,29 @@ function DashboardContent({
 			to: "/enqueue",
 			search: { safe: safeAddress, chainId, flow: "erc20", tokenAddress },
 		});
+	};
+
+	const handleTxBundleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+		event.preventDefault();
+		fileInput.current?.click();
+	};
+
+	const handleTxBundle = async (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) {
+			return;
+		}
+
+		try {
+			const batch = await loadTxBundleFromFile(file);
+			setBatch(safeAddress, chainId, batch);
+			navigate({
+				to: "/enqueue",
+				search: { safe: safeAddress, chainId, flow: "batch" },
+			});
+		} catch (err) {
+			setBundleError(err as Error);
+		}
 	};
 
 	const walletConnectDisabled = !canUseWalletConnect();
@@ -70,6 +99,9 @@ function DashboardContent({
 				)}
 				{errorConfig && (
 					<p className="text-red-600">Error: {errorConfig.message}</p>
+				)}
+				{bundleError && (
+					<p className="text-red-600">Error: {bundleError.message}</p>
 				)}
 
 				{config && (
@@ -100,6 +132,24 @@ function DashboardContent({
 								search={{ safe: safeAddress, chainId }}
 								disabled={walletConnectDisabled}
 								disabledTooltip="WalletConnect is unavailable because VITE_WALLETCONNECT_PROJECT_ID is not set."
+							/>
+							<ActionCard
+								title="Transaction Bundle"
+								description="Import a transaction builder bundle from a JSON file, for easy batched transactions."
+								icon={HardHat}
+								ctaText="Import Tx Bundle"
+								to="/enqueue"
+								search={{ safe: safeAddress, chainId, flow: "batch" }}
+								onClick={handleTxBundleClick}
+							/>
+
+							{/* Hidden input element for opening a file dialog */}
+							<input
+								ref={fileInput}
+								type="file"
+								accept=".json"
+								style={{ display: "none" }}
+								onChange={handleTxBundle}
 							/>
 						</div>
 

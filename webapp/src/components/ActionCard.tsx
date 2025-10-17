@@ -2,6 +2,7 @@ import type { ToPathOption } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react"; // For precise icon typing
 import { ArrowUpRight } from "lucide-react";
+import type { MouseEventHandler } from "react";
 import type { SafeId } from "@/lib/validators";
 
 /**
@@ -18,12 +19,14 @@ interface ActionCardProps {
 	ctaText: string;
 	/** The path to link to. Should be a registered route. */
 	to: ToPathOption;
-	/** Search parameters for the link. Must include 'safe' and 'chainId'. */
-	search: SafeId;
+	/** Search parameters for the link. Must at least include 'safe' and 'chainId'. */
+	search: SafeId & Record<string, unknown>;
 	/** Whether the action card should appear disabled. */
 	disabled?: boolean;
 	/** Tooltip text shown when the card is disabled to explain why. */
 	disabledTooltip?: string;
+	/** Optional additional handler when clicking the link. */
+	onClick?: MouseEventHandler<HTMLAnchorElement>;
 }
 
 /**
@@ -40,6 +43,7 @@ function ActionCard({
 	search,
 	disabled = false,
 	disabledTooltip,
+	onClick,
 }: ActionCardProps) {
 	const CTA = disabled ? (
 		<span
@@ -53,6 +57,7 @@ function ActionCard({
 			to={to}
 			search={search}
 			className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-black rounded-md hover:bg-gray-800 transition-colors"
+			onClick={onClick}
 		>
 			{ctaText}
 			<ArrowUpRight className="w-4 h-4" />
