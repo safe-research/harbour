@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import type { JsonRpcApiProvider } from "ethers";
 import { FileCode, HardHat, Link2, ScrollText } from "lucide-react";
-import { type ChangeEvent, type MouseEvent, useState } from "react";
+import { type ChangeEvent, createRef, type MouseEvent, useState } from "react";
 import { ActionCard } from "@/components/ActionCard";
 import { BackButton } from "@/components/BackButton";
 import { BalancesSection } from "@/components/BalancesSection";
@@ -42,6 +42,7 @@ function DashboardContent({
 	const [bundleError, setBundleError] = useState<Error | null>(null);
 	const navigate = useNavigate();
 	const { setBatch } = useBatch();
+	const fileInput = createRef<HTMLInputElement>();
 
 	const handleSendNative = () => {
 		navigate({
@@ -59,10 +60,7 @@ function DashboardContent({
 
 	const handleTxBundleClick = (event: MouseEvent<HTMLAnchorElement>) => {
 		event.preventDefault();
-
-		// TODO(nlordell): is this ideomatic React?
-		const input = document.querySelector("#tx-bundle-file") as HTMLInputElement;
-		input.click();
+		fileInput.current?.click();
 	};
 
 	const handleTxBundle = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -147,8 +145,8 @@ function DashboardContent({
 
 							{/* Hidden input element for opening a file dialog */}
 							<input
+								ref={fileInput}
 								type="file"
-								id="tx-bundle-file"
 								accept=".json"
 								style={{ display: "none" }}
 								onChange={handleTxBundle}
