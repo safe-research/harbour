@@ -25,6 +25,11 @@ interface BatchContextValue {
 	) => void;
 	clearBatch: (safeAddress: string, chainId: bigint) => void;
 	getBatch: (safeAddress: string, chainId: bigint) => BatchedTransaction[];
+	setBatch: (
+		safeAddress: string,
+		chainId: bigint,
+		txs: MetaTransaction[],
+	) => void;
 	totalCount: number;
 }
 
@@ -116,6 +121,20 @@ function BatchProvider({ children }: { children: ReactNode }) {
 		return batches[key] ?? [];
 	};
 
+	const setBatch = (
+		safeAddress: string,
+		chainId: bigint,
+		txs: MetaTransaction[],
+	) => {
+		const key = getKey(safeAddress, chainId);
+		setBatches((prev) => {
+			return {
+				...prev,
+				[key]: txs.map((tx) => ({ ...tx, safeAddress, chainId })),
+			};
+		});
+	};
+
 	const totalCount = Object.values(batches).reduce(
 		(sum, arr) => sum + arr.length,
 		0,
@@ -129,6 +148,7 @@ function BatchProvider({ children }: { children: ReactNode }) {
 				removeTransaction,
 				clearBatch,
 				getBatch,
+				setBatch,
 				totalCount,
 			}}
 		>
